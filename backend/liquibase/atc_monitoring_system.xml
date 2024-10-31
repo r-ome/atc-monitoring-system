@@ -1,0 +1,361 @@
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xmlns:pro="http://www.liquibase.org/xml/ns/pro"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd
+        http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd
+        http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-latest.xsd">
+
+    <changeSet id="1" author="jerome.agapay">
+        <createTable tableName="suppliers">
+            <column name="supplier_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="name" type="varchar(255)"/>
+            <column name="supplier_code" type="varchar(255)"/>
+            <column name="num_of_containers" type="int" defaultValue="0"/>
+            <column name="japanese_name" type="varchar(255)"/>
+            <column name="shipper" type="varchar(255)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
+            <column name="deleted_at" type="datetime"/>
+        </createTable>
+
+        <createTable tableName="branches">
+            <column name="branch_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="name" type="varchar(255)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
+            <column name="deleted_at" type="datetime"/>
+        </createTable>
+
+        <sql>
+            INSERT INTO BRANCHES(name) values ("BIÑAN"), ("TARLAC");
+        </sql>
+
+        <createTable tableName="containers">
+            <column name="container_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="supplier_id" type="bigint">
+                <constraints  nullable="false" />
+            </column>
+            <column name="branch_id" type="bigint">
+                <constraints  nullable="false" />
+            </column>
+            <column name="barcode" type="varchar(255)"/>
+            <column name="container_num" type="varchar(255)"/>
+            <column name="departure_date_from_japan" type="datetime"/>
+            <column name="bill_of_lading_number" type="varchar(255)"/>
+            <column name="port_of_landing" type="varchar(255)"/>
+            <column name="eta_to_ph" type="datetime"/>
+            <column name="carrier" type="varchar(255)"/>
+            <column name="num_of_items" type="int" defaultValue="0"/>
+            <column name="arrival_date_warehouse_ph" type="datetime"/>
+            <column name="sorting_date" type="datetime"/>
+            <column name="auction_date" type="datetime"/>
+            <column name="payment_date" type="datetime"/>
+            <column name="telegraphic_transferred" type="datetime"/>
+            <column name="vessel" type="varchar(255)"/>
+            <column name="invoice_num" type="varchar(255)"/>
+            <column name="gross_weight" type="varchar(255)"/>
+            <column name="vanning_date" type="datetime"/>
+            <column name="devanning_date" type="datetime"/>
+            <column name="auction_or_sell" type="varchar(255)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
+            <column name="deleted_at" type="datetime"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="containers"
+            baseColumnNames="supplier_id"
+            constraintName="fk_containers_suppliers"
+            referencedTableName="suppliers"
+            referencedColumnNames="supplier_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+        
+        <addForeignKeyConstraint
+            baseTableName="containers"
+            baseColumnNames="branch_id"
+            constraintName="fk_branches_containers"
+            referencedTableName="branches"
+            referencedColumnNames="branch_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+
+        <createTable tableName="bidders">
+            <column name="bidder_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="branch_id" type="bigint" defaultValue="1">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="bidder_number" type="varchar(255)"/>
+            <column name="first_name" type="varchar(255)"/>
+            <column name="middle_name" type="varchar(255)"/>
+            <column name="last_name" type="varchar(255)"/>
+            <column name="service_charge" type="varchar(255)"/>
+            <column name="old_number" type="varchar(255)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
+            <column name="deleted_at" type="datetime"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="bidders"
+            baseColumnNames="branch_id"
+            constraintName="fk_bidders_branch"
+            referencedTableName="branches"
+            referencedColumnNames="branch_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+
+        <createTable tableName="bidder_requirements">
+            <column name="requirement_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="bidder_id" type="bigint">
+                <constraints nullable="false" />
+            </column>
+            <column name="name" type="varchar(255)"/>
+            <column name="url" type="varchar(255)"/>
+            <column name="validity_date" type="datetime"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
+            <column name="deleted_at" type="datetime"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="bidder_requirements"
+            baseColumnNames="bidder_id"
+            constraintName="fk_bidder_requirements_bidders"
+            referencedTableName="bidders"
+            referencedColumnNames="bidder_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+
+        <createTable tableName="inventories">
+            <column name="inventory_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="container_id" type="bigint">
+                <constraints nullable="false" />
+            </column>
+            <column name="description" type="varchar(255)"/>
+            <column name="price" type="bigint"/>
+            <column name="control_number" type="varchar(255)"/>
+            <column name="url" type="varchar(255)"/>
+            <column name="qty" type="varchar(255)"/>
+            <column name="barcode_number" type="varchar(255)"/>
+            <column name="status" type="enum('SOLD', 'UNSOLD')" defaultValue="UNSOLD">
+                <constraints nullable="false" />
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
+            <column name="deleted_at" type="datetime"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="inventories"
+            baseColumnNames="container_id"
+            constraintName="fk_inventories_containers"
+            referencedTableName="containers"
+            referencedColumnNames="container_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+
+        <createTable tableName="auctions">
+            <column name="auction_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
+            <column name="deleted_at" type="datetime"/>
+        </createTable>
+
+        <createTable tableName="payments">
+            <column name="payment_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="auction_id" type="bigint">
+                <constraints nullable="false" />
+            </column>
+            <column name="bidder_id" type="bigint">
+                <constraints nullable="false" />
+            </column>
+            <column name="purpose" type="enum('REGISTRATION', 'PULL_OUT')" defaultValue="REGISTRATION">
+                <constraints nullable="false" />
+            </column>
+            <column name="balance" type="bigint" defaultValue="0"/>
+            <column name="payment" type="bigint" defaultValue="0"/>
+            <column name="receipt_number" type="int" defaultValue="0"/>
+            <column name="payment_type" type="enum('CASH', 'CHEQUE', 'BANK_TRANSFER')" defaultValue="CASH">
+                <constraints nullable="false" />
+            </column>
+            <column name="remarks" type="varchar(255)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
+            <column name="deleted_at" type="datetime"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="payments"
+            baseColumnNames="bidder_id"
+            constraintName="fk_payments_bidders"
+            referencedTableName="bidders"
+            referencedColumnNames="bidder_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+
+        <addForeignKeyConstraint
+            baseTableName="payments"
+            baseColumnNames="auction_id"
+            constraintName="fk_payments_auctions"
+            referencedTableName="auctions"
+            referencedColumnNames="auction_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+
+        <createTable tableName="auctions_inventories">
+            <column name="auction_inventory_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="auction_id" type="bigint">
+                <constraints nullable="false" />
+            </column>
+            <column name="inventory_id" type="bigint">
+                <constraints nullable="false" />
+            </column>
+            <column name="payment_id" type="bigint"/>
+            <column name="bidder_id" type="bigint">
+                <constraints nullable="false" />
+            </column>
+            <column name="status" type="enum('PAID', 'UNPAID', 'CANCELLED')" defaultValue="UNPAID">
+                <constraints nullable="false" />
+            </column>
+            <column name="manifest_number" type="varchar(255)"/>
+            <column name="remarks" type="varchar(255)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
+            <column name="deleted_at" type="datetime"/>
+        </createTable>
+
+        <addUniqueConstraint 
+            columnNames="inventory_id" 
+            tableName="auctions_inventories" 
+            constraintName="unique_inventory_id"/>
+
+
+        <addForeignKeyConstraint
+            baseTableName="auctions_inventories"
+            baseColumnNames="inventory_id"
+            constraintName="fk_auction_inventories_auction_inventory"
+            referencedTableName="inventories"
+            referencedColumnNames="inventory_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+
+        <addForeignKeyConstraint
+            baseTableName="auctions_inventories"
+            baseColumnNames="auction_id"
+            constraintName="fk_auction_inventories_auction_auction"
+            referencedTableName="auctions"
+            referencedColumnNames="auction_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+
+        <addForeignKeyConstraint
+            baseTableName="auctions_inventories"
+            baseColumnNames="bidder_id"
+            constraintName="fk_auction_inventories_auction_bidders"
+            referencedTableName="bidders"
+            referencedColumnNames="bidder_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+
+        <addForeignKeyConstraint
+            baseTableName="auctions_inventories"
+            baseColumnNames="payment_id"
+            constraintName="fk_auction_inventories_payments"
+            referencedTableName="payments"
+            referencedColumnNames="payment_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+
+        <createTable tableName="auctions_bidders">
+            <column name="auction_bidders_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="auction_id" type="bigint">
+                <constraints nullable="false" />
+            </column>
+            <column name="bidder_id" type="bigint">
+                <constraints nullable="false" />
+            </column>
+            <column name="service_charge" type="varchar(255)"/>
+            <column name="already_consumed" type="tinyint" defaultValue="0"/>
+            <column name="registration_fee" type="int"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
+            <column name="deleted_at" type="datetime"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="auctions_bidders"
+            baseColumnNames="auction_id"
+            constraintName="fk_auction_bidders_auctions"
+            referencedTableName="auctions"
+            referencedColumnNames="auction_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+
+        <addForeignKeyConstraint
+            baseTableName="auctions_bidders"
+            baseColumnNames="bidder_id"
+            constraintName="fk_auction_bidders_bidders"
+            referencedTableName="bidders"
+            referencedColumnNames="bidder_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+    </changeSet>
+
+</databaseChangeLog>
