@@ -1,6 +1,7 @@
-const { query } = require(".");
-const { logger } = require("../logger");
-module.exports = {
+import { query } from "./index.js";
+import { logger } from "../logger.js";
+
+export default {
   getBidder: async (bidder_id) => {
     try {
       return await query(`SELECT * FROM bidders WHERE bidder_id = ?`, [

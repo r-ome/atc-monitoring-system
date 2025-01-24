@@ -1,56 +1,87 @@
-const { query } = require("./");
-const { logger } = require("../logger");
-const { formatNumberPadding } = require("../utils");
+import { query } from "./index.js";
+import { logDBError } from "../logger.js";
+import { formatNumberPadding, formatToReadableDate } from "../utils/index.js";
 
-module.exports = {
-  getContainerIdByBarcode: async (barcode) => {
-    try {
-      const result = await query(
-        `
+export const getContainerIdByBarcode = async (barcode) => {
+  try {
+    const result = await query(
+      `
         SELECT container_id, barcode
         FROM containers
         WHERE barcode = ?
       `,
-        [barcode]
-      );
+      [barcode]
+    );
 
-      return result;
-    } catch (error) {
-      logger.error({ func: "getContainers", error });
-      throw { message: "DB error" };
-    }
-  },
+    return result;
+  } catch (error) {
+    logDBError("getContainers", error);
+    throw { message: "DB error" };
+  }
+};
 
-  getBarcodesFromContainers: async () => {
-    try {
-      const result = await query(`SELECT barcode FROM containers;`);
-      return result;
-    } catch (error) {
-      logger.error({ func: "getBarcodesFromContainers", error });
-      throw { message: "DB error" };
-    }
-  },
+export const getBarcodesFromContainers = async () => {
+  try {
+    const result = await query(`SELECT barcode FROM containers;`);
+    return result;
+  } catch (error) {
+    logDBError("getBarcodesFromContainers", error);
+    throw { message: "DB error" };
+  }
+};
 
-  getContainer: async (id) => {
-    try {
-      const result = await query(
-        `
-          SELECT c.*
+export const getContainer = async (id) => {
+  try {
+    const result = await query(
+      `
+          SELECT
+            c.container_id,
+            JSON_OBJECT(
+              'id', s.supplier_id,
+              'name', s.name,
+              'code', s.supplier_code
+            ) AS supplier,
+            JSON_OBJECT(
+              'id', c.branch_id,
+              'name', b.name
+            ) AS branch,
+            c.container_num,
+            c.bill_of_lading_number,
+            c.port_of_landing,
+            c.carrier,
+            c.vessel,
+            c.num_of_items,
+            DATE_FORMAT(c.departure_date_from_japan, '%b %d, %Y %h:%i%p') AS departure_date_from_japan,
+            DATE_FORMAT(c.eta_to_ph, '%b %d, %Y %h:%i%p') AS eta_to_ph,
+            DATE_FORMAT(c.arrival_date_warehouse_ph, '%b %d, %Y %h:%i%p') AS arrival_date_warehouse_ph,
+            DATE_FORMAT(c.sorting_date, '%b %d, %Y %h:%i%p') AS sorting_date,
+            DATE_FORMAT(c.auction_date, '%b %d, %Y %h:%i%p') AS auction_date,
+            DATE_FORMAT(c.payment_date, '%b %d, %Y %h:%i%p') AS payment_date,
+            DATE_FORMAT(c.telegraphic_transferred, '%b %d, %Y %h:%i%p') AS telegraphic_transferred,
+            DATE_FORMAT(c.vanning_date, '%b %d, %Y %h:%i%p') AS vanning_date,
+            DATE_FORMAT(c.devanning_date, '%b %d, %Y %h:%i%p') AS devanning_date,
+            c.invoice_num,
+            c.gross_weight,
+            c.auction_or_sell,
+            DATE_FORMAT(c.created_at, '%b %d, %Y %h:%i%p') AS created_at,
+            DATE_FORMAT(c.updated_at, '%b %d, %Y %h:%i%p') AS updated_at
           FROM containers c
+          LEFT JOIN suppliers s ON s.supplier_id = c.supplier_id
+          LEFT JOIN branches b ON b.branch_id = c.branch_id
           WHERE c.container_id = ?;
         `,
-        [id]
-      );
-      return result;
-    } catch (error) {
-      logger.error({ func: "getContainer", error });
-      throw { message: "DB error" };
-    }
-  },
+      [id]
+    );
+    return result;
+  } catch (error) {
+    logDBError("getContainer", error);
+    throw { message: "DB error" };
+  }
+};
 
-  getContainers: async () => {
-    try {
-      return await query(`
+export const getContainers = async () => {
+  try {
+    return await query(`
         SELECT
           c.*,
           s.name
@@ -58,42 +89,63 @@ module.exports = {
         LEFT JOIN suppliers s on s.supplier_id = c.supplier_id
         WHERE c.deleted_at IS NULL
       `);
-    } catch (error) {
-      logger.error({ func: "getContainers", error });
-      throw { message: "DB error" };
-    }
-  },
+  } catch (error) {
+    logDBError("getContainers", error);
+    throw { message: "DB error" };
+  }
+};
 
-  getContainersBySupplier: async (supplier_id) => {
-    try {
-      return await query(
-        `
+export const getContainersBySupplier = async (supplier_id) => {
+  try {
+    return await query(
+      `
         SELECT
-          c.*,
-          s.name
-        FROM containers c
-        LEFT JOIN suppliers s ON s.supplier_id = c.supplier_id
-        WHERE c.supplier_id = ? AND c.deleted_at IS NULL
+          s.supplier_id,
+          s.name,
+          s.supplier_code,
+          s.num_of_containers,
+          IFNULL(
+            (
+              SELECT JSON_ARRAYAGG(JSON_OBJECT(
+                'container_id', c.container_id,
+                'barcode', c.barcode,
+                'container_num', c.container_num,
+                'num_of_items', c.num_of_items,
+                'branch', JSON_OBJECT('id', c.branch_id, 'name', b.name)
+              ))
+              FROM containers c
+              LEFT JOIN branches b ON b.branch_id = c.branch_id
+              WHERE c.supplier_id = s.supplier_id
+                AND c.deleted_at IS NULL
+            ),
+            JSON_ARRAY()
+          ) AS containers
+        FROM suppliers s
+        WHERE s.supplier_id = ?;
       `,
-        [supplier_id]
-      );
-    } catch (error) {
-      logger.error({ func: "getContainersBySupplier", error });
-      throw { message: "DB error" };
-    }
-  },
+      [supplier_id]
+    );
+  } catch (error) {
+    logDBError("getContainersBySupplier", error);
+    throw { message: "DB error" };
+  }
+};
 
-  createContainer: async (supplier_id, container) => {
-    try {
-      const [{ supplier_code, supplier_name }] = await query(
-        `
-          SELECT supplier_code, name as supplier_name FROM suppliers WHERE supplier_id = ?
+export const createContainer = async (supplier_id, container) => {
+  try {
+    const [{ supplier_code, supplier_name }] = await query(
+      `
+        SELECT
+          supplier_code,
+          name AS supplier_name
+        FROM suppliers
+        WHERE supplier_id = ?
       `,
-        [supplier_id]
-      );
+      [supplier_id]
+    );
 
-      const result = await query(
-        `
+    const result = await query(
+      `
         INSERT INTO containers(
           supplier_id,
           barcode,
@@ -117,93 +169,108 @@ module.exports = {
           branch_id
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-        [
-          supplier_id,
-          `${supplier_code}-${formatNumberPadding(container.container_num)}`,
-          container.container_num,
-          container.departure_date_from_japan,
-          container.bill_of_lading_number,
-          container.port_of_landing,
-          container.eta_to_ph,
-          container.carrier,
-          container.arrival_date_warehouse_ph,
-          container.sorting_date,
-          container.auction_date,
-          container.payment_date,
-          container.telegraphic_transferred,
-          container.vessel,
-          container.invoice_num,
-          container.gross_weight,
-          container.vanning_date,
-          container.delivery_place,
-          container.auction_or_sell,
-          container.branch_id,
-        ]
-      );
+      [
+        supplier_id,
+        `${supplier_code}-${formatNumberPadding(container.container_num)}`,
+        container.container_num,
+        container.departure_date_from_japan,
+        container.bill_of_lading_number,
+        container.port_of_landing,
+        container.eta_to_ph,
+        container.carrier,
+        container.arrival_date_warehouse_ph,
+        container.sorting_date,
+        container.auction_date,
+        container.payment_date,
+        container.telegraphic_transferred,
+        container.vessel,
+        container.invoice_num,
+        container.gross_weight,
+        container.vanning_date,
+        container.delivery_place,
+        container.auction_or_sell,
+        container.branch_id,
+      ]
+    );
 
-      await query(
-        `UPDATE suppliers SET num_of_containers = num_of_containers +1 WHERE supplier_id = ?`,
-        [supplier_id]
-      );
+    // NOTE: GET BACK TO THIS
+    // DILEMMA: IF EITHER WE SHOULD ADD CUSTOM "num_of_containers" OR RESET IT TO 0
+    await query(
+      `UPDATE suppliers SET num_of_containers = num_of_containers +1 WHERE supplier_id = ?`,
+      [supplier_id]
+    );
 
-      if (result.insertId) {
-        return {
-          ...container,
+    const [{ name: branch_name }] = await query(
+      `SELECT name FROM branches WHERE branch_id = ?`,
+      [container.branch_id]
+    );
+
+    const newContainer = formatToReadableDate(container);
+
+    if (result.insertId) {
+      return {
+        container_id: result.insertId,
+        supplier: {
+          id: supplier_id,
           name: supplier_name,
-          supplier_code,
-          barcode: `${supplier_code}-${formatNumberPadding(
-            container.container_num
-          )}`,
-          container_id: result.insertId,
-        };
-      }
-    } catch (error) {
-      logger.error({ func: "createContainer", error });
-      throw { message: "DB error" };
+          code: supplier_code,
+        },
+        branch: {
+          id: container.branch_id,
+          name: branch_name,
+        },
+        ...newContainer,
+        barcode: `${supplier_code}-${formatNumberPadding(
+          container.container_num
+        )}`,
+      };
     }
-  },
+  } catch (error) {
+    logDBError("createContainer", error);
+    throw { message: "DB error" };
+  }
+};
 
-  updateContainer: async (id, container) => {
-    try {
-      const result = await query(
-        `
+export const updateContainer = async (id, container) => {
+  try {
+    const result = await query(
+      `
         UPDATE containers
         SET ?
         WHERE container_id = ? AND deleted_at IS NULL;
         `,
-        [container, id]
-      );
-      const updatedContainer = await query(
-        `SELECT * FROM containers c WHERE container_id = ?`,
-        [id]
-      );
+      [container, id]
+    );
+    const updatedContainer = await query(
+      `SELECT * FROM containers c WHERE container_id = ?`,
+      [id]
+    );
 
-      if (result.affectedRows) {
-        return updatedContainer[0];
-      }
-    } catch (error) {
-      logger.error({ func: "updateContainer", error });
-      throw { message: "DB error" };
+    if (result.affectedRows) {
+      return updatedContainer[0];
     }
-  },
+  } catch (error) {
+    logDBError("updateContainer", error);
+    throw { message: "DB error" };
+  }
+};
 
-  deleteContainer: async (id) => {
-    try {
-      const result = await query(
-        `
+export const deleteContainer = async (id) => {
+  try {
+    const result = await query(
+      `
           UPDATE containers
           SET deleted_at = NOW()
           WHERE container_id = ? AND deleted_at IS NULL;
         `,
-        [id]
-      );
+      [id]
+    );
 
-      if (result.affectedRows) {
-        return { container_id: id };
-      }
-    } catch (error) {
-      logger.error({ func: "deleteContainer", error });
-      throw { message: "DB error" };
+    if (result.affectedRows) {
+      return { container_id: id };
     }
-  },
+  } catch (error) {
+    logDBError("deleteContainer", error);
+    throw { message: "DB error" };
+  }
 };

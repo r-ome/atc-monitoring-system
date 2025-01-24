@@ -13,9 +13,13 @@
             <column name="supplier_id" type="bigint" autoIncrement="true">
                 <constraints primaryKey="true" nullable="false" />
             </column>
-            <column name="name" type="varchar(255)"/>
-            <column name="supplier_code" type="varchar(255)"/>
-            <column name="num_of_containers" type="int" defaultValue="0"/>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="supplier_code" type="varchar(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="num_of_containers" type="int"/>
             <column name="japanese_name" type="varchar(255)"/>
             <column name="shipper" type="varchar(255)"/>
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
@@ -29,7 +33,9 @@
             <column name="branch_id" type="bigint" autoIncrement="true">
                 <constraints primaryKey="true" nullable="false" />
             </column>
-            <column name="name" type="varchar(255)"/>
+            <column name="name" type="varchar(255)">
+                <constraints  nullable="false" unique="true" />
+            </column>
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
                 <constraints nullable="false"/>
             </column>
@@ -46,13 +52,13 @@
                 <constraints primaryKey="true" nullable="false" />
             </column>
             <column name="supplier_id" type="bigint">
-                <constraints  nullable="false" />
+                <constraints nullable="false" />
             </column>
             <column name="branch_id" type="bigint">
-                <constraints  nullable="false" />
+                <constraints nullable="false" />
             </column>
             <column name="barcode" type="varchar(255)"/>
-            <column name="container_num" type="varchar(255)"/>
+            <column name="container_num" type="int"/>
             <column name="departure_date_from_japan" type="datetime"/>
             <column name="bill_of_lading_number" type="varchar(255)"/>
             <column name="port_of_landing" type="varchar(255)"/>
@@ -69,7 +75,7 @@
             <column name="gross_weight" type="varchar(255)"/>
             <column name="vanning_date" type="datetime"/>
             <column name="devanning_date" type="datetime"/>
-            <column name="auction_or_sell" type="varchar(255)"/>
+            <column name="auction_or_sell" type="enum('AUCTION', 'SELL')"/>
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
                 <constraints nullable="false"/>
             </column>
@@ -108,7 +114,7 @@
             <column name="first_name" type="varchar(255)"/>
             <column name="middle_name" type="varchar(255)"/>
             <column name="last_name" type="varchar(255)"/>
-            <column name="service_charge" type="varchar(255)"/>
+            <column name="service_charge" type="int"/>
             <column name="old_number" type="varchar(255)"/>
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
                 <constraints nullable="false"/>
@@ -327,7 +333,7 @@
             <column name="bidder_id" type="bigint">
                 <constraints nullable="false" />
             </column>
-            <column name="service_charge" type="varchar(255)"/>
+            <column name="service_charge" type="int"/>
             <column name="already_consumed" type="tinyint" defaultValue="0"/>
             <column name="registration_fee" type="int"/>
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
@@ -353,6 +359,39 @@
             constraintName="fk_auction_bidders_bidders"
             referencedTableName="bidders"
             referencedColumnNames="bidder_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+
+        <createTable tableName="inventory_histories">
+            <column name="inventory_history_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="auction_id" type="bigint"/>
+            <column name="inventory_id" type="bigint">
+                <constraints nullable="false" />
+            </column>
+            <column name="uploaded_from" type="enum('INVENTORY', 'AUCTION')"/>
+            <column name="item_status" type="enum('PAID', 'UNPAID')">
+                <constraints nullable="false" />
+            </column>
+            <column name="auction_status" type="enum('SOLD', 'UNSOLD', 'CANCELLED', 'REFUNDED', 'CUT-PRICE')" defaultValue="SOLD">
+                <constraints nullable="false" />
+            </column>
+            <column name="remarks" type="varchar(255)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
+            <column name="deleted_at" type="datetime"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="inventory_histories"
+            baseColumnNames="inventory_id"
+            constraintName="fk_inventory_inventory_history"
+            referencedTableName="inventories"
+            referencedColumnNames="inventory_id"
             onUpdate="CASCADE"
             onDelete="CASCADE"
         />

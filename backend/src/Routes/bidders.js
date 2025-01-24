@@ -1,4 +1,5 @@
-const express = require("express");
+import express from "express";
+import service from "../services/bidders.js";
 const {
   getBidder,
   getBidderByBidderNumber,
@@ -10,11 +11,11 @@ const {
   getRequirements,
   getAuctionsJoined,
   getBidderPaymentHistory,
-} = require("../services/bidders");
-const { logger } = require("../logger");
+} = service;
+import { logger } from "../logger.js";
+import Joi from "joi";
 const router = express.Router();
-const Joi = require("joi");
-const { formatNumberToCurrency } = require("../utils");
+import { formatNumberToCurrency } from "../utils/index.js";
 
 router.get("/:id", async (req, res) => {
   try {
@@ -287,4 +288,4 @@ router.get("/:bidder_id/payments", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

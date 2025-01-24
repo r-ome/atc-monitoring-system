@@ -1,17 +1,18 @@
-const express = require("express");
-require("dotenv").config();
+import express from "express";
+import dotenv from "dotenv";
+dotenv.config();
 const app = express();
-const cors = require("cors");
-const bodyParser = require("body-parser");
-const { logger, morganMiddleware } = require("./logger");
-const {
+import cors from "cors";
+import bodyParser from "body-parser";
+import { logger, morganMiddleware } from "./logger.js";
+import {
   auctions,
   suppliers,
   containers,
   branches,
   inventories,
   bidders,
-} = require("./Routes");
+} from "./Routes/index.js";
 
 logger.info("STARTING APPLICATION");
 app.use(bodyParser.json());

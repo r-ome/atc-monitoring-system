@@ -1,36 +1,57 @@
-const express = require("express");
-const {
+import express from "express";
+import Joi from "joi";
+
+import {
+  getSupplierByNameCode,
   getSupplier,
   getSuppliers,
   createSupplier,
   updateSupplier,
   deleteSupplier,
-} = require("../services/suppliers");
-const router = express.Router();
-const { logger } = require("../logger");
-const Joi = require("joi");
+} from "../services/suppliers.js";
+import { logger } from "../logger.js";
+import {
+  renderHttpError,
+  SUPPLIERS_401,
+  SUPPLIERS_402,
+  SUPPLIERS_403,
+  SUPPLIERS_500,
+  SUPPLIERS_501,
+} from "./error_infos.js";
+import { DB_ERROR_EXCEPTION } from "../services/index.js";
 
-router.get("/:id", async (req, res) => {
+const router = express.Router();
+
+router.get("/:supplier_id", async (req, res) => {
   try {
-    const supplier = await getSupplier(req.params.id);
-    res.status(200).json({ status: "success", data: supplier[0] });
+    const { supplier_id } = req.params;
+    const suppliers = await getSupplier(supplier_id);
+    if (suppliers.length) {
+      let supplier = suppliers[0];
+      return res.status(200).json({ data: supplier });
+    } else {
+      return renderHttpError(res, {
+        log: `Supplier with ID:${supplier_id} does not exist`,
+        error: SUPPLIERS_403,
+      });
+    }
   } catch (error) {
-    logger.error(error);
-    res
-      .status(500)
-      .json({ status: "fail", code: 500, error: "Internal Server Error" });
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? SUPPLIERS_501 : SUPPLIERS_500,
+    });
   }
 });
 
 router.get("/", async (req, res) => {
   try {
     const suppliers = await getSuppliers();
-    res.status(200).json({ status: "success", data: suppliers });
+    return res.status(200).json({ data: suppliers });
   } catch (error) {
-    logger.error(error);
-    res
-      .status(500)
-      .json({ status: "fail", code: 500, error: "Internal Server Error" });
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? SUPPLIERS_501 : SUPPLIERS_500,
+    });
   }
 });
 
@@ -51,11 +72,8 @@ router.post("/", async (req, res) => {
       supplier_code: Joi.string().min(1).max(255).required().messages({
         "string.pattern.base": "Invalid characters",
         "string.empty": "Supplier Code is required",
-        "string.min": "Must be at least 3 characters ",
+        "string.min": "Must be at least 1 characters ",
       }),
-      num_of_containers: Joi.number()
-        .required()
-        .messages({ "number.base": "Should be a number" }),
       shipper: Joi.string().min(3).max(255).required().messages({
         "string.pattern.base": "Invalid characters",
         "string.empty": "Supplier Code is required",
@@ -63,32 +81,39 @@ router.post("/", async (req, res) => {
       }),
     });
 
-    const { error } = schema.validate(req.body);
+    const { body } = req;
+    // validation check
+    const { error } = schema.validate(body);
     if (error) {
       const errorDetails = error.details.map((err) => {
-        console.log(err);
         return {
           field: err.context.key,
           message: err.message,
         };
       });
 
-      logger.error(JSON.stringify(errorDetails, null, 2));
-      return res.status(400).json({
-        status: "fail",
-        code: 400,
-        errors: errorDetails,
+      return renderHttpError(res, {
+        log: JSON.stringify(errorDetails, null, 2),
+        error: SUPPLIERS_401,
       });
     }
 
-    const response = await createSupplier(req.body);
+    // duplicate check
+    const check = await getSupplierByNameCode(body.name, body.supplier_code);
+    if (check.length) {
+      return renderHttpError(res, {
+        log: `Duplicate entry for name:"${body.name}" OR code:"${body.supplier_code}"`,
+        error: SUPPLIERS_402,
+      });
+    }
+    const response = await createSupplier(body);
     const [supplier] = await getSupplier(response.insertId);
-    res.status(200).json({ status: "success", data: supplier });
+    return res.status(200).json({ data: supplier });
   } catch (error) {
-    logger.error(error);
-    res
-      .status(500)
-      .json({ status: "fail", code: 500, error: "Internal Server Error" });
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? SUPPLIERS_501 : SUPPLIERS_500,
+    });
   }
 });
 
@@ -160,4 +185,4 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

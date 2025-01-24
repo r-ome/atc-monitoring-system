@@ -1,4 +1,5 @@
-const express = require("express");
+import express from "express";
+import service from "../services/auctions.js";
 const {
   getAuctionDetails,
   getAuctions,
@@ -12,28 +13,28 @@ const {
   getRegisteredBidders,
   removeRegisteredBidder,
   validateExistingAuctionInventories,
-} = require("../services/auctions");
-const {
-  getBidder,
-  getMultipleBiddersByBidderNumber,
-} = require("../services/bidders");
+  cancelItem,
+} = service;
+import bidderService from "../services/bidders.js";
+const { getBidder, getMultipleBiddersByBidderNumber } = bidderService;
+import inventoryService from "../services/inventories.js";
 const {
   getInventoryByBarcodeAndControl,
   addInventoryFromEncoding,
   addAuctionInventoriesFromEncoding,
-} = require("../services/inventories");
-const {
+} = inventoryService;
+import {
   getContainerIdByBarcode,
   getBarcodesFromContainers,
-} = require("../services/containers");
-const { logger } = require("../logger");
+} from "../services/containers.js";
+import { logger } from "../logger.js";
 const router = express.Router();
-const Joi = require("joi");
-const {
+import Joi from "joi";
+import {
   sanitizeBarcode,
   formatNumberPadding,
   formatNumberToCurrency,
-} = require("../utils");
+} from "../utils/index.js";
 
 router.get("/", async (_, res) => {
   try {
@@ -369,6 +370,7 @@ router.post("/:auction_id/encode", async (req, res) => {
               "UNPAID",
               row.manifest_number,
             ]);
+            console.log(auction_inventories);
             await addAuctionInventoriesFromEncoding(auction_inventories);
           }
 
@@ -489,4 +491,16 @@ router.get("/:auction_id/details", async (req, res) => {
   }
 });
 
-module.exports = router;
+router.post("/:auction_id/cancel-item/:inventory_id", async (req, res) => {
+  try {
+    const { auction_id, inventory_id } = req.params;
+    const [inventory] = await cancelItem(auction_id, inventory_id);
+
+    return res.status(200).json({ status: "success", data: inventory });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ status: "fail", error });
+  }
+});
+
+export default router;

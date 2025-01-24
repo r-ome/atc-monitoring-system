@@ -1,7 +1,7 @@
-const { query } = require("./");
-const { logger } = require("../logger");
+import { query } from "./index.js";
+import { logger } from "../logger.js";
 
-module.exports = {
+export default {
   getAuctionDetails: async (auction_id) => {
     try {
       return await query(
@@ -156,6 +156,7 @@ module.exports = {
       return await query(
         `
           SELECT
+            ai.auction_id,
             i.inventory_id,
             i.barcode_number,
             i.control_number,
@@ -163,6 +164,8 @@ module.exports = {
             i.qty,
             i.price,
             b.bidder_number,
+            i.status AS item_status,
+            ai.auction_inventory_id,
             ai.status,
             ai.manifest_number
           FROM inventories i
@@ -194,6 +197,7 @@ module.exports = {
       const inventories = manifest
         .filter((item) => item.bidder_id && item.inventory_id)
         .map((item) => [item.inventory_id, item.price, item.qty]);
+      console.log({ inventories, auction_id });
 
       await query(
         `CREATE TEMPORARY TABLE TEMP_UPDATE_INVENTORIES (inventory_id BIGINT, price VARCHAR(255), qty VARCHAR(255))`
@@ -382,6 +386,59 @@ module.exports = {
       return result;
     } catch (error) {
       logger.error({ func: "validateExistingAuctionInventories", error });
+      throw { message: "DB error" };
+    }
+  },
+
+  cancelItem: async (auction_id, inventory_id) => {
+    try {
+      const [inventory] = await query(
+        `SELECT status FROM auctions_inventories WHERE inventory_id = ? ORDER BY auction_inventory_id DESC LIMIT 1`,
+        [inventory_id]
+      );
+
+      await query(
+        `
+          UPDATE auctions_inventories
+          SET status = "CANCELLED"
+          WHERE auction_id = ? AND inventory_id = ?
+        `,
+        [auction_id, inventory_id]
+      );
+
+      await query(
+        `
+        INSERT INTO inventory_histories (auction_id, inventory_id, item_status, auction_status)
+        VALUES (?, ?, ?, ?)
+      `,
+        [auction_id, inventory_id, inventory.status, "CANCELLED"]
+      );
+
+      const result = await query(
+        `
+          SELECT
+            ai.auction_id,
+            i.inventory_id,
+            i.barcode_number,
+            i.control_number,
+            i.description,
+            i.qty,
+            i.price,
+            b.bidder_number,
+            i.status AS item_status,
+            ai.auction_inventory_id,
+            ai.status,
+            ai.manifest_number
+          FROM inventories i
+          LEFT JOIN auctions_inventories ai ON ai.inventory_id = i.inventory_id
+          LEFT JOIN bidders b ON b.bidder_id = ai.bidder_id
+          WHERE ai.auction_id = ? AND i.inventory_id = ?;
+        `,
+        [auction_id, inventory_id]
+      );
+      return result;
+    } catch (error) {
+      logger.error({ func: "cancelItem", error });
       throw { message: "DB error" };
     }
   },

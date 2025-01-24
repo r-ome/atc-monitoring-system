@@ -1,3 +1,5 @@
+import moment from "moment";
+
 export const formatNumberPadding = (num, padding = 3) =>
   num?.toString().padStart(padding, "0");
 
@@ -15,4 +17,19 @@ export const formatNumberToCurrency = (num) => {
     currency: "PHP",
     minimumFractionDigits: 2,
   }).format(Number(num));
+};
+
+export const formatToReadableDate = (resource) => {
+  let newResource = resource;
+  for (let key in newResource) {
+    if (
+      key.includes("_at") ||
+      key.includes("_date") ||
+      key.includes("eta") ||
+      key.includes("telegraphic")
+    ) {
+      newResource[key] = moment(newResource[key]).format("MMM DD YYYY hh:mma");
+    }
+  }
+  return newResource;
 };

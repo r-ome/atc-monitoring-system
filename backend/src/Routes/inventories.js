@@ -1,17 +1,18 @@
-const express = require("express");
+import express from "express";
+import service from "../services/inventories.js";
 const {
   getContainerInventories,
   createContainerInventory,
   updateContainerInventory,
   deleteInventory,
-} = require("../services/inventories");
-const { logger } = require("../logger");
+} = service;
+import { logger } from "../logger.js";
 const router = express.Router();
-const {
+import {
   formatNumberPadding,
   sanitizeBarcode,
   formatNumberToCurrency,
-} = require("../utils");
+} from "../utils/index.js";
 
 router.get("/", async (req, res) => {
   try {
@@ -65,4 +66,4 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

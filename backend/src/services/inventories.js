@@ -1,7 +1,7 @@
-const { query } = require("./");
-const { logger } = require("../logger");
+import { query } from "./index.js";
+import { logger } from "../logger.js";
 
-module.exports = {
+export default {
   getContainerInventories: async (container_id) => {
     return await query(
       "SELECT * FROM inventories WHERE deleted_at IS NULL AND container_id = ?",
@@ -143,12 +143,29 @@ module.exports = {
 
   addAuctionInventoriesFromEncoding: async (auction_inventories) => {
     try {
+      console.log({ auction_inventories });
       const result = await query(
         `
         INSERT INTO auctions_inventories (auction_id, inventory_id, bidder_id, status, manifest_number)
         VALUES ?
         ON DUPLICATE KEY UPDATE inventory_id = VALUES(inventory_id);
       `,
+        [auction_inventories]
+      );
+
+      auction_inventories = auction_inventories.map((item) =>
+        item.map((el) => {
+          item[2] = "AUCTION";
+          item[4] = "SOLD";
+          return el;
+        })
+      );
+
+      await query(
+        `
+          INSERT INTO inventory_histories(auction_id, inventory_id, uploaded_from, item_status, auction_status)
+          VALUES ?
+        `,
         [auction_inventories]
       );
       return result;
