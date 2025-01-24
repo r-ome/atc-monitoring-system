@@ -163,6 +163,7 @@ const Monitoring = () => {
       await uploadMonitoring(data.slice(1));
     }
   };
+  console.log(monitoring);
 
   return (
     <>
@@ -184,6 +185,7 @@ const Monitoring = () => {
             </h1>
           </div>
         </div>
+
         <Tabs
           tabs={[
             { page: "bidders", label: "Bidders" },
@@ -269,6 +271,14 @@ const Monitoring = () => {
                       <Table
                         data={monitoring}
                         loading={isLoading}
+                        onRowClick={(inventory) =>
+                          navigate(
+                            `/inventories/${inventory.auction_inventory_id}`,
+                            {
+                              state: { inventory },
+                            }
+                          )
+                        }
                         rowKeys={[
                           "barcode_number",
                           "control_number",

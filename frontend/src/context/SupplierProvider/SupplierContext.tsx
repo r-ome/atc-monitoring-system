@@ -13,7 +13,7 @@ interface SuppliersState {
 interface SupplierContextType extends SuppliersState {
   fetchSupplier: (id: string) => Promise<void>;
   fetchSuppliers: () => Promise<void>;
-  createSuppliers: (a: FormData) => Promise<void>;
+  createSuppliers: (a: any) => Promise<void>;
   updateSupplier: (id: string, body: {}) => Promise<void>;
 }
 
@@ -37,7 +37,7 @@ export type SuppliersAction =
   | { type: "FETCH_SUPPLIERS" }
   | { type: "CREATE_SUPPLIER" }
   | { type: "UPDATE_SUPPLIER" }
-  | { type: "FETCH_SUPPLIER_SUCCESS"; payload: Supplier | null }
+  | { type: "FETCH_SUPPLIER_SUCCESS"; payload: { data: Supplier } }
   | { type: "FETCH_SUPPLIERS_SUCCESS"; payload: Supplier[] }
   | { type: "FETCH_SUPPLIERS_FAILED"; payload: Error | null }
   | { type: "FETCH_SUPPLIER_FAILED"; payload: Error | null }
@@ -64,6 +64,7 @@ const suppliersReducer = (state: SuppliersState, action: SuppliersAction) => {
       return {
         ...state,
         isLoading: false,
+        supplier: action.payload,
         suppliers: [...state.suppliers, action.payload],
         error: null,
       };
@@ -80,7 +81,7 @@ const suppliersReducer = (state: SuppliersState, action: SuppliersAction) => {
       return { ...state, isLoading: false, suppliers: action.payload };
     }
     case SupplierActions.FETCH_SUPPLIER_SUCCESS: {
-      return { ...state, isLoading: false, supplier: action.payload };
+      return { ...state, isLoading: false, supplier: action.payload.data };
     }
   }
 };
@@ -98,7 +99,7 @@ export const SupplierProvider = ({
       const response = await axios.get(`/suppliers/${supplierId}`);
       dispatch({
         type: SupplierActions.FETCH_SUPPLIER_SUCCESS,
-        payload: response.data.data,
+        payload: response.data,
       });
     } catch (error: any) {
       dispatch({
@@ -124,15 +125,14 @@ export const SupplierProvider = ({
     }
   };
 
-  const createSuppliers = async (body: FormData) => {
+  const createSuppliers = async (body: any) => {
     dispatch({ type: SupplierActions.CREATE_SUPPLIER });
     try {
       const response = await axios.post("/suppliers", {
-        name: body.get("name"),
-        supplier_code: body.get("supplier_code"),
-        japanese_name: body.get("japanese_name"),
-        num_of_containers: body.get("num_of_containers"),
-        shipper: body.get("shipper"),
+        name: body.name,
+        supplier_code: body.supplier_code,
+        japanese_name: body.japanese_name,
+        shipper: body.shipper,
       });
       dispatch({
         type: SupplierActions.CREATE_SUPPLIER_SUCCESS,

@@ -1,10 +1,12 @@
-import { Suppliers, SupplierProfile } from "./Suppliers";
+import { SupplierList, SupplierProfile, CreateSupplier } from "./Suppliers";
 import { ContainerList, ContainerProfile } from "./Containers";
 import { BidderList, BidderProfile } from "./Bidders";
 import { AuctionList, Monitoring } from "./Auctions";
+import { AuctionInventory } from "./Inventories";
 
 export {
-  Suppliers,
+  SupplierList,
+  CreateSupplier,
   SupplierProfile,
   ContainerList,
   ContainerProfile,
@@ -12,4 +14,5 @@ export {
   BidderProfile,
   AuctionList,
   Monitoring,
+  AuctionInventory,
 };

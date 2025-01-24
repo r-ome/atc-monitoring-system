@@ -15,7 +15,7 @@ const Button: React.FC<ButtonProps> = ({
       type={type}
       {...rest}
       className={`rounded-[8px] p-2 ${
-        buttonType === "primary" ? "bg-[#4E5BA6] text-white" : ""
+        buttonType === "primary" ? "bg-[#4E5BA6] text-white shadow-md" : ""
       } ${
         rest.disabled ? "bg-gray-100 cursor-not-allowed !text-gray-500" : ""
       } ${rest.className}`}

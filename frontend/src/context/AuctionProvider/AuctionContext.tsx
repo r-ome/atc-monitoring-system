@@ -1,14 +1,14 @@
 import { createContext, useContext, useReducer } from "react";
-import { Auction, Bidder, Monitoring } from "../../types";
+import { Auction, Bidder, Monitoring, InventoryDetails } from "../../types";
 import axios from "axios";
 import * as AuctionActions from "./actions";
-import * as XLSX from "xlsx";
 
 interface AuctionState {
   auction: any;
   auctions: Auction[];
   monitoring: Monitoring[];
   auctionBidders: Bidder[];
+  inventory: InventoryDetails | null;
   payment: any;
   isLoading: boolean;
   sheetErrors: any;
@@ -29,6 +29,7 @@ interface AuctionStateContextType extends AuctionState {
     amount: number,
     inventoryIds: number[]
   ) => Promise<void>;
+  cancelItem: (auctionId: number, inventoryId: number) => Promise<void>;
 }
 
 export type MonitoringAction =
@@ -55,13 +56,17 @@ export type MonitoringAction =
   | { type: "FETCH_AUCTION_DETAILS_FAILED"; payload: { error: null } }
   | { type: "BIDDER_PAYMENT" }
   | { type: "BIDDER_PAYMENT_SUCCESS"; payload: { data: any } }
-  | { type: "BIDDER_PAYMENT_FAILED"; payload: { error: null } };
+  | { type: "BIDDER_PAYMENT_FAILED"; payload: { error: null } }
+  | { type: "CANCEL_ITEM" }
+  | { type: "CANCEL_ITEM_SUCCESS"; payload: { data: InventoryDetails } }
+  | { type: "CANCEL_ITEM_FAILED"; payload: { error: null } };
 
 const initialState = {
   auction: {},
   auctions: [],
   monitoring: [],
   auctionBidders: [],
+  inventory: null,
   payment: {},
   isLoading: false,
   sheetErrors: [],
@@ -78,6 +83,7 @@ const AuctionContext = createContext<AuctionStateContextType>({
   registerBidderAtAuction: async () => {},
   getAuctionDetails: async () => {},
   payBidderItems: async () => {},
+  cancelItem: async () => {},
 });
 
 const monitoringReducer = (
@@ -93,6 +99,7 @@ const monitoringReducer = (
     case AuctionActions.REGISTER_BIDDER_AT_AUCTION:
     case AuctionActions.FETCH_AUCTION_DETAILS:
     case AuctionActions.BIDDER_PAYMENT:
+    case AuctionActions.CANCEL_ITEM:
       return { ...state, isLoading: true };
 
     case AuctionActions.CREATE_AUCTION_SUCCESS:
@@ -145,6 +152,12 @@ const monitoringReducer = (
         payment: action.payload.data,
         error: null,
       };
+    case AuctionActions.CANCEL_ITEM_SUCCESS:
+      return {
+        ...state,
+        inventory: action.payload.data,
+        error: null,
+      };
 
     case AuctionActions.UPLOAD_MONITORING_FAILED:
     case AuctionActions.CREATE_AUCTION_FAILED:
@@ -154,6 +167,7 @@ const monitoringReducer = (
     case AuctionActions.REGISTER_BIDDER_AT_AUCTION_FAILED:
     case AuctionActions.FETCH_AUCTION_DETAILS_FAILED:
     case AuctionActions.BIDDER_PAYMENT_FAILED:
+    case AuctionActions.CANCEL_ITEM_FAILED:
       return { ...state, isLoading: false, error: action.payload.error };
   }
 };
@@ -291,6 +305,7 @@ export const AuctionProvider = ({
         inventory_ids: inventoryIds,
         amount,
       });
+      console.log(response.data);
       dispatch({
         type: AuctionActions.BIDDER_PAYMENT_SUCCESS,
         payload: response.data,
@@ -298,6 +313,24 @@ export const AuctionProvider = ({
     } catch (error: any) {
       dispatch({
         type: AuctionActions.BIDDER_PAYMENT_FAILED,
+        payload: error.payload,
+      });
+    }
+  };
+
+  const cancelItem = async (auctionId: number, inventoryId: number) => {
+    dispatch({ type: AuctionActions.CANCEL_ITEM });
+    try {
+      const response = await axios.post(
+        `/auctions/${auctionId}/cancel-item/${inventoryId}`
+      );
+      dispatch({
+        type: AuctionActions.CANCEL_ITEM_SUCCESS,
+        payload: response.data,
+      });
+    } catch (error: any) {
+      dispatch({
+        type: AuctionActions.CANCEL_ITEM_FAILED,
         payload: error.payload,
       });
     }
@@ -315,6 +348,7 @@ export const AuctionProvider = ({
         registerBidderAtAuction,
         getAuctionDetails,
         payBidderItems,
+        cancelItem,
       }}
     >
       {children}

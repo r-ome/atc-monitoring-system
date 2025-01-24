@@ -1,20 +1,20 @@
 import { createContext, useContext, useReducer } from "react";
 import axios from "axios";
-import { Container } from "../../types";
+import { Container, ContainersBySupplier } from "../../types";
 import * as ContainerActions from "./actions";
 import moment from "moment";
 
 interface ContainerState {
   container: any;
   containers: Container[];
-  containersBySupplier: Container[];
+  containersBySupplier: ContainersBySupplier | null;
   isLoading: boolean;
   error: any;
 }
 
 interface ContainerContextType extends ContainerState {
   getContainers: () => void;
-  getContainersBySupplier: (id: string) => void;
+  fetchContainersBySupplier: (id: string) => Promise<void>;
   createContainer: (
     supplierId: string | null | undefined,
     formData: FormData
@@ -33,7 +33,7 @@ export type ContainerAction =
     }
   | {
       type: "FETCH_CONTAINERS_BY_SUPPLIER_SUCCESS";
-      payload: { status: "success"; data: Container[] };
+      payload: { status: "success"; data: ContainersBySupplier };
     }
   | { type: "CREATE_CONTAINER_SUCCESS"; payload: Container }
   | { type: "UPDATE_CONTAINER_SUCCESS"; payload: Container }
@@ -45,7 +45,7 @@ export type ContainerAction =
 const initialState = {
   container: null,
   containers: [],
-  containersBySupplier: [],
+  containersBySupplier: null,
   isLoading: false,
   error: null,
 };
@@ -53,7 +53,7 @@ const initialState = {
 const ContainerContext = createContext<ContainerContextType>({
   ...initialState,
   getContainers: () => {},
-  getContainersBySupplier: () => {},
+  fetchContainersBySupplier: async () => {},
   createContainer: () => {},
   updateContainer: () => {},
 });
@@ -119,7 +119,7 @@ export const ContainerProvider = ({
     }
   };
 
-  const getContainersBySupplier = async (supplierId: string) => {
+  const fetchContainersBySupplier = async (supplierId: string) => {
     dispatch({ type: ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER });
     try {
       const response = await axios.get(`/suppliers/${supplierId}/containers`);
@@ -242,7 +242,7 @@ export const ContainerProvider = ({
       value={{
         ...state,
         getContainers,
-        getContainersBySupplier,
+        fetchContainersBySupplier,
         createContainer,
         updateContainer,
       }}

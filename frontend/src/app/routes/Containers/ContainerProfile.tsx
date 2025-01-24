@@ -223,6 +223,7 @@ const ContainerProfile = () => {
                   <div className="h-20 w-1/2">
                     <label>Supplier:</label>
                     <Input
+                      name="supplier"
                       value={container.name}
                       className="cursor-not-allowed"
                       disabled

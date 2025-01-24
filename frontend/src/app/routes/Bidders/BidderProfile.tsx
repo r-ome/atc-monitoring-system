@@ -151,14 +151,6 @@ const BidderProfile = () => {
             >
               Edit
             </Button>
-            <Button
-              className="text-blue-500 w-full"
-              onClick={() => {
-                setAddRequirementModal(true);
-              }}
-            >
-              Add Requirements
-            </Button>
           </div>
         </div>
 
@@ -172,23 +164,35 @@ const BidderProfile = () => {
             tabContent={({ current }) => (
               <>
                 <TabContent current={current} tabCategory="requirements">
-                  <div className="rounded mt-4 overflow-auto">
-                    <Table
-                      data={requirements}
-                      loading={isLoading}
-                      rowKeys={[
-                        "name",
-                        "validity_date",
-                        "created_at",
-                        "updated_at",
-                      ]}
-                      columnHeaders={[
-                        "requirement",
-                        "valid until",
-                        "date uploaded",
-                        "Last Date updated",
-                      ]}
-                    />
+                  <div>
+                    <div className="flex justify-end w-full h-10 my-2">
+                      <Button
+                        className="text-blue-500 w-40"
+                        onClick={() => {
+                          setAddRequirementModal(true);
+                        }}
+                      >
+                        Add Requirements
+                      </Button>
+                    </div>
+                    <div className="rounded mt-4 overflow-auto">
+                      <Table
+                        data={requirements}
+                        loading={isLoading}
+                        rowKeys={[
+                          "name",
+                          "validity_date",
+                          "created_at",
+                          "updated_at",
+                        ]}
+                        columnHeaders={[
+                          "requirement",
+                          "valid until",
+                          "date uploaded",
+                          "Last Date updated",
+                        ]}
+                      />
+                    </div>
                   </div>
                 </TabContent>
                 <TabContent current={current} tabCategory="auctions">

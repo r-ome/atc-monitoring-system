@@ -1,13 +1,15 @@
 import { Routes, Route } from "react-router-dom";
 import {
-  Suppliers,
+  SupplierList,
   SupplierProfile,
+  CreateSupplier,
   ContainerList,
   ContainerProfile,
   BidderList,
   BidderProfile,
   AuctionList,
   Monitoring,
+  AuctionInventory,
 } from "./routes";
 import Layout from "./Layout";
 import "react-datepicker/dist/react-datepicker.css";
@@ -18,8 +20,9 @@ function App() {
     <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<div>hello world!</div>} />
-        <Route path="/suppliers" element={<Suppliers />} />
+        <Route path="/suppliers" element={<SupplierList />} />
         <Route path="/suppliers/:id" element={<SupplierProfile />} />
+        <Route path="/suppliers/create" element={<CreateSupplier />} />
 
         <Route path="/containers" element={<ContainerList />} />
         <Route path="/containers/:id" element={<ContainerProfile />} />
@@ -33,6 +36,8 @@ function App() {
           path="/bidders/:id/auction/:auction_id"
           element={<BidderAuction />}
         />
+
+        <Route path="/inventories/:id" element={<AuctionInventory />} />
 
         <Route path="/inventory" element={<BidderList />} />
         <Route path="/inventory/:id" element={<BidderProfile />} />

@@ -57,6 +57,22 @@ export interface Container {
   updated_at: string;
 }
 
+export interface ContainersBySupplier {
+  supplier_id: number;
+  supplier_code: string;
+  num_of_containers: number;
+  name: string;
+  containers: {
+    barcode: string;
+    container_id: number;
+    num_of_items: number;
+    branch: {
+      id: number;
+      name: string;
+    };
+  }[];
+}
+
 export interface Branch {
   branch_id: number;
   name: string;
@@ -113,4 +129,19 @@ export interface EncodingSheet {
   manifest_num: string;
   status?: string;
   message?: string;
+}
+
+export interface InventoryDetails {
+  auction_id?: number;
+  inventory_id?: number;
+  barcode_number?: string;
+  control_number?: string;
+  description?: string;
+  qty?: string;
+  price?: number;
+  bidder_number?: string;
+  item_status?: string;
+  auction_inventory_id?: number;
+  status?: string;
+  manifest_number?: string;
 }

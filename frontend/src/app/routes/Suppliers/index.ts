@@ -1,4 +1,5 @@
-import Suppliers from "./Suppliers";
+import SupplierList from "./SupplierList";
 import SupplierProfile from "./SupplierProfile";
+import CreateSupplier from "./CreateSupplier";
 
-export { Suppliers, SupplierProfile };
+export { SupplierList, SupplierProfile, CreateSupplier };

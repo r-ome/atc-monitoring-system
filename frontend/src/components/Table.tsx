@@ -40,21 +40,24 @@ const Table: React.FC<TableInteface> = ({
               {rowKeys.map((rowKey) => {
                 return (
                   <td key={rowKey} className="px-6 py-4">
-                    {rowKey.includes("updated_at")
-                      ? format(
-                          new Date(data[rowKey]),
-                          "MMM dd, yyyy hh:mm:ss a"
-                        )
-                      : rowKey.includes("created_at") ||
-                        rowKey.includes("_date") ||
-                        rowKey.includes("eta") ||
-                        rowKey.includes("telegraphic_transferred")
-                      ? data[rowKey]
-                        ? format(new Date(data[rowKey]), "MMM dd, yyyy")
-                        : "---"
-                      : data[rowKey]
+                    {!["", null, undefined].includes(data[rowKey])
                       ? data[rowKey]
                       : "---"}
+                    {/* // {rowKey.includes("updated_at")
+                    //   ? format(
+                    //       new Date(data[rowKey]),
+                    //       "MMM dd, yyyy hh:mm:ss a"
+                    //     )
+                    //   : rowKey.includes("created_at") ||
+                    //     rowKey.includes("_date") ||
+                    //     rowKey.includes("eta") ||
+                    //     rowKey.includes("telegraphic_transferred")
+                    //   ? data[rowKey]
+                    //     ? format(new Date(data[rowKey]), "MMM dd, yyyy")
+                    //     : "---"
+                    //   : data[rowKey]
+                    //   ? data[rowKey]
+                    //   : "---"} */}
                   </td>
                 );
               })}
