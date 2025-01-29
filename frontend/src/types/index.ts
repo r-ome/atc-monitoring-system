@@ -11,15 +11,18 @@ export interface Bidder {
   first_name: string;
   middle_name?: string;
   last_name: string;
+  full_name: string;
   service_charge: number;
-  old_number: string;
+  requirements: {
+    id: string;
+    name: string;
+  }[];
   created_at: string;
   updated_at: string;
-  deleted_at: string;
 }
 
 export interface Supplier {
-  supplier_id: number;
+  supplier_id: string;
   name: string;
   japanese_name: string;
   shipper: string;
@@ -76,6 +79,16 @@ export interface ContainersBySupplier {
 export interface Branch {
   branch_id: number;
   name: string;
+  containers: {
+    barcode: string;
+    container_id: string;
+    contaienr_num: string;
+    supplier: {
+      id: string;
+      name: string;
+      supplier_code: string;
+    };
+  }[];
   created_at: string;
   updated_at: string;
   deleted_at: string;
@@ -144,4 +157,14 @@ export interface InventoryDetails {
   auction_inventory_id?: number;
   status?: string;
   manifest_number?: string;
+}
+
+export interface Payment {
+  payment_id: string;
+  bidder_number: string;
+  full_name: string;
+  purpose: string;
+  amount_paid: string;
+  payment_type: string;
+  created_at: string;
 }

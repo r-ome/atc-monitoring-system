@@ -1,28 +1,23 @@
 import { useState, useEffect } from "react";
 import { Auction } from "../../../types";
-import { Modal, Input, Button, Table } from "../../../components";
+import { Modal, Button, Table } from "../../../components";
 import { useAuction } from "../../../context";
 import { useNavigate } from "react-router-dom";
 
 const AuctionList = () => {
   const navigate = useNavigate();
-  const { auctions, isLoading, getAuctions, createAuction, error } =
+  const { auctions, isLoading, getAuctions, createAuction, errors } =
     useAuction();
-  const [showCreateAuctionModal, setShowCreateAuctionModal] =
+  const [showConfirmationModal, setConfirmationModal] =
     useState<boolean>(false);
 
   useEffect(() => {
-    getAuctions();
-  }, []);
+    const fetchInitialData = async () => {
+      await getAuctions();
+    };
 
-  useEffect(() => {
-    if (error) {
-      console.error(error);
-    }
-    if (!isLoading && !error) {
-      setShowCreateAuctionModal(false);
-    }
-  }, [error, isLoading]);
+    fetchInitialData();
+  }, []);
 
   return (
     <div>
@@ -31,7 +26,7 @@ const AuctionList = () => {
         <div>
           <Button
             buttonType="primary"
-            onClick={() => setShowCreateAuctionModal(!showCreateAuctionModal)}
+            onClick={() => setConfirmationModal(!showConfirmationModal)}
           >
             Create Auction
           </Button>
@@ -46,23 +41,29 @@ const AuctionList = () => {
             state: { auction },
           })
         }
-        rowKeys={["created_at", "bidder_count", "item_count", "total_sales"]}
-        columnHeaders={["Auction", "bidder count", "items count", "total"]}
+        rowKeys={["created_at", "number_of_bidders"]}
+        columnHeaders={["Auction Date", "Number of Bidders"]}
       />
 
       <Modal
-        isOpen={showCreateAuctionModal}
+        isOpen={showConfirmationModal}
         title="Are you sure?"
-        setShowModal={setShowCreateAuctionModal}
+        setShowModal={setConfirmationModal}
       >
         <div className="flex gap-2 justify-between">
-          <Button className="w-1/2" onClick={async () => await createAuction()}>
+          <Button
+            className="w-1/2"
+            onClick={async () => {
+              await createAuction();
+              setConfirmationModal(false);
+            }}
+          >
             Yes
           </Button>
           <Button
             className="w-1/2 border"
             buttonType="secondary"
-            onClick={() => setShowCreateAuctionModal(false)}
+            onClick={() => setConfirmationModal(false)}
           >
             No
           </Button>

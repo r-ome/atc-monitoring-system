@@ -11,6 +11,7 @@ import {
   AuctionProvider,
   BidderProvider,
   BidderRequirementProvider,
+  PaymentProvider,
 } from "./context";
 import axiosInterceptor from "./axios.config";
 
@@ -26,7 +27,9 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
               <AuctionProvider>
                 <BidderProvider>
                   <BidderRequirementProvider>
-                    <App />
+                    <PaymentProvider>
+                      <App />
+                    </PaymentProvider>
                   </BidderRequirementProvider>
                 </BidderProvider>
               </AuctionProvider>

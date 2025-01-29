@@ -30,11 +30,11 @@ const Monitoring = () => {
     getAuctionBidders,
     uploadMonitoring,
     registerBidderAtAuction,
-    getAuctionDetails,
+    fetchAuctionDetails,
     sheetErrors,
-    error,
+    errors,
   } = useAuction();
-  const { bidders, getBidders } = useBidders();
+  const { bidders, fetchBidders } = useBidders();
   const [showRegisterBidderModal, setShowRegisterBidderModal] =
     useState<boolean>(false);
   const [selectedBidder, setSelectedBidder] = useState<SelectValue>();
@@ -48,8 +48,8 @@ const Monitoring = () => {
     const fetchInitialData = async () => {
       await getMonitoring(auction.auction_id);
       await getAuctionBidders(auction.auction_id);
-      await getBidders();
-      await getAuctionDetails(auction.auction_id);
+      await fetchBidders();
+      await fetchAuctionDetails(auction.auction_id);
     };
     fetchInitialData();
   }, []);
@@ -79,15 +79,15 @@ const Monitoring = () => {
   }, [sheetErrors]);
 
   useEffect(() => {
-    if (error && error.code === 400) {
-      setErrorState(error.errors[0]);
+    if (errors && errors.code === 400) {
+      setErrorState(errors.errors[0]);
     }
 
-    if (!isLoading && !error) {
+    if (!isLoading && !errors) {
       setShowRegisterBidderModal(false);
       setErrorState(null);
     }
-  }, [isLoading, error]);
+  }, [isLoading, errors]);
 
   const handleRegisterBidder = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -381,7 +381,7 @@ const Monitoring = () => {
                             }}
                           />
                         </div>
-                        <Input
+                        {/* <Input
                           id="service_charge"
                           name="service_charge"
                           placeholder="Service Charge(%)"
@@ -396,8 +396,8 @@ const Monitoring = () => {
                           }}
                           value={serviceCharge}
                           error={errorState}
-                        />
-                        <Input
+                        /> */}
+                        {/* <Input
                           id="registration_fee"
                           name="registration_fee"
                           placeholder="Registration Fee"
@@ -412,7 +412,7 @@ const Monitoring = () => {
                           }}
                           value={registrationFee}
                           error={errorState}
-                        />
+                        /> */}
                         <div className="flex justify-end gap-2">
                           <Button
                             buttonType="secondary"

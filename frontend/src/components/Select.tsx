@@ -1,41 +1,54 @@
-import ReactTailwindSelect from "react-tailwindcss-select";
-import { SelectProps } from "react-tailwindcss-select/dist/components/type";
+import { RegisterOptions, useFormContext } from "react-hook-form";
+import { findInputErrors, isFormInvalid } from "../lib/utils";
 
-interface CustomSelectProps extends SelectProps {
+interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   name: string;
-  error?: { field: string; message: string } | null | undefined;
+  options: { label: string; value: string }[];
+  validations?: RegisterOptions;
+  className?: string;
 }
 
-const Select: React.FC<CustomSelectProps> = ({
+const Select: React.FC<SelectProps> = ({
   label,
-  error,
-  primaryColor,
-  value,
+  name,
+  validations,
   options,
-  onChange,
   ...rest
 }) => {
-  return (
-    <div className="flex flex-col">
-      {label && <label>{label}</label>}
-      <div
-        className={`mb-3 pt-0 ${
-          error && error?.field === rest.name
-            ? "border rounded border-red-500"
-            : "border-blueGray-300"
-        }`}
-      >
-        <ReactTailwindSelect
-          primaryColor={primaryColor}
-          value={value}
-          options={options}
-          onChange={onChange}
-        />
-      </div>
+  const {
+    register,
+    formState: { errors },
+  } = useFormContext();
 
-      {error && error?.field === rest.name && (
-        <div className="text-red-500">{error?.message}</div>
+  const inputError = findInputErrors(errors, name);
+  const isInvalid = isFormInvalid(inputError);
+
+  return (
+    <div className="mb-3 pt-0 relative w-full">
+      <label htmlFor={rest.id} className="text-2xl">
+        {label}
+      </label>
+
+      <select
+        className={`mt-2 p-4 placeholder-blueGray-300 text-blueGray-600 relative bg-white text-lg border
+          rounded focus:outline-none w-full ${rest.className} ${
+          rest.disabled ? "cursor-not-allowed" : "cursor-pointer"
+        }`}
+        {...rest}
+        {...register(name, { ...validations })}
+      >
+        <option disabled value={""}>
+          Select your option
+        </option>
+        {(options || []).map((item, i) => (
+          <option key={i} value={item.value} className="bg-white p-2">
+            {item.label}
+          </option>
+        ))}
+      </select>
+      {isInvalid && (
+        <div className="text-red-500">{inputError?.error.message}</div>
       )}
     </div>
   );

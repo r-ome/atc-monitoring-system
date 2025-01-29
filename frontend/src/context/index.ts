@@ -17,6 +17,7 @@ import {
   BidderRequirementProvider,
   useBidderRequirement,
 } from "./RequirementProvider/RequirementContext";
+import { PaymentProvider, usePayments } from "./PaymentProvider/PaymentContext";
 
 export {
   ContainerProvider,
@@ -33,4 +34,6 @@ export {
   useBidders,
   BidderRequirementProvider,
   useBidderRequirement,
+  PaymentProvider,
+  usePayments,
 };

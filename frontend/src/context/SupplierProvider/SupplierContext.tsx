@@ -7,13 +7,13 @@ interface SuppliersState {
   supplier: Supplier | null;
   suppliers: Supplier[];
   isLoading: boolean;
-  error: any;
+  errors: any;
 }
 
 interface SupplierContextType extends SuppliersState {
   fetchSupplier: (id: string) => Promise<void>;
   fetchSuppliers: () => Promise<void>;
-  createSuppliers: (a: any) => Promise<void>;
+  createSupplier: (a: any) => Promise<void>;
   updateSupplier: (id: string, body: {}) => Promise<void>;
 }
 
@@ -21,14 +21,14 @@ const initialState: SuppliersState = {
   supplier: null,
   suppliers: [],
   isLoading: false,
-  error: null,
+  errors: null,
 };
 
 const SupplierContext = createContext<SupplierContextType>({
   ...initialState,
   fetchSupplier: async () => {},
   fetchSuppliers: async () => {},
-  createSuppliers: async () => {},
+  createSupplier: async () => {},
   updateSupplier: async () => {},
 });
 
@@ -38,12 +38,12 @@ export type SuppliersAction =
   | { type: "CREATE_SUPPLIER" }
   | { type: "UPDATE_SUPPLIER" }
   | { type: "FETCH_SUPPLIER_SUCCESS"; payload: { data: Supplier } }
-  | { type: "FETCH_SUPPLIERS_SUCCESS"; payload: Supplier[] }
-  | { type: "FETCH_SUPPLIERS_FAILED"; payload: Error | null }
+  | { type: "FETCH_SUPPLIERS_SUCCESS"; payload: { data: Supplier[] } }
+  | { type: "FETCH_SUPPLIERS_FAILED"; payload: { errors: Error | null } }
   | { type: "FETCH_SUPPLIER_FAILED"; payload: Error | null }
-  | { type: "CREATE_SUPPLIER_SUCCESS"; payload: Supplier }
+  | { type: "CREATE_SUPPLIER_SUCCESS"; payload: { data: Supplier } }
   | { type: "CREATE_SUPPLIER_FAILED"; payload: Error | null }
-  | { type: "UPDATE_SUPPLIER_SUCCESS"; payload: Supplier }
+  | { type: "UPDATE_SUPPLIER_SUCCESS"; payload: { data: Supplier } }
   | { type: "UPDATE_SUPPLIER_FAILED"; payload: Error | null };
 
 const suppliersReducer = (state: SuppliersState, action: SuppliersAction) => {
@@ -58,14 +58,14 @@ const suppliersReducer = (state: SuppliersState, action: SuppliersAction) => {
     case SupplierActions.FETCH_SUPPLIER_FAILED:
     case SupplierActions.UPDATE_SUPPLIER_FAILED:
     case SupplierActions.CREATE_SUPPLIER_FAILED: {
-      return { ...state, isLoading: false, error: action.payload };
+      return { ...state, isLoading: false, errors: action.payload };
     }
     case SupplierActions.CREATE_SUPPLIER_SUCCESS: {
       return {
         ...state,
         isLoading: false,
-        supplier: action.payload,
-        suppliers: [...state.suppliers, action.payload],
+        supplier: action.payload.data,
+        suppliers: [...state.suppliers, action.payload.data],
         error: null,
       };
     }
@@ -73,12 +73,12 @@ const suppliersReducer = (state: SuppliersState, action: SuppliersAction) => {
       return {
         ...state,
         isLoading: false,
-        supplier: action.payload,
+        supplier: action.payload.data,
         error: null,
       };
     }
     case SupplierActions.FETCH_SUPPLIERS_SUCCESS: {
-      return { ...state, isLoading: false, suppliers: action.payload };
+      return { ...state, isLoading: false, suppliers: action.payload.data };
     }
     case SupplierActions.FETCH_SUPPLIER_SUCCESS: {
       return { ...state, isLoading: false, supplier: action.payload.data };
@@ -115,28 +115,23 @@ export const SupplierProvider = ({
       const response = await axios.get("/suppliers");
       dispatch({
         type: SupplierActions.FETCH_SUPPLIERS_SUCCESS,
-        payload: response.data.data,
+        payload: response.data,
       });
     } catch (error: any) {
       dispatch({
         type: SupplierActions.FETCH_SUPPLIERS_FAILED,
-        payload: error,
+        payload: error.response.data,
       });
     }
   };
 
-  const createSuppliers = async (body: any) => {
+  const createSupplier = async (body: any) => {
     dispatch({ type: SupplierActions.CREATE_SUPPLIER });
     try {
-      const response = await axios.post("/suppliers", {
-        name: body.name,
-        supplier_code: body.supplier_code,
-        japanese_name: body.japanese_name,
-        shipper: body.shipper,
-      });
+      const response = await axios.post("/suppliers", body);
       dispatch({
         type: SupplierActions.CREATE_SUPPLIER_SUCCESS,
-        payload: response.data.data,
+        payload: response.data,
       });
     } catch (error: any) {
       dispatch({
@@ -160,7 +155,7 @@ export const SupplierProvider = ({
       });
       dispatch({
         type: SupplierActions.UPDATE_SUPPLIER_SUCCESS,
-        payload: response.data.data,
+        payload: response.data,
       });
     } catch (error: any) {
       dispatch({
@@ -177,7 +172,7 @@ export const SupplierProvider = ({
         suppliers: memoizedSuppliers,
         fetchSupplier,
         fetchSuppliers,
-        createSuppliers,
+        createSupplier,
         updateSupplier,
       }}
     >

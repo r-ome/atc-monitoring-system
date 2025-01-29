@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button, Table } from "../../../components";
 import { useSuppliers } from "../../../context/SupplierProvider/SupplierContext";
 import { useContainers } from "../../../context/ContainerProvider/ContainerContext";
-import { Container, ErrorState } from "../../../types";
+import { Container } from "../../../types";
+import { useSession } from "../../hooks";
 
 const SupplierProfile = () => {
   const navigate = useNavigate();
@@ -18,6 +19,10 @@ const SupplierProfile = () => {
     fetchContainersBySupplier,
     isLoading: isFetchingContainersBySupplier,
   } = useContainers();
+  const [sessionSupplier, setSupplierSession] = useSession<any>(
+    "supplier",
+    null
+  );
 
   useEffect(() => {
     const { supplier_id: supplierId } = location.state.supplier;
@@ -29,6 +34,18 @@ const SupplierProfile = () => {
       fetchInitialData();
     }
   }, [location.state.supplier.supplier_id, supplier]);
+
+  useEffect(() => {
+    const currentSessionSupplier = sessionSupplier;
+    if (supplier) {
+      if (currentSessionSupplier) {
+        if (currentSessionSupplier.supplier_id !== supplier.supplier_id) {
+          setSupplierSession(supplier);
+        }
+      }
+      setSupplierSession(supplier);
+    }
+  }, [supplier]);
 
   const renderProfileDetails = (supplier: any) => {
     let supplierDetails = supplier;
@@ -43,16 +60,18 @@ const SupplierProfile = () => {
 
     return (
       <>
-        {profileDetails.map((item, i) => {
-          if (["supplier id", "name"].includes(item.label.toLowerCase()))
-            return;
-          return (
-            <div key={i} className="flex justify-between items-center p-2">
-              <div>{item.label}:</div>
-              <div className="text-lg font-bold">{item.value}</div>
-            </div>
-          );
-        })}
+        {profileDetails
+          .filter((item) =>
+            ["supplier id", "name"].includes(item.label.toLowerCase())
+          )
+          .map((item, i) => {
+            return (
+              <div key={i} className="flex justify-between items-center p-2">
+                <div>{item.label}:</div>
+                <div className="text-lg font-bold">{item.value}</div>
+              </div>
+            );
+          })}
       </>
     );
   };
@@ -82,6 +101,14 @@ const SupplierProfile = () => {
             </div>
 
             <div className="w-5/6 border p-4 h-full">
+              <div className="flex justify-end w-full p-2">
+                <Button
+                  buttonType="primary"
+                  onClick={() => navigate("/containers/create")}
+                >
+                  Add Container
+                </Button>
+              </div>
               <Table
                 data={containersBySupplier?.containers || []}
                 loading={isFetchingContainersBySupplier}

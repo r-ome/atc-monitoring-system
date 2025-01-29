@@ -32,7 +32,7 @@ const AuctionInventory = () => {
     isLoading,
     inventory: inventoryDetails,
     cancelItem,
-    error,
+    errors,
   } = useAuction();
 
   useEffect(() => {

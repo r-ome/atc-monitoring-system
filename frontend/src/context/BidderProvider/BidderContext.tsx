@@ -22,9 +22,9 @@ interface BidderState {
 }
 
 interface BidderStateContextType extends BidderState {
-  getBidder: (id: string) => Promise<void>;
-  getBidders: () => Promise<void>;
-  createBidder: (body: FormData) => Promise<void>;
+  fetchBidder: (id: string) => Promise<void>;
+  fetchBidders: () => Promise<void>;
+  createBidder: (body: any) => Promise<void>;
   getBidderAuctions: (bidderId: string) => Promise<void>;
   updateBidder: (bidderId: string, body: any) => Promise<void>;
   getAuctionItems: (auctionId: string, bidderId: string) => Promise<void>;
@@ -94,8 +94,8 @@ const initialState = {
 
 const BidderContext = createContext<BidderStateContextType>({
   ...initialState,
-  getBidder: async () => {},
-  getBidders: async () => {},
+  fetchBidder: async () => {},
+  fetchBidders: async () => {},
   createBidder: async () => {},
   getBidderAuctions: async () => {},
   updateBidder: async () => {},
@@ -126,7 +126,7 @@ const bidderReducer = (
       return {
         ...state,
         isLoading: false,
-        bidders: [...state.bidders, action.payload.data],
+        bidder: action.payload.data,
         error: null,
       };
     case BidderActions.FETCH_BIDDER_AUCTIONS_SUCCESS:
@@ -160,7 +160,7 @@ const bidderReducer = (
 export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, dispatch] = useReducer(bidderReducer, initialState);
 
-  const getBidder = async (bidderId: string) => {
+  const fetchBidder = async (bidderId: string) => {
     dispatch({ type: BidderActions.FETCH_BIDDER });
     try {
       const response = await axios.get(`/bidders/${bidderId}`);
@@ -176,7 +176,7 @@ export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const getBidders = async () => {
+  const fetchBidders = async () => {
     dispatch({ type: BidderActions.FETCH_BIDDERS });
     try {
       const response = await axios.get(`/bidders/`);
@@ -192,17 +192,10 @@ export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const createBidder = async (body: FormData) => {
+  const createBidder = async (body: any) => {
     dispatch({ type: BidderActions.CREATE_BIDDER });
     try {
-      const response = await axios.post("/bidders", {
-        first_name: body.get("first_name"),
-        middle_name: body.get("middle_name"),
-        last_name: body.get("last_name"),
-        service_charge: body.get("service_charge"),
-        bidder_number: body.get("bidder_number"),
-        old_number: body.get("old_number"),
-      });
+      const response = await axios.post("/bidders", body);
       dispatch({
         type: BidderActions.CREATE_BIDDER_SUCCESS,
         payload: response.data,
@@ -222,7 +215,6 @@ export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
         first_name: body.first_name,
         middle_name: body.middle_name,
         last_name: body.last_name,
-        service_charge: body.service_charge,
         bidder_number: body.bidder_number,
         old_number: body.old_number,
       });
@@ -293,8 +285,8 @@ export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
     <BidderContext.Provider
       value={{
         ...state,
-        getBidder,
-        getBidders,
+        fetchBidder,
+        fetchBidders,
         createBidder,
         getBidderAuctions,
         updateBidder,

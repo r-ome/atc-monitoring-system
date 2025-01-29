@@ -2,29 +2,29 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
 import { Input, Button } from "../../../components";
-import { useSuppliers } from "../../../context/SupplierProvider/SupplierContext";
 import { SUPPLIERS_402, SUPPLIERS_501 } from "../errors";
+import { useInventories } from "../../../context";
 
-const CreateSupplier = () => {
+const CreateInventory = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const methods = useForm();
   const [hasError, setHasError] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
-  const { createSupplier, isLoading, errors, supplier } = useSuppliers();
+  const { createInventory, inventory, isLoading, errors } = useInventories();
 
-  const handleSubmitCreateSupplier = methods.handleSubmit(async (data) => {
-    await createSupplier(data);
+  const handleSubmitCreateInventory = methods.handleSubmit(async (data) => {
+    console.log(data);
+    // await createInventory(data);
   });
 
   useEffect(() => {
-    if (!errors && !isLoading && supplier) {
-      methods.reset({
-        name: "",
-        japanese_name: "",
-        supplier_code: "",
-        shipper: "",
-      });
+    // console.log(location.state.container);
+  }, [location.state.container]);
+
+  useEffect(() => {
+    if (!errors && !isLoading && inventory) {
+      methods.reset();
       setHasError(false);
       setIsSuccess(true);
     }
@@ -52,7 +52,7 @@ const CreateSupplier = () => {
         </Button>
       </div>
       <div className="flex justify-between my-2">
-        <h1 className="text-3xl">Create Supplier</h1>
+        <h1 className="text-3xl">Create Inventory</h1>
       </div>
 
       <div className="block p-10 border rounded-lg shadow-lg">
@@ -73,29 +73,24 @@ const CreateSupplier = () => {
 
             {isSuccess ? (
               <h1 className="text-green-500 text-xl flex justify-center">
-                Successfully Added Supplier!
+                Successfully Added Inventory!
               </h1>
             ) : null}
             <form
-              id="create_supplier"
+              id="create_inventory"
               onSubmit={(e) => e.preventDefault()}
               noValidate
               autoComplete="off"
             >
               <Input
-                id="name"
-                name="name"
-                placeholder="Supplier Name"
-                label="Supplier Name:"
+                id="barcode"
+                name="barcode"
+                placeholder="Barcode"
+                label="Barcode:"
                 validations={{
                   required: {
                     value: true,
-                    message: "Supplier Name is required",
-                  },
-                  minLength: { value: 3, message: "Minimum of 3 characters" },
-                  maxLength: {
-                    value: 255,
-                    message: "Maximum of 255 characters",
+                    message: "Barcode is required",
                   },
                   pattern: {
                     value: /^[a-zA-Z0-9\- ]+$/,
@@ -104,48 +99,41 @@ const CreateSupplier = () => {
                 }}
               />
               <Input
-                id="japanese_name"
-                name="japanese_name"
-                placeholder="Japanese Name"
-                label="Japanese Name: "
-              />
-              <Input
-                id="supplier_code"
-                name="supplier_code"
-                placeholder="Code"
-                label="Supplier Code:"
+                id="description"
+                name="description"
+                placeholder="Description"
+                label="Description: "
                 validations={{
-                  minLength: { value: 3, message: "Minimum of 3 character" },
                   required: {
                     value: true,
-                    message: "Supplier Code is required",
+                    message: "Barcode is required",
+                  },
+                  pattern: {
+                    value: /^[a-zA-Z0-9\- ]+$/,
+                    message: "Invalid characters",
                   },
                 }}
               />
-              {/* NOTE: CHECK WHETHER YOU NEED TO ADD NUM_OF_CONTAINERS */}
-              {/* <Input
-              id="num_of_containers"
-              name="num_of_containers"
-              type="number"
-              placeholder="Number of Containers"
-              label="Number of Containers:"
-            /> */}
               <Input
-                id="shipper"
-                name="shipper"
-                placeholder="Shipper"
-                label="Shipper:"
+                id="control_number"
+                name="control_number"
+                placeholder="Control Number"
+                label="Control Number:"
                 validations={{
-                  minLength: { value: 1, message: "Minimum of 1 character" },
                   required: {
                     value: true,
-                    message: "Supplier Code is required",
+                    message: "Barcode is required",
+                  },
+                  pattern: {
+                    value: /^[a-zA-Z0-9\- ]+$/,
+                    message: "Invalid characters",
                   },
                 }}
               />
+
               <div className="flex">
                 <Button
-                  onClick={handleSubmitCreateSupplier}
+                  onClick={handleSubmitCreateInventory}
                   buttonType="primary"
                   type="submit"
                   className="w-full h-12"
@@ -161,4 +149,4 @@ const CreateSupplier = () => {
   );
 };
 
-export default CreateSupplier;
+export default CreateInventory;

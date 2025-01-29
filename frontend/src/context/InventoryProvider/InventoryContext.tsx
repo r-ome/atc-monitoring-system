@@ -5,17 +5,17 @@ import * as InventoryActions from "./actions";
 
 interface InventoryState {
   inventory: any;
-  inventoriesByContainer: Inventory[];
+  inventoriesByContainer: any; //Inventory[];
   isLoading: boolean;
-  error: null | undefined;
+  errors: any;
 }
 
 interface InventoryContextType extends InventoryState {
-  getInventoriesByContainer: (
+  fetchInventoriesByContainer: (
     supplierId: string,
     containerId: string
   ) => Promise<void>;
-  addInventoryToContainer: (
+  createInventory: (
     supplierId: string,
     containerId: string,
     formData: FormData
@@ -23,37 +23,40 @@ interface InventoryContextType extends InventoryState {
 }
 
 export type InventoryAction =
-  | { type: "FETCH_INVENTORY_BY_CONTAINER" }
+  | { type: "FETCH_INVENTORIES_BY_CONTAINER" }
   | { type: "ADD_INVENTORY_TO_CONTAINER" }
-  | { type: "FETCH_INVENTORY_BY_CONTAINER_SUCCESS"; payload: Inventory[] }
+  | {
+      type: "FETCH_INVENTORIES_BY_CONTAINER_SUCCESS";
+      payload: { data: any };
+    }
   | { type: "ADD_INVENTORY_TO_CONTAINER_SUCCESS"; payload: Inventory }
-  | { type: "FETCH_INVENTORY_BY_CONTAINER_FAILED"; payload: null }
+  | { type: "FETCH_INVENTORIES_BY_CONTAINER_FAILED"; payload: null }
   | { type: "ADD_INVENTORY_TO_CONTAINER_FAILED"; payload: null };
 
 const initialState = {
   inventory: null,
-  inventoriesByContainer: [],
+  inventoriesByContainer: {},
   isLoading: false,
-  error: null,
+  errors: null,
 };
 
 const InventoryContext = createContext<InventoryContextType>({
   ...initialState,
-  getInventoriesByContainer: async () => {},
-  addInventoryToContainer: async () => {},
+  fetchInventoriesByContainer: async () => {},
+  createInventory: async () => {},
 });
 
 const inventoryReducer = (state: InventoryState, action: InventoryAction) => {
   switch (action.type) {
-    case InventoryActions.FETCH_INVENTORY_BY_CONTAINER:
+    case InventoryActions.FETCH_INVENTORIES_BY_CONTAINER:
     case InventoryActions.ADD_INVENTORY_TO_CONTAINER:
       return { ...state, isLoading: true };
 
-    case InventoryActions.FETCH_INVENTORY_BY_CONTAINER_SUCCESS:
+    case InventoryActions.FETCH_INVENTORIES_BY_CONTAINER_SUCCESS:
       return {
         ...state,
         isLoading: false,
-        inventoriesByContainer: action.payload,
+        inventoriesByContainer: action.payload.data,
       };
     case InventoryActions.ADD_INVENTORY_TO_CONTAINER_SUCCESS:
       return {
@@ -65,7 +68,7 @@ const inventoryReducer = (state: InventoryState, action: InventoryAction) => {
         ],
         error: null,
       };
-    case InventoryActions.FETCH_INVENTORY_BY_CONTAINER_FAILED:
+    case InventoryActions.FETCH_INVENTORIES_BY_CONTAINER_FAILED:
     case InventoryActions.ADD_INVENTORY_TO_CONTAINER_FAILED:
       return { ...state, isLoading: false, error: action.payload };
   }
@@ -78,28 +81,28 @@ export const InventoryProvider = ({
 }) => {
   const [state, dispatch] = useReducer(inventoryReducer, initialState);
 
-  const getInventoriesByContainer = async (
+  const fetchInventoriesByContainer = async (
     supplierId: string,
     containerId: string
   ) => {
-    dispatch({ type: InventoryActions.FETCH_INVENTORY_BY_CONTAINER });
+    dispatch({ type: InventoryActions.FETCH_INVENTORIES_BY_CONTAINER });
     try {
       const response = await axios.get(
         `/suppliers/${supplierId}/containers/${containerId}/inventories`
       );
       dispatch({
-        type: InventoryActions.FETCH_INVENTORY_BY_CONTAINER_SUCCESS,
+        type: InventoryActions.FETCH_INVENTORIES_BY_CONTAINER_SUCCESS,
         payload: response.data,
       });
     } catch (error: any) {
       dispatch({
-        type: InventoryActions.FETCH_INVENTORY_BY_CONTAINER_FAILED,
+        type: InventoryActions.FETCH_INVENTORIES_BY_CONTAINER_FAILED,
         payload: error,
       });
     }
   };
 
-  const addInventoryToContainer = async (
+  const createInventory = async (
     supplierId: string | null | undefined,
     containerId: string | null | undefined,
     formData: FormData
@@ -133,8 +136,8 @@ export const InventoryProvider = ({
     <InventoryContext.Provider
       value={{
         ...state,
-        getInventoriesByContainer,
-        addInventoryToContainer,
+        fetchInventoriesByContainer,
+        createInventory,
       }}
     >
       {children}

@@ -12,7 +12,7 @@ interface BidderRequirementState {
 
 interface BidderRequirementContextType extends BidderRequirementState {
   getBidderRequirements: (bidderId: number) => Promise<void>;
-  addBidderRequirement: (bidderId: number, formData: FormData) => Promise<void>;
+  createBidderRequirement: (bidderId: string, body: any) => Promise<void>;
 }
 
 export type BidderRequirementAction =
@@ -35,7 +35,7 @@ const initialState = {
 const BidderRequirementContext = createContext<BidderRequirementContextType>({
   ...initialState,
   getBidderRequirements: async (a) => {},
-  addBidderRequirement: async (a, b) => {},
+  createBidderRequirement: async (a, b) => {},
 });
 
 const bidderRequirementReducer = (
@@ -90,16 +90,21 @@ export const BidderRequirementProvider = ({
     }
   };
 
-  const addBidderRequirement = async (bidderId: number, formData: FormData) => {
+  const createBidderRequirement = async (bidderId: string, body: any) => {
     dispatch({ type: BidderRequirementActions.ADD_REQUIREMENT });
     try {
-      const response = await axios.post(`/bidders/${bidderId}/requirements`, {
-        name: formData.get("name"),
+      const data = {
+        name: body.name,
         url: "https://www.google.com", //formData.get("url"),
-        validity_date: moment(formData.get("validity_date")?.toString()).format(
+        validity_date: moment(body.validity_date?.toString()).format(
           "YYYY-MM-DD HH:mm:ss"
         ),
-      });
+      };
+
+      const response = await axios.post(
+        `/bidders/${bidderId}/requirements`,
+        data
+      );
       dispatch({
         type: BidderRequirementActions.ADD_REQUIREMENT_SUCCESS,
         payload: response.data,
@@ -118,7 +123,7 @@ export const BidderRequirementProvider = ({
       value={{
         ...state,
         getBidderRequirements,
-        addBidderRequirement,
+        createBidderRequirement,
       }}
     >
       {children}

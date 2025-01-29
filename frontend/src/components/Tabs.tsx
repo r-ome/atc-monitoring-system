@@ -27,6 +27,7 @@ const Tab = ({
                     ? tabs.map((item, i) => (
                         <a
                           key={i}
+                          href="hello"
                           onClick={() => handleTabOpen(item.page)}
                           className={`cursor-pointer rounded-md px-4 py-3 text-sm font-medium md:text-base lg:px-6 ${
                             current === item.page

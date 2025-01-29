@@ -1,26 +1,20 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Supplier } from "../../../types";
 import { Button, Table } from "../../../components";
 import { useSuppliers } from "../../../context/SupplierProvider/SupplierContext";
-import { ErrorState } from "../../../types";
+import { SUPPLIERS_501 } from "../errors";
 
 const Suppliers = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { error, suppliers, isLoading, fetchSuppliers, createSuppliers } =
-    useSuppliers();
-  const [errorState, setErrorState] = useState<ErrorState>(null);
+  const { errors, suppliers, isLoading, fetchSuppliers } = useSuppliers();
 
   useEffect(() => {
-    fetchSuppliers();
+    const fetchInitialData = async () => {
+      await fetchSuppliers();
+    };
+    fetchInitialData();
   }, []);
-
-  useEffect(() => {
-    if (error && error.code === 400) {
-      setErrorState(error.errors[0]);
-    }
-  }, [error, isLoading]);
 
   return (
     <div>
@@ -35,6 +29,14 @@ const Suppliers = () => {
           </Button>
         </div>
       </div>
+
+      {errors?.error === SUPPLIERS_501 ? (
+        <div className="border p-2 rounded border-red-500 mb-10">
+          <h1 className="text-red-500 text-xl flex justify-center">
+            Please take a look back later...
+          </h1>
+        </div>
+      ) : null}
 
       <Table
         data={suppliers}

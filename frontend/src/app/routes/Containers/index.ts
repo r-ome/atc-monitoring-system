@@ -1,4 +1,4 @@
-import ContainerList from "./ContainersList";
 import ContainerProfile from "./ContainerProfile";
+import CreateContainer from "./CreateContainer";
 
-export { ContainerList, ContainerProfile };
+export { ContainerProfile, CreateContainer };

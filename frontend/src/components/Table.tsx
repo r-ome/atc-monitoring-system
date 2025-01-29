@@ -1,5 +1,4 @@
 import React from "react";
-import { format } from "date-fns";
 
 interface TableInteface {
   columnHeaders: string[];
@@ -14,8 +13,12 @@ const Table: React.FC<TableInteface> = ({
   data,
   loading,
   rowKeys,
-  onRowClick = () => {},
+  onRowClick,
 }) => {
+  const getValue = (obj: any, keyPath: string): any => {
+    return keyPath.split(".").reduce((acc, key) => acc?.[key], obj);
+  };
+
   return loading ? (
     <>loading...</>
   ) : (
@@ -34,15 +37,18 @@ const Table: React.FC<TableInteface> = ({
           return (
             <tr
               key={i}
-              className="bg-white even:bg-gray-100 hover:bg-gray-300 cursor-pointer"
-              onClick={() => onRowClick(data)}
+              className={`bg-white even:bg-gray-100 hover:bg-gray-300 ${
+                onRowClick ? "cursor-pointer" : null
+              }`}
+              onClick={() => (onRowClick ? onRowClick(data) : null)}
             >
               {rowKeys.map((rowKey) => {
                 return (
                   <td key={rowKey} className="px-6 py-4">
-                    {!["", null, undefined].includes(data[rowKey])
-                      ? data[rowKey]
-                      : "---"}
+                    {getValue(data, rowKey)}
+                    {/* {!["", null, undefined].includes(data[rowKey])
+                      ? getValue(data, rowKey)
+                      : "---"} */}
                     {/* // {rowKey.includes("updated_at")
                     //   ? format(
                     //       new Date(data[rowKey]),

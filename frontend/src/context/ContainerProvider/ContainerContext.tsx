@@ -13,30 +13,34 @@ interface ContainerState {
 }
 
 interface ContainerContextType extends ContainerState {
-  getContainers: () => void;
+  fetchContainer: (supplierId: string, containerId: string) => Promise<void>;
+  getContainers: () => Promise<void>;
   fetchContainersBySupplier: (id: string) => Promise<void>;
-  createContainer: (
-    supplierId: string | null | undefined,
-    formData: FormData
-  ) => void;
+  createContainer: (supplierId: string | undefined, body: {}) => Promise<void>;
   updateContainer: (supplierId: string, containerId: string, body: any) => void;
 }
 
 export type ContainerAction =
   | { type: "FETCH_CONTAINERS" }
+  | { type: "FETCH_CONTAINER" }
   | { type: "FETCH_CONTAINERS_BY_SUPPLIER" }
   | { type: "CREATE_CONTAINER" }
   | { type: "UPDATE_CONTAINER" }
   | {
       type: "FETCH_CONTAINERS_SUCCESS";
-      payload: { status: "success"; data: Container[] };
+      payload: { data: Container[] };
+    }
+  | {
+      type: "FETCH_CONTAINER_SUCCESS";
+      payload: { data: Container[] };
     }
   | {
       type: "FETCH_CONTAINERS_BY_SUPPLIER_SUCCESS";
-      payload: { status: "success"; data: ContainersBySupplier };
+      payload: { data: ContainersBySupplier };
     }
-  | { type: "CREATE_CONTAINER_SUCCESS"; payload: Container }
+  | { type: "CREATE_CONTAINER_SUCCESS"; payload: { data: Container } }
   | { type: "UPDATE_CONTAINER_SUCCESS"; payload: Container }
+  | { type: "FETCH_CONTAINER_FAILED"; payload: Error | null }
   | { type: "FETCH_CONTAINERS_FAILED"; payload: Error | null }
   | { type: "FETCH_CONTAINERS_BY_SUPPLIER_FAILED"; payload: Error | null }
   | { type: "CREATE_CONTAINER_FAILED"; payload: Error | null }
@@ -52,14 +56,16 @@ const initialState = {
 
 const ContainerContext = createContext<ContainerContextType>({
   ...initialState,
-  getContainers: () => {},
+  fetchContainer: async () => {},
+  getContainers: async () => {},
   fetchContainersBySupplier: async () => {},
-  createContainer: () => {},
+  createContainer: async () => {},
   updateContainer: () => {},
 });
 
 const containerReducer = (state: ContainerState, action: ContainerAction) => {
   switch (action.type) {
+    case ContainerActions.FETCH_CONTAINER:
     case ContainerActions.FETCH_CONTAINERS:
     case ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER:
     case ContainerActions.CREATE_CONTAINER:
@@ -68,6 +74,9 @@ const containerReducer = (state: ContainerState, action: ContainerAction) => {
 
     case ContainerActions.FETCH_CONTAINERS_SUCCESS:
       return { ...state, isLoading: false, containers: action.payload.data };
+
+    case ContainerActions.FETCH_CONTAINER_SUCCESS:
+      return { ...state, isLoading: false, container: action.payload.data };
     case ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER_SUCCESS:
       return {
         ...state,
@@ -78,7 +87,7 @@ const containerReducer = (state: ContainerState, action: ContainerAction) => {
       return {
         ...state,
         isLoading: false,
-        containers: [...state.containers, action.payload],
+        container: action.payload.data,
         error: null,
       };
     case ContainerActions.UPDATE_CONTAINER_SUCCESS:
@@ -89,6 +98,7 @@ const containerReducer = (state: ContainerState, action: ContainerAction) => {
         error: null,
       };
     case ContainerActions.FETCH_CONTAINERS_FAILED:
+    case ContainerActions.FETCH_CONTAINER_FAILED:
     case ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER_FAILED:
     case ContainerActions.CREATE_CONTAINER_FAILED:
     case ContainerActions.UPDATE_CONTAINER_FAILED:
@@ -102,6 +112,24 @@ export const ContainerProvider = ({
   children: React.ReactNode;
 }) => {
   const [state, dispatch] = useReducer(containerReducer, initialState);
+
+  const fetchContainer = async (supplierId: string, containerId: string) => {
+    dispatch({ type: ContainerActions.FETCH_CONTAINER });
+    try {
+      const response = await axios.get(
+        `/suppliers/${supplierId}/containers/${containerId}`
+      );
+      dispatch({
+        type: ContainerActions.FETCH_CONTAINER_SUCCESS,
+        payload: response.data,
+      });
+    } catch (error: any) {
+      dispatch({
+        type: ContainerActions.FETCH_CONTAINER_FAILED,
+        payload: error,
+      });
+    }
+  };
 
   const getContainers = async () => {
     dispatch({ type: ContainerActions.FETCH_CONTAINERS });
@@ -137,54 +165,18 @@ export const ContainerProvider = ({
 
   const createContainer = async (
     supplierId: string | null | undefined,
-    formData: FormData
+    body: any
   ) => {
     dispatch({ type: ContainerActions.CREATE_CONTAINER });
     try {
-      const response = await axios.post(`/suppliers/${supplierId}/containers`, {
-        container_num: formData.get("container_num"),
-        bill_of_lading_number: formData.get("bill_of_lading_number"),
-        port_of_landing: formData.get("port_of_landing"),
-        carrier: formData.get("carrier"),
-        vessel: formData.get("vessel"),
-        invoice_num: formData.get("invoice_num"),
-        gross_weight: formData.get("gross_weight"),
-        auction_or_sell: (
-          formData.get("auction_or_sell") as string
-        ).toUpperCase(),
-        branch_id: formData.get("branch_id"),
-        telegraphic_transferred: moment(
-          formData.get("telegraphic_transferred")?.toString()
-        ).format("YYYY-MM-DD HH:mm:ss"),
-        arrival_date_warehouse_ph: moment(
-          formData.get("arrival_date_warehouse_ph")?.toString()
-        ).format("YYYY-MM-DD HH:mm:ss"),
-        departure_date_from_japan: moment(
-          formData.get("departure_date_from_japan")?.toString()
-        ).format("YYYY-MM-DD HH:mm:ss"),
-        eta_to_ph: moment(formData.get("eta_to_ph")?.toString()).format(
-          "YYYY-MM-DD HH:mm:ss"
-        ),
-        sorting_date: moment(formData.get("sorting_date")?.toString()).format(
-          "YYYY-MM-DD HH:mm:ss"
-        ),
-        auction_date: moment(formData.get("auction_date")?.toString()).format(
-          "YYYY-MM-DD HH:mm:ss"
-        ),
-        payment_date: moment(formData.get("payment_date")?.toString()).format(
-          "YYYY-MM-DD HH:mm:ss"
-        ),
-        vanning_date: moment(formData.get("vanning_date")?.toString()).format(
-          "YYYY-MM-DD HH:mm:ss"
-        ),
-        devanning_date: moment(
-          formData.get("devanning_date")?.toString()
-        ).format("YYYY-MM-DD HH:mm:ss"),
-      });
+      const response = await axios.post(
+        `/suppliers/${supplierId}/containers`,
+        body
+      );
 
       dispatch({
         type: ContainerActions.CREATE_CONTAINER_SUCCESS,
-        payload: response.data.data,
+        payload: response.data,
       });
     } catch (error: any) {
       dispatch({
@@ -241,6 +233,7 @@ export const ContainerProvider = ({
     <ContainerContext.Provider
       value={{
         ...state,
+        fetchContainer,
         getContainers,
         fetchContainersBySupplier,
         createContainer,
