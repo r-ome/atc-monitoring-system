@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Button, Table } from "../../../components";
 import { useAuction } from "../../../context";
 import { AUCTIONS_403 } from "../errors";
+import { useSession } from "../../hooks";
 
 const AuctionProfile = () => {
   const navigate = useNavigate();
@@ -13,30 +14,24 @@ const AuctionProfile = () => {
     isLoading: isFetchingAuctionDetails,
     errors,
   } = useAuction();
+  const [sessionAuction, setSessionAuction] = useSession<any>("auction", null);
 
   useEffect(() => {
     const { auction_id: auctionId } = location.state.auction;
-    if (!auction || auction.auction_id !== auctionId) {
-      const fetchInitialData = async () => {
-        await fetchAuctionDetails(auctionId);
-      };
-      fetchInitialData();
-    }
-  }, [location.state.auction.auction_id, auction]);
+    const fetchInitialData = async () => {
+      await fetchAuctionDetails(auctionId);
+    };
+    fetchInitialData();
 
-  useEffect(() => {
-    const currentSessionAuction = sessionStorage.getItem("auction");
     if (auction) {
-      if (currentSessionAuction) {
-        let parsedSessionAuction = JSON.parse(currentSessionAuction);
-        if (parsedSessionAuction.auction_id !== auction.auction_id) {
-          sessionStorage.removeItem("auction");
-          sessionStorage.setItem("auction", JSON.stringify(auction));
+      if (sessionAuction) {
+        if (sessionAuction.auction_id !== auction.auction_id) {
+          setSessionAuction(auction);
         }
       }
-      sessionStorage.setItem("auction", JSON.stringify(auction));
+      setSessionAuction(auction);
     }
-  }, [auction]);
+  }, [JSON.stringify(auction)]);
 
   const renderProfileDetails = (auction: any) => {
     let auctionDetails = auction;
@@ -51,7 +46,11 @@ const AuctionProfile = () => {
     return (
       <>
         {profileDetails.map((item, i) => {
-          if (["auction id", "bidders"].includes(item.label.toLowerCase()))
+          if (
+            ["auction id", "bidders", "auction date"].includes(
+              item.label.toLowerCase()
+            )
+          )
             return;
           return (
             <div key={i} className="flex justify-between items-center p-2">
@@ -101,6 +100,7 @@ const AuctionProfile = () => {
         <div className="h-full">
           <div className="flex flex-grow gap-2">
             <div className="w-2/6 border rounded shadow-md p-4 h-full">
+              <h1 className="text-3xl font-bold">{auction?.auction_date}</h1>
               <Button
                 buttonType="secondary"
                 onClick={() =>
@@ -110,9 +110,9 @@ const AuctionProfile = () => {
                 }
                 className="text-blue-500"
               >
-                Payments
+                Go to Payments
               </Button>
-              <h1 className="text-3xl font-bold">{auction?.name}</h1>
+
               <div className="flex mt-4">
                 <div className="flex-col w-full gap-4">
                   {renderProfileDetails(auction)}
@@ -121,7 +121,8 @@ const AuctionProfile = () => {
             </div>
 
             <div className="w-5/6 border p-4 h-full">
-              <div className="flex justify-end w-full p-2">
+              <div className="flex justify-between items-center w-full p-2">
+                <h1 className="text-3xl font-bold">Registered Bidders</h1>
                 <Button
                   buttonType="primary"
                   onClick={() =>

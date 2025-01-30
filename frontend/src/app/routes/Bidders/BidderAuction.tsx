@@ -87,7 +87,7 @@ const BidderAuction = () => {
       <div>
         <div className="text-3xl font-bold p-2 mb-2"></div>
         <Table
-          data={auctionItems.data}
+          data={auctionItems?.data || []}
           loading={isLoading}
           columnHeaders={[
             "barcode",

@@ -4,6 +4,7 @@ import { FormProvider, useForm } from "react-hook-form";
 import { Input, Button } from "../../../components";
 import { SUPPLIERS_402, SUPPLIERS_501 } from "../errors";
 import { useInventories } from "../../../context";
+import { useSession } from "../../hooks";
 
 const CreateInventory = () => {
   const navigate = useNavigate();
@@ -12,15 +13,12 @@ const CreateInventory = () => {
   const [hasError, setHasError] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const { createInventory, inventory, isLoading, errors } = useInventories();
+  const [supplier] = useSession<any>("supplier", null);
+  const [container] = useSession<any>("container", null);
 
   const handleSubmitCreateInventory = methods.handleSubmit(async (data) => {
-    console.log(data);
-    // await createInventory(data);
+    await createInventory(supplier?.supplier_id, container?.container_id, data);
   });
-
-  useEffect(() => {
-    // console.log(location.state.container);
-  }, [location.state.container]);
 
   useEffect(() => {
     if (!errors && !isLoading && inventory) {

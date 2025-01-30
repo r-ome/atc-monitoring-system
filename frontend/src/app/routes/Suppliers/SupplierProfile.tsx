@@ -26,26 +26,22 @@ const SupplierProfile = () => {
 
   useEffect(() => {
     const { supplier_id: supplierId } = location.state.supplier;
-    if (!supplier || supplier.supplier_id !== supplierId) {
-      const fetchInitialData = async () => {
-        await fetchSupplier(supplierId);
-        await fetchContainersBySupplier(supplierId);
-      };
-      fetchInitialData();
-    }
-  }, [location.state.supplier.supplier_id, supplier]);
+    const fetchInitialData = async () => {
+      await fetchSupplier(supplierId);
+      await fetchContainersBySupplier(supplierId);
+    };
+    fetchInitialData();
 
-  useEffect(() => {
-    const currentSessionSupplier = sessionSupplier;
     if (supplier) {
-      if (currentSessionSupplier) {
-        if (currentSessionSupplier.supplier_id !== supplier.supplier_id) {
+      if (sessionSupplier) {
+        if (sessionSupplier.supplier_id !== supplier.supplier_id) {
           setSupplierSession(supplier);
+          return;
         }
       }
       setSupplierSession(supplier);
     }
-  }, [supplier]);
+  }, [JSON.stringify(supplier)]);
 
   const renderProfileDetails = (supplier: any) => {
     let supplierDetails = supplier;
@@ -61,8 +57,9 @@ const SupplierProfile = () => {
     return (
       <>
         {profileDetails
-          .filter((item) =>
-            ["supplier id", "name"].includes(item.label.toLowerCase())
+          .filter(
+            (item) =>
+              !["supplier id", "name"].includes(item.label.toLowerCase())
           )
           .map((item, i) => {
             return (
@@ -101,7 +98,8 @@ const SupplierProfile = () => {
             </div>
 
             <div className="w-5/6 border p-4 h-full">
-              <div className="flex justify-end w-full p-2">
+              <div className="flex justify-between items-center w-full p-2">
+                <h1 className="text-3xl font-bold">Container List</h1>
                 <Button
                   buttonType="primary"
                   onClick={() => navigate("/containers/create")}

@@ -22,10 +22,13 @@ const ContainerProfile = () => {
     errors: inventoryErrors,
   } = useInventories();
   const [sessionSupplier] = useSession("supplier", null);
+  const [sessionContainer, setSessionContainer] = useSession<any>(
+    "container",
+    null
+  );
 
   useEffect(() => {
     if (sessionSupplier) {
-      console.log(sessionSupplier);
       setSupplier(sessionSupplier);
     }
   }, [sessionSupplier]);
@@ -33,15 +36,25 @@ const ContainerProfile = () => {
   useEffect(() => {
     const { container_id: containerId } = location.state.container;
     if (supplier) {
-      if (!container || container.container_id !== containerId) {
-        const fetchInitialData = async () => {
-          await fetchContainer(supplier?.supplier_id!, containerId);
-          await fetchInventoriesByContainer(supplier?.supplier_id, containerId);
-        };
-        fetchInitialData();
-      }
+      const fetchInitialData = async () => {
+        await fetchContainer(supplier?.supplier_id!, containerId);
+        await fetchInventoriesByContainer(supplier?.supplier_id, containerId);
+      };
+      fetchInitialData();
     }
-  }, [location.state.container, container, supplier]);
+  }, [JSON.stringify(container), JSON.stringify(supplier)]);
+
+  useEffect(() => {
+    if (container) {
+      if (sessionContainer) {
+        if (sessionContainer.container_id !== container.container_id) {
+          setSessionContainer(container);
+          return;
+        }
+      }
+      setSessionContainer(container);
+    }
+  }, []);
 
   const renderProfileDetails = (container: any) => {
     let containerDetails = container;
@@ -103,7 +116,8 @@ const ContainerProfile = () => {
             </div>
 
             <div className="w-4/6 border p-4 h-full">
-              <div className="flex justify-end w-full p-2">
+              <div className="flex justify-between items-center w-full p-2">
+                <h1 className="text-3xl font-bold">Inventories</h1>
                 <Button
                   buttonType="primary"
                   onClick={() =>
@@ -115,21 +129,21 @@ const ContainerProfile = () => {
               </div>
               {!isFetchingInventories && inventoriesByContainer && (
                 <Table
-                  data={inventoriesByContainer.inventories}
+                  data={inventoriesByContainer.inventories || []}
                   loading={isFetchingInventories}
                   rowKeys={[
                     "barcode",
                     "description",
                     "control_number",
                     "status",
-                    "created_at",
+                    // "created_at",
                   ]}
                   columnHeaders={[
                     "Barcode",
                     "Description",
                     "Control #",
                     "Status",
-                    "Created at",
+                    // "Created at",
                   ]}
                 />
               )}

@@ -5,6 +5,7 @@ import { Input, Button, Select, DatePicker } from "../../../components";
 import { useContainers } from "../../../context/ContainerProvider/ContainerContext";
 import { CONTAINERS_501, CONTAINERS_503 } from "../errors";
 import { useBranches } from "../../../context";
+import { useSession } from "../../hooks";
 
 const CreateContainer = () => {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ const CreateContainer = () => {
     isLoading: isFetchingBranches,
     fetchBranches,
   } = useBranches();
+  const [sessionSupplier] = useSession<any>("supplier", null);
 
   const handleSubmitCreateContainer = methods.handleSubmit(async (data) => {
     await createContainer(supplier?.supplier_id, data);
@@ -32,9 +34,8 @@ const CreateContainer = () => {
     };
     fetchInitialData();
 
-    let sessionSupplier = sessionStorage.getItem("supplier");
     if (sessionSupplier) {
-      setSupplier(JSON.parse(sessionSupplier));
+      setSupplier(sessionSupplier);
     }
   }, []);
 

@@ -110,7 +110,6 @@ export const BidderRequirementProvider = ({
         payload: response.data,
       });
     } catch (error: any) {
-      console.log(error.response.data);
       dispatch({
         type: BidderRequirementActions.ADD_REQUIREMENT_FAILED,
         payload: error.response.data,

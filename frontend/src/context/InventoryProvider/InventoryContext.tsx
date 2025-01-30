@@ -18,7 +18,7 @@ interface InventoryContextType extends InventoryState {
   createInventory: (
     supplierId: string,
     containerId: string,
-    formData: FormData
+    formData: any
   ) => Promise<void>;
 }
 
@@ -29,7 +29,7 @@ export type InventoryAction =
       type: "FETCH_INVENTORIES_BY_CONTAINER_SUCCESS";
       payload: { data: any };
     }
-  | { type: "ADD_INVENTORY_TO_CONTAINER_SUCCESS"; payload: Inventory }
+  | { type: "ADD_INVENTORY_TO_CONTAINER_SUCCESS"; payload: { data: Inventory } }
   | { type: "FETCH_INVENTORIES_BY_CONTAINER_FAILED"; payload: null }
   | { type: "ADD_INVENTORY_TO_CONTAINER_FAILED"; payload: null };
 
@@ -59,13 +59,20 @@ const inventoryReducer = (state: InventoryState, action: InventoryAction) => {
         inventoriesByContainer: action.payload.data,
       };
     case InventoryActions.ADD_INVENTORY_TO_CONTAINER_SUCCESS:
+      const stateInventoriesByContainer = state.inventoriesByContainer;
+      if (stateInventoriesByContainer) {
+        stateInventoriesByContainer.inventories = [
+          ...stateInventoriesByContainer.inventories,
+          action.payload.data,
+        ];
+      } else {
+        stateInventoriesByContainer.inventories = [action.payload.data];
+      }
       return {
         ...state,
         isLoading: false,
-        inventoriesByContainer: [
-          ...state.inventoriesByContainer,
-          action.payload,
-        ],
+        inventory: action.payload.data,
+        inventoriesByContainer: stateInventoriesByContainer,
         error: null,
       };
     case InventoryActions.FETCH_INVENTORIES_BY_CONTAINER_FAILED:
@@ -105,24 +112,22 @@ export const InventoryProvider = ({
   const createInventory = async (
     supplierId: string | null | undefined,
     containerId: string | null | undefined,
-    formData: FormData
+    body: any
   ) => {
     dispatch({ type: InventoryActions.ADD_INVENTORY_TO_CONTAINER });
     try {
       const response = await axios.post(
         `/suppliers/${supplierId}/containers/${containerId}/inventories`,
         {
-          container_id: containerId,
-          barcode_number: formData.get("barcode_number"),
-          description: formData.get("description"),
-          control_number: formData.get("control_number"),
-          url: formData.get("url"),
-          status: "UNSOLD",
+          barcode: body.barcode,
+          description: body.description,
+          control_number: body.control_number,
+          url: body.url,
         }
       );
       dispatch({
         type: InventoryActions.ADD_INVENTORY_TO_CONTAINER_SUCCESS,
-        payload: response.data.data,
+        payload: response.data,
       });
     } catch (error: any) {
       dispatch({

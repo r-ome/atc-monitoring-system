@@ -35,7 +35,7 @@ const BidderList = () => {
       </div>
 
       <Table
-        data={bidders}
+        data={bidders || []}
         loading={isFetchingBidders}
         onRowClick={(bidder: Bidder) =>
           navigate(`/bidders/${bidder.bidder_id}`, {

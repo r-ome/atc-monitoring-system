@@ -30,7 +30,7 @@ const BranchList = () => {
       </div>
 
       <Table
-        data={branches}
+        data={branches || []}
         loading={isLoading}
         onRowClick={(branch: Branch) =>
           navigate(`/branches/${branch.branch_id}`, { state: { branch } })

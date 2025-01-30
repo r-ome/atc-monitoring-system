@@ -114,7 +114,8 @@ const AuctionPayments = () => {
             </div>
 
             <div className="w-5/6 border p-4 h-full">
-              <div className="flex justify-end w-full p-2">
+              <div className="flex justify-between items-center w-full p-2">
+                <h1 className="text-3xl font-bold">Payments</h1>
                 <Button
                   buttonType="primary"
                   onClick={() =>
@@ -126,7 +127,7 @@ const AuctionPayments = () => {
               </div>
 
               <Table
-                data={payments.payments || []}
+                data={payments?.payments || []}
                 loading={isFetchingAuctionPayments}
                 rowKeys={[
                   "created_at",

@@ -132,6 +132,7 @@ const monitoringReducer = (
       };
 
     case AuctionActions.REGISTER_BIDDER_AT_AUCTION_SUCCESS:
+      state.auction.bidders = [...state.auction.bidders, action.payload.data];
       return {
         ...state,
         isLoading: false,

@@ -7,7 +7,7 @@ import moment from "moment";
 interface ContainerState {
   container: any;
   containers: Container[];
-  containersBySupplier: ContainersBySupplier | null;
+  containersBySupplier: ContainersBySupplier | any;
   isLoading: boolean;
   error: any;
 }
@@ -49,7 +49,7 @@ export type ContainerAction =
 const initialState = {
   container: null,
   containers: [],
-  containersBySupplier: null,
+  containersBySupplier: {},
   isLoading: false,
   error: null,
 };
@@ -74,7 +74,6 @@ const containerReducer = (state: ContainerState, action: ContainerAction) => {
 
     case ContainerActions.FETCH_CONTAINERS_SUCCESS:
       return { ...state, isLoading: false, containers: action.payload.data };
-
     case ContainerActions.FETCH_CONTAINER_SUCCESS:
       return { ...state, isLoading: false, container: action.payload.data };
     case ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER_SUCCESS:
@@ -221,7 +220,6 @@ export const ContainerProvider = ({
         payload: response.data,
       });
     } catch (error: any) {
-      console.log({ error });
       dispatch({
         type: ContainerActions.UPDATE_CONTAINER_FAILED,
         payload: error,

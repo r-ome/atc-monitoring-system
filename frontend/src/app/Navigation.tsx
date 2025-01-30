@@ -2,10 +2,10 @@ import { NavLink } from "react-router-dom";
 
 const lists = [
   { name: "Home", path: "/" },
-  { name: "Suppliers", path: "/suppliers" },
-  { name: "Branches", path: "/branches" },
   { name: "Auctions", path: "/auctions" },
   { name: "Bidders", path: "/bidders" },
+  { name: "Suppliers", path: "/suppliers" },
+  { name: "Branches", path: "/branches" },
 ];
 
 const Navigation = () => {

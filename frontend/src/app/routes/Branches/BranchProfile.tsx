@@ -80,7 +80,7 @@ const BranchProfile = () => {
 
             <div className="w-5/6 border p-4 h-full">
               <Table
-                data={branch.containers || []}
+                data={branch?.containers || []}
                 loading={isFetchingBranch}
                 rowKeys={["barcode", "container_num", "supplier.name"]}
                 columnHeaders={["Barcode", "Container Number", "Supplier"]}

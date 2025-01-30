@@ -34,7 +34,7 @@ const AuctionList = () => {
       </div>
 
       <Table
-        data={auctions}
+        data={auctions || []}
         loading={isLoading}
         onRowClick={(auction: Auction) =>
           navigate(`/auctions/${auction.auction_id}`, {

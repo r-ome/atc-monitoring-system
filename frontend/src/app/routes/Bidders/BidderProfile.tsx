@@ -1,36 +1,32 @@
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button, Table } from "../../../components";
-import { useBidderRequirement, useBidders } from "../../../context";
+import { useBidders } from "../../../context";
+import { useSession } from "../../hooks";
 
 const BidderProfile = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { bidder, isLoading: isFetchingBidder, fetchBidder } = useBidders();
+  const [sessionBidder, setSessionBidder] = useSession<any>("bidder", null);
 
   useEffect(() => {
     const { bidder_id: bidderId } = location.state.bidder;
-    if (!bidder || bidder.bidder_id !== bidderId) {
-      const fetchInitialData = async () => {
-        await fetchBidder(bidderId);
-      };
-      fetchInitialData();
-    }
-  }, [location.state.bidder, bidder]);
+    const fetchInitialData = async () => {
+      await fetchBidder(bidderId);
+    };
+    fetchInitialData();
 
-  useEffect(() => {
-    const currentSessionBidder = sessionStorage.getItem("bidder");
     if (bidder) {
-      if (currentSessionBidder) {
-        let parsedSessionBidder = JSON.parse(currentSessionBidder);
-        if (parsedSessionBidder.supplier_id !== bidder.bidder_id) {
-          sessionStorage.removeItem("bidder");
-          sessionStorage.setItem("bidder", JSON.stringify(bidder));
+      if (sessionBidder) {
+        if (sessionBidder.bidder_id !== bidder.bidder_id) {
+          setSessionBidder(bidder);
+          return;
         }
       }
-      sessionStorage.setItem("bidder", JSON.stringify(bidder));
+      setSessionBidder(bidder);
     }
-  }, [bidder]);
+  }, [JSON.stringify(bidder)]);
 
   const renderProfileDetails = (bidder: any) => {
     let bidderDetails = bidder;
@@ -75,7 +71,9 @@ const BidderProfile = () => {
         <div className="h-full">
           <div className="flex flex-grow gap-2">
             <div className="w-2/6 border rounded shadow-md p-4 h-full">
-              <h1 className="text-3xl font-bold">{bidder?.full_name}</h1>
+              <h1 className="text-3xl font-bold">
+                {bidder?.bidder_number} - {bidder?.full_name}
+              </h1>
               <div className="flex mt-4">
                 <div className="flex-col w-full gap-4">
                   {renderProfileDetails(bidder)}

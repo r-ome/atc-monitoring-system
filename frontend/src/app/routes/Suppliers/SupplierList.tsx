@@ -39,7 +39,7 @@ const Suppliers = () => {
       ) : null}
 
       <Table
-        data={suppliers}
+        data={suppliers || []}
         loading={isLoading}
         onRowClick={(supplier: Supplier) =>
           navigate(`/suppliers/${supplier.supplier_id}`, {

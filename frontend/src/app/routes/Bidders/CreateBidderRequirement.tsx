@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
 import { Input, Button, DatePicker } from "../../../components";
-import { useBidders } from "../../../context/BidderProvider/BidderContext";
 import { SUPPLIERS_501 } from "../errors";
 import { useBidderRequirement } from "../../../context/RequirementProvider/RequirementContext";
+import { useSession } from "../../hooks";
 
 const CreateBidderRequirement = () => {
   const navigate = useNavigate();
@@ -14,11 +14,11 @@ const CreateBidderRequirement = () => {
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [bidder, setBidder] = useState<null | { bidder_id: string }>(null);
   const { createBidderRequirement, isLoading, error } = useBidderRequirement();
+  const [sessionBidder] = useSession<any>("bidder", null);
 
   useEffect(() => {
-    let sessionBidder = sessionStorage.getItem("bidder");
     if (sessionBidder) {
-      setBidder(JSON.parse(sessionBidder));
+      setBidder(sessionBidder);
     }
   }, []);
 

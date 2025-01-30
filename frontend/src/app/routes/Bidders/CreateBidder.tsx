@@ -62,7 +62,7 @@ const CreateSupplier = () => {
                     <>Please take a look back later...</>
                   ) : null}
                   {error?.error === BIDDERS_402 ? (
-                    <>Bidder Number 232 already taken!</>
+                    <>Bidder Number already taken!</>
                   ) : null}
                 </h1>
               </div>
@@ -102,7 +102,7 @@ const CreateSupplier = () => {
                     message: "Maximum of 255 characters",
                   },
                   pattern: {
-                    value: /^[a-zA-Z0-9\- ]+$/,
+                    value: /^[a-zA-Z\- ]+$/,
                     message: "Invalid characters",
                   },
                 }}
@@ -129,7 +129,7 @@ const CreateSupplier = () => {
                     message: "Maximum of 255 characters",
                   },
                   pattern: {
-                    value: /^[a-zA-Z0-9\- ]+$/,
+                    value: /^[a-zA-Z\- ]+$/,
                     message: "Invalid characters",
                   },
                 }}
