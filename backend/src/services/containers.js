@@ -205,6 +205,7 @@ export const createContainer = async (supplier_id, container) => {
       const { branch_id, ...rest } = newContainer;
       return {
         container_id: result.insertId,
+        num_of_items: 0,
         supplier: {
           id: supplier_id,
           name: supplier_name,

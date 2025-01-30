@@ -16,7 +16,7 @@ export const getBidder = async (bidder_id) => {
           IF (COUNT(br.requirement_id) = 0,
             JSON_ARRAY(),
             JSON_ARRAYAGG(JSON_OBJECT(
-              'id', br.requirement_id,
+              'requirement_id', br.requirement_id,
               'name', br.name,
               'validity_date', DATE_FORMAT(br.validity_date, '%b %d, %Y')
             ))
@@ -155,13 +155,21 @@ export const addRequirement = async ({
       [bidder_id, name, url, validity_date]
     );
 
-    const requirement = await query(
+    const [requirement] = await query(
       `
-        SELECT * FROM bidder_requirements WHERE requirement_id = ?
+        SELECT
+          requirement_id,
+          bidder_id,
+          name,
+          validity_date,
+          url,
+          DATE_FORMAT(created_at, '%b %d, %Y %h:%i%p') AS created_at,
+          DATE_FORMAT(updated_at, '%b %d, %Y %h:%i%p') AS updated_at
+        FROM bidder_requirements WHERE requirement_id = ?
         `,
       [response.insertId]
     );
-    return requirement[0];
+    return requirement;
   } catch (error) {
     throw new DBErrorException("addRequirement", error);
   }

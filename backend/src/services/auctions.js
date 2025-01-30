@@ -41,7 +41,7 @@ export const getAuctionDetails = async (auction_id) => {
       `
         SELECT
           a.auction_id,
-          DATE_FORMAT(a.created_at, '%M %d, %Y, %W') AS auction_date,
+          DATE_FORMAT(a.created_at, '%M %d, %Y, %a') AS auction_date,
           IF(COUNT(ab.auction_bidders_id) = 0,
             JSON_ARRAY(),
             JSON_ARRAYAGG(JSON_OBJECT(
@@ -112,7 +112,8 @@ export const createAuction = async (branch) => {
       `
       SELECT
         auction_id,
-        DATE_FORMAT(created_at, '%M %d, %Y %h:%i%p') AS created_at
+        DATE_FORMAT(created_at, '%M %d, %Y %h:%i%p, %W') AS created_at,
+        0 as number_of_bidders
       FROM auctions
       WHERE auction_id = ?
       AND deleted_at IS NULL`,

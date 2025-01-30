@@ -58,7 +58,7 @@ router.get("/", async (_, res) => {
   } catch (error) {
     return renderHttpError(res, {
       log: error,
-      error: error[DBErrorException] ? AUCTIONS_501 : AUCTIONS_503,
+      error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
     });
   }
 });

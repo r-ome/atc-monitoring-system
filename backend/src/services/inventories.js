@@ -25,8 +25,8 @@ export const getContainerInventories = async (container_id) => {
               'updated_at', DATE_FORMAT(i.updated_at, '%b %d, %Y %h:%i%p')
             ))
           ) as inventories
-        FROM inventories i
-        LEFT JOIN containers c ON c.container_id = i.container_id
+        FROM containers c
+        LEFT JOIN inventories i ON c.container_id = i.container_id
         LEFT JOIN suppliers s ON s.supplier_id = c.supplier_id
         WHERE c.container_id = ? AND c.deleted_at IS NULL AND i.deleted_at IS NULL
         GROUP BY c.container_id
@@ -72,6 +72,8 @@ export const createContainerInventory = async (container_id, inventory) => {
             inventory_id,
             container_id,
             barcode,
+            description,
+            control_number,
             url,
             status,
             DATE_FORMAT(created_at, '%b %d, %Y %h:%i%p') AS created_at,

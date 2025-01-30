@@ -28,7 +28,6 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   try {
     const { container_id } = req;
-
     const container = await getContainer(container_id);
     if (!container) {
       return renderHttpError(res, {

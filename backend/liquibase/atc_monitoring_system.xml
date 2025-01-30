@@ -270,21 +270,17 @@
             <column name="auction_inventory_id" type="bigint" autoIncrement="true">
                 <constraints primaryKey="true" nullable="false" />
             </column>
-            <column name="auction_id" type="bigint">
+            <column name="auction_bidders_id" type="bigint">
                 <constraints nullable="false" />
             </column>
             <column name="inventory_id" type="bigint">
                 <constraints nullable="false" />
             </column>
             <column name="payment_id" type="bigint"/>
-            <column name="bidder_id" type="bigint">
-                <constraints nullable="false" />
-            </column>
-            <column name="status" type="enum('PAID', 'UNPAID', 'CANCELLED')" defaultValue="UNPAID">
+            <column name="status" type="enum('PAID', 'UNPAID', 'CANCELLED', 'REFUNDED')" defaultValue="UNPAID">
                 <constraints nullable="false" />
             </column>
             <column name="manifest_number" type="varchar(255)"/>
-            <column name="remarks" type="varchar(255)"/>
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
                 <constraints nullable="false"/>
             </column>
@@ -295,8 +291,8 @@
         <addUniqueConstraint 
             columnNames="inventory_id" 
             tableName="auctions_inventories" 
-            constraintName="unique_inventory_id"/>
-
+            constraintName="unique_inventory_id"
+        />
 
         <addForeignKeyConstraint
             baseTableName="auctions_inventories"
@@ -310,20 +306,10 @@
 
         <addForeignKeyConstraint
             baseTableName="auctions_inventories"
-            baseColumnNames="auction_id"
-            constraintName="fk_auction_inventories_auction_auction"
-            referencedTableName="auctions"
-            referencedColumnNames="auction_id"
-            onUpdate="CASCADE"
-            onDelete="CASCADE"
-        />
-
-        <addForeignKeyConstraint
-            baseTableName="auctions_inventories"
-            baseColumnNames="bidder_id"
+            baseColumnNames="auction_bidders_id"
             constraintName="fk_auction_inventories_auction_bidders"
-            referencedTableName="bidders"
-            referencedColumnNames="bidder_id"
+            referencedTableName="auctions_bidders"
+            referencedColumnNames="auction_bidders_id"
             onUpdate="CASCADE"
             onDelete="CASCADE"
         />
@@ -337,7 +323,6 @@
             onUpdate="CASCADE"
             onDelete="CASCADE"
         />
-
 
         <createTable tableName="inventory_histories">
             <column name="inventory_history_id" type="bigint" autoIncrement="true">
