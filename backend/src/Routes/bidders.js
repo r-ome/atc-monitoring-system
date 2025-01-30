@@ -1,6 +1,7 @@
 import express from "express";
-import service from "../services/bidders.js";
-const {
+import Joi from "joi";
+
+import {
   getBidder,
   getBidderByBidderNumber,
   getBidders,
@@ -11,51 +12,67 @@ const {
   getRequirements,
   getAuctionsJoined,
   getBidderPaymentHistory,
-} = service;
-import { logger } from "../logger.js";
-import Joi from "joi";
-const router = express.Router();
-import { formatNumberToCurrency } from "../utils/index.js";
+} from "../services/bidders.js";
 
-router.get("/:id", async (req, res) => {
+import { logger } from "../logger.js";
+import { formatNumberToCurrency } from "../utils/index.js";
+import {
+  renderHttpError,
+  BIDDERS_501,
+  BIDDERS_503,
+  BIDDERS_402,
+  BIDDERS_401,
+  BIDDER_REQUIREMENT_401,
+  BIDDER_REQUIREMENT_402,
+  BIDDER_REQUIREMENT_403,
+  BIDDER_REQUIREMENT_501,
+  BIDDER_REQUIREMENT_502,
+  BIDDER_REQUIREMENT_503,
+} from "../Routes/error_infos.js";
+import { DB_ERROR_EXCEPTION } from "../services/index.js";
+
+const router = express.Router();
+
+router.get("/:bidder_id", async (req, res) => {
   try {
-    const bidders = await getBidder(req.params.id);
-    if (bidders.length) {
-      return res.status(200).json({ status: "success", data: bidders[0] });
+    const { bidder_id } = req.params;
+    const [bidder] = await getBidder(bidder_id);
+    if (!bidder) {
+      return renderHttpError(res, {
+        log: `Bidder with ID:${bidder_id} does not exist`,
+        error: BIDDERS_402,
+      });
     }
 
-    return res
-      .status(404)
-      .json({ status: "fail", code: 404, message: "Bidder not found." });
+    return res.status(200).json({ data: bidder });
   } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? BIDDERS_501 : BIDDERS_503,
+    });
   }
 });
 
 router.get("/", async (req, res) => {
   try {
     const bidders = await getBidders();
-    res.status(200).json({ status: "success", data: bidders });
+    return res.status(200).json({ data: bidders });
   } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? BIDDERS_501 : BIDDERS_503,
+    });
   }
 });
 
 router.post("/", async (req, res) => {
   try {
-    const bidders = await getBidderByBidderNumber(req.body.bidder_number);
+    const { body } = req;
+    const bidders = await getBidderByBidderNumber(body.bidder_number);
     if (bidders.length) {
-      return res.status(400).json({
-        status: "fail",
-        code: 400,
-        errors: [
-          {
-            field: "bidder_number",
-            message: "Bidder Number already exists",
-          },
-        ],
+      return renderHttpError(res, {
+        log: `Bidder Number ${body.bidder_number} already exists!`,
+        error: BIDDERS_402,
       });
     }
 
@@ -86,36 +103,31 @@ router.post("/", async (req, res) => {
           "string.empty": "Supplier Name is required",
           "string.min": "Must be at least 3 characters ",
         }),
-      service_charge: Joi.number()
-        .required()
-        .messages({ "number.base": "Service Charge is required " }),
       old_number: Joi.number().valid(""),
     });
 
-    const { error } = schema.validate(req.body);
+    const { error } = schema.validate(body);
     if (error) {
       const errorDetails = error.details.map((err) => {
-        console.log(err);
         return {
           field: err.context.key,
           message: err.message,
         };
       });
 
-      logger.error(JSON.stringify(errorDetails, null, 2));
-      return res.status(400).json({
-        status: "fail",
-        code: 400,
-        errors: errorDetails,
+      return renderHttpError(res, {
+        log: JSON.stringify(errorDetails, null, 2),
+        error: BIDDERS_401,
       });
     }
 
-    const bidder = await createBidder(req.body);
-    console.log({ bidder });
-    res.status(200).json({ status: "success", data: bidder });
+    const bidder = await createBidder(body);
+    return res.status(200).json({ data: bidder });
   } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? BIDDERS_501 : BIDDERS_503,
+    });
   }
 });
 
@@ -152,9 +164,6 @@ router.put("/:id", async (req, res) => {
           "string.empty": "Supplier Name is required",
           "string.min": "Must be at least 3 characters ",
         }),
-      service_charge: Joi.number()
-        .required()
-        .messages({ "number.base": "Service Charge is required " }),
       old_number: Joi.number().valid(""),
     });
 
@@ -194,18 +203,10 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-router.get("/:id/requirements", async (req, res) => {
+router.post("/:bidder_id/requirements", async (req, res) => {
   try {
-    const requirements = await getRequirements(req.params.id);
-    res.status(200).json({ status: "success", data: requirements });
-  } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
-  }
-});
-
-router.post("/:id/requirements", async (req, res) => {
-  try {
+    const { bidder_id } = req.params;
+    const { body } = req;
     const schema = Joi.object({
       bidder_id: Joi.string()
         .required()
@@ -224,37 +225,35 @@ router.post("/:id/requirements", async (req, res) => {
     });
 
     const { error } = schema.validate({
-      bidder_id: req.params.id,
-      ...req.body,
+      bidder_id,
+      ...body,
     });
     if (error) {
-      const errorDetails = error.details.map((err) => {
-        console.log(err);
-        return {
-          field: err.context.key,
-          message: err.message,
-        };
-      });
-
-      logger.error(JSON.stringify(errorDetails, null, 2));
-      return res.status(400).json({
-        status: "fail",
-        code: 400,
-        errors: errorDetails,
+      const errorDetails = error.details.map((err) => ({
+        field: err.context.key,
+        message: err.message,
+      }));
+      return renderHttpError(res, {
+        log: JSON.stringify(errorDetails, null, 2),
+        error: BIDDER_REQUIREMENT_401,
       });
     }
 
     const requirements = await addRequirement({
-      bidder_id: parseInt(req.params.id),
-      name: req.body.name,
-      url: req.body.url,
-      validity_date: req.body.validity_date,
+      bidder_id,
+      name: body.name,
+      url: body.url,
+      validity_date: body.validity_date,
     });
 
-    res.status(200).json({ status: "success", data: requirements });
+    return res.status(200).json({ data: requirements });
   } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION]
+        ? BIDDER_REQUIREMENT_501
+        : BIDDER_REQUIREMENT_503,
+    });
   }
 });
 

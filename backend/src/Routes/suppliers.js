@@ -15,7 +15,7 @@ import {
   SUPPLIERS_401,
   SUPPLIERS_402,
   SUPPLIERS_403,
-  SUPPLIERS_500,
+  SUPPLIERS_503,
   SUPPLIERS_501,
 } from "./error_infos.js";
 import { DB_ERROR_EXCEPTION } from "../services/index.js";
@@ -38,7 +38,7 @@ router.get("/:supplier_id", async (req, res) => {
   } catch (error) {
     return renderHttpError(res, {
       log: error,
-      error: error[DB_ERROR_EXCEPTION] ? SUPPLIERS_501 : SUPPLIERS_500,
+      error: error[DB_ERROR_EXCEPTION] ? SUPPLIERS_501 : SUPPLIERS_503,
     });
   }
 });
@@ -50,7 +50,7 @@ router.get("/", async (req, res) => {
   } catch (error) {
     return renderHttpError(res, {
       log: error,
-      error: error[DB_ERROR_EXCEPTION] ? SUPPLIERS_501 : SUPPLIERS_500,
+      error: error[DB_ERROR_EXCEPTION] ? SUPPLIERS_501 : SUPPLIERS_503,
     });
   }
 });
@@ -112,7 +112,7 @@ router.post("/", async (req, res) => {
   } catch (error) {
     return renderHttpError(res, {
       log: error,
-      error: error[DB_ERROR_EXCEPTION] ? SUPPLIERS_501 : SUPPLIERS_500,
+      error: error[DB_ERROR_EXCEPTION] ? SUPPLIERS_501 : SUPPLIERS_503,
     });
   }
 });

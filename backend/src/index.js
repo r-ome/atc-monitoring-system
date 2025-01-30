@@ -12,6 +12,7 @@ import {
   branches,
   inventories,
   bidders,
+  payments,
 } from "./Routes/index.js";
 
 logger.info("STARTING APPLICATION");
@@ -32,7 +33,6 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use("/suppliers", suppliers);
 suppliers.use(
   "/:supplier_id/containers",
   (req, res, next) => {
@@ -51,6 +51,17 @@ containers.use(
   inventories
 );
 
+auctions.use(
+  "/:auction_id/payments",
+  (req, res, next) => {
+    req.auction_id = req.params.auction_id;
+    next();
+  },
+  payments
+);
+
+app.use("/payments", payments);
+app.use("/suppliers", suppliers);
 app.use("/containers", containers);
 app.use("/branches", branches);
 app.use("/auctions", auctions);

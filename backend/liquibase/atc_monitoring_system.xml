@@ -107,31 +107,16 @@
             <column name="bidder_id" type="bigint" autoIncrement="true">
                 <constraints primaryKey="true" nullable="false" />
             </column>
-            <column name="branch_id" type="bigint" defaultValue="1">
-                <constraints primaryKey="true" nullable="false" />
-            </column>
             <column name="bidder_number" type="varchar(255)"/>
             <column name="first_name" type="varchar(255)"/>
             <column name="middle_name" type="varchar(255)"/>
             <column name="last_name" type="varchar(255)"/>
-            <column name="service_charge" type="int"/>
-            <column name="old_number" type="varchar(255)"/>
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
                 <constraints nullable="false"/>
             </column>
             <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
             <column name="deleted_at" type="datetime"/>
         </createTable>
-
-        <addForeignKeyConstraint
-            baseTableName="bidders"
-            baseColumnNames="branch_id"
-            constraintName="fk_bidders_branch"
-            referencedTableName="branches"
-            referencedColumnNames="branch_id"
-            onUpdate="CASCADE"
-            onDelete="CASCADE"
-        />
 
         <createTable tableName="bidder_requirements">
             <column name="requirement_id" type="bigint" autoIncrement="true">
@@ -172,7 +157,7 @@
             <column name="control_number" type="varchar(255)"/>
             <column name="url" type="varchar(255)"/>
             <column name="qty" type="varchar(255)"/>
-            <column name="barcode_number" type="varchar(255)"/>
+            <column name="barcode" type="varchar(255)"/>
             <column name="status" type="enum('SOLD', 'UNSOLD')" defaultValue="UNSOLD">
                 <constraints nullable="false" />
             </column>
@@ -204,8 +189,9 @@
             <column name="deleted_at" type="datetime"/>
         </createTable>
 
-        <createTable tableName="payments">
-            <column name="payment_id" type="bigint" autoIncrement="true">
+
+        <createTable tableName="auctions_bidders">
+            <column name="auction_bidders_id" type="bigint" autoIncrement="true">
                 <constraints primaryKey="true" nullable="false" />
             </column>
             <column name="auction_id" type="bigint">
@@ -214,12 +200,51 @@
             <column name="bidder_id" type="bigint">
                 <constraints nullable="false" />
             </column>
+            <column name="service_charge" type="int"/>
+            <column name="already_consumed" type="tinyint" defaultValue="0"/>
+            <column name="registration_fee" type="int"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
+            <column name="deleted_at" type="datetime"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="auctions_bidders"
+            baseColumnNames="auction_id"
+            constraintName="fk_auction_bidders_auctions"
+            referencedTableName="auctions"
+            referencedColumnNames="auction_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+
+        <addForeignKeyConstraint
+            baseTableName="auctions_bidders"
+            baseColumnNames="bidder_id"
+            constraintName="fk_auction_bidders_bidders"
+            referencedTableName="bidders"
+            referencedColumnNames="bidder_id"
+            onUpdate="CASCADE"
+            onDelete="CASCADE"
+        />
+
+        <createTable tableName="payments">
+            <column name="payment_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="auction_bidders_id" type="bigint">
+                <constraints nullable="false" />
+            </column>
             <column name="purpose" type="enum('REGISTRATION', 'PULL_OUT')" defaultValue="REGISTRATION">
                 <constraints nullable="false" />
             </column>
             <column name="balance" type="bigint" defaultValue="0"/>
-            <column name="payment" type="bigint" defaultValue="0"/>
-            <column name="receipt_number" type="int" defaultValue="0"/>
+            <column name="amount_paid" type="bigint" defaultValue="0"/>
+            <column name="receipt_number" type="varchar(255)">
+                <constraints nullable="true" />
+            </column>
             <column name="payment_type" type="enum('CASH', 'CHEQUE', 'BANK_TRANSFER')" defaultValue="CASH">
                 <constraints nullable="false" />
             </column>
@@ -233,20 +258,10 @@
 
         <addForeignKeyConstraint
             baseTableName="payments"
-            baseColumnNames="bidder_id"
-            constraintName="fk_payments_bidders"
-            referencedTableName="bidders"
-            referencedColumnNames="bidder_id"
-            onUpdate="CASCADE"
-            onDelete="CASCADE"
-        />
-
-        <addForeignKeyConstraint
-            baseTableName="payments"
-            baseColumnNames="auction_id"
-            constraintName="fk_payments_auctions"
-            referencedTableName="auctions"
-            referencedColumnNames="auction_id"
+            baseColumnNames="auction_bidders_id"
+            constraintName="fk_payments_auction_bidders"
+            referencedTableName="auctions_bidders"
+            referencedColumnNames="auction_bidders_id"
             onUpdate="CASCADE"
             onDelete="CASCADE"
         />
@@ -323,45 +338,6 @@
             onDelete="CASCADE"
         />
 
-        <createTable tableName="auctions_bidders">
-            <column name="auction_bidders_id" type="bigint" autoIncrement="true">
-                <constraints primaryKey="true" nullable="false" />
-            </column>
-            <column name="auction_id" type="bigint">
-                <constraints nullable="false" />
-            </column>
-            <column name="bidder_id" type="bigint">
-                <constraints nullable="false" />
-            </column>
-            <column name="service_charge" type="int"/>
-            <column name="already_consumed" type="tinyint" defaultValue="0"/>
-            <column name="registration_fee" type="int"/>
-            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
-                <constraints nullable="false"/>
-            </column>
-            <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
-            <column name="deleted_at" type="datetime"/>
-        </createTable>
-
-        <addForeignKeyConstraint
-            baseTableName="auctions_bidders"
-            baseColumnNames="auction_id"
-            constraintName="fk_auction_bidders_auctions"
-            referencedTableName="auctions"
-            referencedColumnNames="auction_id"
-            onUpdate="CASCADE"
-            onDelete="CASCADE"
-        />
-
-        <addForeignKeyConstraint
-            baseTableName="auctions_bidders"
-            baseColumnNames="bidder_id"
-            constraintName="fk_auction_bidders_bidders"
-            referencedTableName="bidders"
-            referencedColumnNames="bidder_id"
-            onUpdate="CASCADE"
-            onDelete="CASCADE"
-        />
 
         <createTable tableName="inventory_histories">
             <column name="inventory_history_id" type="bigint" autoIncrement="true">

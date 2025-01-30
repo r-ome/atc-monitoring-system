@@ -1,167 +1,193 @@
-import { query } from "./index.js";
-import { logger } from "../logger.js";
+import { query, DBErrorException } from "./index.js";
 
-export default {
-  getBidder: async (bidder_id) => {
-    try {
-      return await query(`SELECT * FROM bidders WHERE bidder_id = ?`, [
-        bidder_id,
-      ]);
-    } catch (error) {
-      logger.error({ func: "getBidder", error });
-      throw { message: "DB error" };
-    }
-  },
+export const getBidder = async (bidder_id) => {
+  try {
+    return await query(
+      `
+        SELECT
+          b.bidder_id,
+          b.bidder_number,
+          b.first_name,
+          b.middle_name,
+          b.last_name,
+          CONCAT(b.first_name, " ", b.middle_name, " ", b.last_name) as full_name,
+          DATE_FORMAT(b.created_at, '%b %d, %Y %h:%i%p') AS created_at,
+          DATE_FORMAT(b.updated_at, '%b %d, %Y %h:%i%p') AS updated_at,
+          IF (COUNT(br.requirement_id) = 0,
+            JSON_ARRAY(),
+            JSON_ARRAYAGG(JSON_OBJECT(
+              'id', br.requirement_id,
+              'name', br.name,
+              'validity_date', DATE_FORMAT(br.validity_date, '%b %d, %Y')
+            ))
+          ) AS requirements
+        FROM bidders b
+        LEFT JOIN bidder_requirements br ON br.bidder_id = b.bidder_id
+        WHERE b.bidder_id = ?
+        AND b.deleted_at IS NULL
+        GROUP BY b.bidder_id
+      `,
+      [bidder_id]
+    );
+  } catch (error) {
+    throw new DBErrorException("getBidder", error);
+  }
+};
 
-  getBidderByBidderNumber: async (bidder_number) => {
-    try {
-      const response = await query(
-        `SELECT * from bidders WHERE bidder_number = ?`,
-        [bidder_number]
-      );
-      return response;
-    } catch (error) {
-      logger.error({ func: "getBidderByBidderNumber", error });
-      throw { message: "DB error" };
-    }
-  },
+export const getBidderByBidderNumber = async (bidder_number) => {
+  try {
+    const response = await query(
+      `SELECT * from bidders WHERE bidder_number = ?`,
+      [bidder_number]
+    );
+    return response;
+  } catch (error) {
+    throw new DBErrorException("getBidderByBidderNumber", error);
+  }
+};
 
-  getMultipleBiddersByBidderNumber: async (auction_id, bidder_numbers) => {
-    try {
-      const response = await query(
-        `
+export const getMultipleBiddersByBidderNumber = async (
+  auction_id,
+  bidder_numbers
+) => {
+  try {
+    const response = await query(
+      `
           SELECT b.bidder_id, b.bidder_number
           FROM bidders b
           LEFT JOIN auctions_bidders ab ON ab.bidder_id = b.bidder_id
           WHERE ab.auction_id = ? AND bidder_number in (?)
         `,
-        [auction_id, bidder_numbers]
-      );
+      [auction_id, bidder_numbers]
+    );
 
-      return response;
-    } catch (error) {
-      logger.error({ func: "getMultipleBiddersByBidderNumber", error });
-      throw { message: "DB error" };
-    }
-  },
+    return response;
+  } catch (error) {
+    throw new DBErrorException("getMultipleBiddersByBidderNumber", error);
+  }
+};
 
-  getBidders: async () => {
-    try {
-      return await query("SELECT * FROM bidders WHERE deleted_at IS NULL");
-    } catch (error) {
-      logger.error({ func: "getBidders", error });
-      throw { message: "DB error" };
-    }
-  },
+export const getBidders = async () => {
+  try {
+    return await query(`
+      SELECT
+        bidder_id,
+        bidder_number,
+        first_name,
+        middle_name,
+        last_name,
+        CONCAT(first_name, " ", middle_name, " ", last_name) as full_name,
+        DATE_FORMAT(created_at, '%b %d, %Y %h:%i%p') AS created_at,
+        DATE_FORMAT(updated_at, '%b %d, %Y %h:%i%p') AS updated_at
+      FROM bidders
+      WHERE deleted_at IS NULL`);
+  } catch (error) {
+    throw new DBErrorException("getBidders", error);
+  }
+};
 
-  createBidder: async (bidder) => {
-    try {
-      const result = await query(
-        `
-        INSERT INTO bidders(first_name, middle_name, last_name, service_charge, bidder_number, old_number)
-        VALUES (?, ?, ?, ?, ?, ?);`,
-        [
-          bidder.first_name,
-          bidder.middle_name,
-          bidder.last_name,
-          bidder.service_charge,
-          bidder.bidder_number,
-          bidder.old_number,
-        ]
-      );
-      if (result.insertId) {
-        const response = await query(
-          `
-            SELECT * FROM bidders WHERE bidder_id = ?
-          `,
-          [result.insertId]
-        );
-        return response[0];
-      }
-    } catch (error) {
-      logger.error({ func: "createBidder", error });
-      throw { message: "DB error" };
-    }
-  },
+export const createBidder = async (bidder) => {
+  try {
+    const result = await query(
+      `
+        INSERT INTO bidders(first_name, middle_name, last_name, bidder_number)
+        VALUES (?, ?, ?, ?);`,
+      [
+        bidder.first_name,
+        bidder.middle_name,
+        bidder.last_name,
+        bidder.bidder_number,
+      ]
+    );
 
-  updateBidder: async (id, bidder) => {
-    try {
-      await query(
-        `
+    return {
+      bidder_id: result.insertId,
+      ...bidder,
+    };
+  } catch (error) {
+    throw new DBErrorException("createBidder", error);
+  }
+};
+
+export const updateBidder = async (id, bidder) => {
+  try {
+    await query(
+      `
         UPDATE bidders
         SET ?
         WHERE bidder_id = ? AND deleted_at IS NULL;
         `,
-        [bidder, id]
-      );
-      return { bidder_id: id, ...bidder };
-    } catch (error) {
-      logger.error({ func: "updateBidder", error });
-      throw { message: "DB error" };
-    }
-  },
+      [bidder, id]
+    );
+    return { bidder_id: id, ...bidder };
+  } catch (error) {
+    throw new DBErrorException("updateBidder", error);
+  }
+};
 
-  deleteBidder: async (id) => {
-    try {
-      return await query(
-        `
+export const deleteBidder = async (id) => {
+  try {
+    return await query(
+      `
           UPDATE bidderes
           SET deleted_at = NOW()
           WHERE bidder_id = ? AND deleted_at IS NULL;
         `,
-        [id]
-      );
-    } catch (error) {
-      logger.error({ func: "deleteBidder", error });
-      throw { message: "DB error" };
-    }
-  },
+      [id]
+    );
+  } catch (error) {
+    throw new DBErrorException("deleteBidder", error);
+  }
+};
 
-  addRequirement: async ({ bidder_id, name, url, validity_date }) => {
-    try {
-      const response = await query(
-        `
+export const addRequirement = async ({
+  bidder_id,
+  name,
+  url,
+  validity_date,
+}) => {
+  try {
+    const response = await query(
+      `
           INSERT INTO bidder_requirements(bidder_id, name, url, validity_date)
           VALUES (?, ?, ? ,?);
         `,
-        [bidder_id, name, url, validity_date]
-      );
+      [bidder_id, name, url, validity_date]
+    );
 
-      const requirement = await query(
-        `
+    const requirement = await query(
+      `
         SELECT * FROM bidder_requirements WHERE requirement_id = ?
         `,
-        [response.insertId]
-      );
-      return requirement[0];
-    } catch (error) {
-      logger.error({ func: "addRequirement", error });
-      throw { message: "DB error" };
-    }
-  },
+      [response.insertId]
+    );
+    return requirement[0];
+  } catch (error) {
+    throw new DBErrorException("addRequirement", error);
+  }
+};
 
-  getRequirements: async (bidder_id) => {
-    try {
-      return await query(
-        `
+export const getRequirements = async (bidder_id) => {
+  try {
+    return await query(
+      `
         SELECT
           br.*
         FROM bidders b
         INNER JOIN bidder_requirements br ON br.bidder_id = b.bidder_id
         WHERE b.bidder_id = ? AND br.deleted_at is null;
       `,
-        [bidder_id]
-      );
-    } catch (error) {
-      logger.error({ func: "getRequirements", error });
-      throw { message: "DB error" };
-    }
-  },
+      [bidder_id]
+    );
+  } catch (error) {
+    throw new DBErrorException("getRequirements", error);
+  }
+};
 
-  getAuctionsJoined: async (bidder_id) => {
-    try {
-      return await query(
-        `
+export const getAuctionsJoined = async (bidder_id) => {
+  try {
+    return await query(
+      `
           SELECT
               ab.auction_bidders_id,
               ab.auction_id,
@@ -178,18 +204,17 @@ export default {
           GROUP BY ab.auction_bidders_id;
 
       `,
-        [bidder_id]
-      );
-    } catch (error) {
-      logger.error({ func: "getAuctionsJoined", error });
-      throw { message: "DB error" };
-    }
-  },
+      [bidder_id]
+    );
+  } catch (error) {
+    throw new DBErrorException("getAuctionsJoined", error);
+  }
+};
 
-  getBidderPaymentHistory: async (bidder_id) => {
-    try {
-      return await query(
-        `
+export const getBidderPaymentHistory = async (bidder_id) => {
+  try {
+    return await query(
+      `
         SELECT
           receipt_number,
           payment_type,
@@ -198,11 +223,9 @@ export default {
           REPLACE(purpose, "_", " ") AS purpose
         FROM payments
         WHERE bidder_id = ?`,
-        [bidder_id]
-      );
-    } catch (error) {
-      logger.error({ func: "getAuctionsJoined", error });
-      throw { message: "DB error" };
-    }
-  },
+      [bidder_id]
+    );
+  } catch (error) {
+    throw new DBErrorException("getAuctionsJoined", error);
+  }
 };

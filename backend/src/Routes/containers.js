@@ -12,7 +12,17 @@ import {
   getContainer,
 } from "../services/containers.js";
 import { logger } from "../logger.js";
-import { CONTAINERS_400, CONTAINERS_500 } from "./error_infos.js";
+
+import {
+  renderHttpError,
+  CONTAINERS_401,
+  CONTAINERS_402,
+  CONTAINERS_403,
+  CONTAINERS_501,
+  CONTAINERS_502,
+  CONTAINERS_503,
+} from "./error_infos.js";
+import { DB_ERROR_EXCEPTION } from "../services/index.js";
 
 const router = express.Router({ mergeParams: true });
 // THIS ROUTE IS /suppliers/{supplier_id}/containers
@@ -23,32 +33,36 @@ router.get("/", async (req, res) => {
     const [containers] = await getContainersBySupplier(supplier_id);
     res.status(200).json({ data: containers });
   } catch (error) {
-    logger.error(error);
-    res.status(500).json(CONTAINERS_500);
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? CONTAINERS_501 : CONTAINERS_503,
+    });
   }
 });
 
 router.get("/:container_id", async (req, res) => {
   try {
     const { supplier_id, container_id } = req.params;
-    const [container] = await getContainer(container_id);
+    const container = await getContainer(container_id);
     if (!container) {
-      logger.error({
-        message: `Container with ID:${container_id} does not exist`,
+      return renderHttpError(res, {
+        log: `Container with ID:${container_id} does not exist`,
+        error: CONTAINERS_403,
       });
-      return res.status(400).json(CONTAINERS_400);
     }
 
-    if (container.supplier.id !== container_id) {
-      logger.error({
-        message: `Container with ID:${container_id} does not belong to Supplier with ID:${supplier_id}`,
+    if (container.supplier.id !== parseInt(supplier_id, 10)) {
+      return renderHttpError(res, {
+        log: `Container with ID:${container_id} does not belong to Supplier with ID:${supplier_id}`,
+        error: CONTAINERS_403,
       });
-      return res.status(400).json(CONTAINERS_400);
     }
     return res.status(200).json({ data: container });
   } catch (error) {
-    logger.error(error);
-    return res.status(500).json(CONTAINERS_500);
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? CONTAINERS_501 : CONTAINERS_503,
+    });
   }
 });
 
@@ -132,28 +146,36 @@ router.post("/", async (req, res) => {
         };
       });
 
-      logger.error(JSON.stringify(errorDetails, null, 2));
-      return res.status(400).json(CONTAINERS_400);
+      return renderHttpError(res, {
+        log: JSON.stringify(errorDetails, null, 2),
+        error: CONTAINERS_401,
+      });
     }
 
     // validate if supplier exists
     const suppliers = await getSupplier(supplier_id);
     if (!suppliers.length) {
-      logger.error(`Supplier with ID:${supplier_id} does not exist`);
-      return res.status(400).json(CONTAINERS_400);
+      return renderHttpError(res, {
+        log: `Supplier with ID:${supplier_id} does not exist`,
+        error: CONTAINERS_403,
+      });
     }
     // validate if branch exists
     const branches = await getBranch(body.branch_id);
     if (!branches.length) {
-      logger.error(`Branch with ID:${body.branch_id} does not exist`);
-      return res.status(400).json(CONTAINERS_400);
+      return renderHttpError(res, {
+        log: `Branch with ID:${body.branch_id} does not exist`,
+        error: CONTAINERS_403,
+      });
     }
 
     const container = await createContainer(supplier_id, body);
     return res.status(200).json({ data: container });
   } catch (error) {
-    logger.error({ error });
-    return res.status(500).json(CONTAINERS_500);
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? CONTAINERS_501 : CONTAINERS_503,
+    });
   }
 });
 
@@ -161,7 +183,7 @@ router.put("/:container_id", async (req, res) => {
   try {
     const { container_id } = req.params;
     const containerExists = await getContainer(container_id);
-    if (!containerExists.length) {
+    if (!containerExists) {
       res.status(404).json({
         status: "fail",
         message: `Container not found`,
@@ -179,7 +201,7 @@ router.put("/:container_id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const containerExists = await getContainer(req.params.id);
-    if (!containerExists.length) {
+    if (!containerExists) {
       res.status(404).json({
         status: "fail",
         message: `Container not found`,

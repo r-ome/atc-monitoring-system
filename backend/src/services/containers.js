@@ -1,5 +1,4 @@
-import { query } from "./index.js";
-import { logDBError } from "../logger.js";
+import { query, DBErrorException } from "./index.js";
 import { formatNumberPadding, formatToReadableDate } from "../utils/index.js";
 
 export const getContainerIdByBarcode = async (barcode) => {
@@ -15,8 +14,7 @@ export const getContainerIdByBarcode = async (barcode) => {
 
     return result;
   } catch (error) {
-    logDBError("getContainers", error);
-    throw { message: "DB error" };
+    throw new DBErrorException("getContainers", error);
   }
 };
 
@@ -25,14 +23,13 @@ export const getBarcodesFromContainers = async () => {
     const result = await query(`SELECT barcode FROM containers;`);
     return result;
   } catch (error) {
-    logDBError("getBarcodesFromContainers", error);
-    throw { message: "DB error" };
+    throw new DBErrorException("getBarcodesFromContainers", error);
   }
 };
 
-export const getContainer = async (id) => {
+export const getContainer = async (container_id) => {
   try {
-    const result = await query(
+    const [container] = await query(
       `
           SELECT
             c.container_id,
@@ -51,31 +48,30 @@ export const getContainer = async (id) => {
             c.carrier,
             c.vessel,
             c.num_of_items,
-            DATE_FORMAT(c.departure_date_from_japan, '%b %d, %Y %h:%i%p') AS departure_date_from_japan,
-            DATE_FORMAT(c.eta_to_ph, '%b %d, %Y %h:%i%p') AS eta_to_ph,
-            DATE_FORMAT(c.arrival_date_warehouse_ph, '%b %d, %Y %h:%i%p') AS arrival_date_warehouse_ph,
-            DATE_FORMAT(c.sorting_date, '%b %d, %Y %h:%i%p') AS sorting_date,
-            DATE_FORMAT(c.auction_date, '%b %d, %Y %h:%i%p') AS auction_date,
-            DATE_FORMAT(c.payment_date, '%b %d, %Y %h:%i%p') AS payment_date,
-            DATE_FORMAT(c.telegraphic_transferred, '%b %d, %Y %h:%i%p') AS telegraphic_transferred,
-            DATE_FORMAT(c.vanning_date, '%b %d, %Y %h:%i%p') AS vanning_date,
-            DATE_FORMAT(c.devanning_date, '%b %d, %Y %h:%i%p') AS devanning_date,
+            DATE_FORMAT(c.departure_date_from_japan, '%b %d, %Y') AS departure_date_from_japan,
+            DATE_FORMAT(c.eta_to_ph, '%b %d, %Y') AS eta_to_ph,
+            DATE_FORMAT(c.arrival_date_warehouse_ph, '%b %d, %Y') AS arrival_date_warehouse_ph,
+            DATE_FORMAT(c.sorting_date, '%b %d, %Y') AS sorting_date,
+            DATE_FORMAT(c.auction_date, '%b %d, %Y') AS auction_date,
+            DATE_FORMAT(c.payment_date, '%b %d, %Y') AS payment_date,
+            DATE_FORMAT(c.telegraphic_transferred, '%b %d, %Y') AS telegraphic_transferred,
+            DATE_FORMAT(c.vanning_date, '%b %d, %Y') AS vanning_date,
+            DATE_FORMAT(c.devanning_date, '%b %d, %Y') AS devanning_date,
             c.invoice_num,
             c.gross_weight,
             c.auction_or_sell,
-            DATE_FORMAT(c.created_at, '%b %d, %Y %h:%i%p') AS created_at,
-            DATE_FORMAT(c.updated_at, '%b %d, %Y %h:%i%p') AS updated_at
+            DATE_FORMAT(c.created_at, '%b %d, %Y') AS created_at,
+            DATE_FORMAT(c.updated_at, '%b %d, %Y') AS updated_at
           FROM containers c
           LEFT JOIN suppliers s ON s.supplier_id = c.supplier_id
           LEFT JOIN branches b ON b.branch_id = c.branch_id
           WHERE c.container_id = ?;
         `,
-      [id]
+      [container_id]
     );
-    return result;
+    return container;
   } catch (error) {
-    logDBError("getContainer", error);
-    throw { message: "DB error" };
+    throw new DBErrorException("getContainer", error);
   }
 };
 
@@ -90,8 +86,7 @@ export const getContainers = async () => {
         WHERE c.deleted_at IS NULL
       `);
   } catch (error) {
-    logDBError("getContainers", error);
-    throw { message: "DB error" };
+    throw new DBErrorException("getContainers", error);
   }
 };
 
@@ -126,8 +121,7 @@ export const getContainersBySupplier = async (supplier_id) => {
       [supplier_id]
     );
   } catch (error) {
-    logDBError("getContainersBySupplier", error);
-    throw { message: "DB error" };
+    throw new DBErrorException("getContainersBySupplier", error);
   }
 };
 
@@ -187,7 +181,7 @@ export const createContainer = async (supplier_id, container) => {
         container.invoice_num,
         container.gross_weight,
         container.vanning_date,
-        container.delivery_place,
+        container.devanning_date,
         container.auction_or_sell,
         container.branch_id,
       ]
@@ -208,6 +202,7 @@ export const createContainer = async (supplier_id, container) => {
     const newContainer = formatToReadableDate(container);
 
     if (result.insertId) {
+      const { branch_id, ...rest } = newContainer;
       return {
         container_id: result.insertId,
         supplier: {
@@ -219,15 +214,14 @@ export const createContainer = async (supplier_id, container) => {
           id: container.branch_id,
           name: branch_name,
         },
-        ...newContainer,
+        ...rest,
         barcode: `${supplier_code}-${formatNumberPadding(
           container.container_num
         )}`,
       };
     }
   } catch (error) {
-    logDBError("createContainer", error);
-    throw { message: "DB error" };
+    throw new DBErrorException("createContainer", error);
   }
 };
 
@@ -250,8 +244,7 @@ export const updateContainer = async (id, container) => {
       return updatedContainer[0];
     }
   } catch (error) {
-    logDBError("updateContainer", error);
-    throw { message: "DB error" };
+    throw new DBErrorException("updateContainer", error);
   }
 };
 
@@ -270,7 +263,6 @@ export const deleteContainer = async (id) => {
       return { container_id: id };
     }
   } catch (error) {
-    logDBError("deleteContainer", error);
-    throw { message: "DB error" };
+    throw new DBErrorException("deleteContainer", error);
   }
 };

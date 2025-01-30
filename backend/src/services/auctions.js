@@ -1,11 +1,9 @@
-import { query } from "./index.js";
-import { logger } from "../logger.js";
+import { query, DBErrorException } from "./index.js";
 
-export default {
-  getAuctionDetails: async (auction_id) => {
-    try {
-      return await query(
-        `
+export const getAuctionDetails = async (auction_id) => {
+  try {
+    /**
+     `
         SELECT
           a.auction_id,
           a.created_at,
@@ -37,18 +35,42 @@ export default {
           GROUP BY ai.auction_id
         ) AS sub ON sub.auction_id = a.auction_id
         WHERE a.auction_id = 1;
+      `
+     */
+    const [auction] = await query(
+      `
+        SELECT
+          a.auction_id,
+          DATE_FORMAT(a.created_at, '%M %d, %Y, %W') AS auction_date,
+          IF(COUNT(ab.auction_bidders_id) = 0,
+            JSON_ARRAY(),
+            JSON_ARRAYAGG(JSON_OBJECT(
+              'bidder_id', b.bidder_id,
+              'bidder_number', b.bidder_number,
+              'service_charge', CONCAT(ab.service_charge, "%"),
+              'registration_fee', CONCAT("₱", FORMAT(ab.registration_fee, 2)),
+              'full_name', CONCAT(b.first_name, " ", b.last_name)
+            ))
+          ) as bidders
+        FROM auctions a
+        LEFT JOIN auctions_bidders ab ON ab.auction_id = a.auction_id
+        LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
+        WHERE a.auction_id = ?
+        AND a.deleted_at IS NULL
+        GROUP BY a.auction_id;
       `,
-        [auction_id]
-      );
-    } catch (error) {
-      logger.error({ func: "getBidderItems", error });
-      throw { message: "DB error" };
-    }
-  },
+      [auction_id]
+    );
+    return auction;
+  } catch (error) {
+    throw new DBErrorException("getBidderItems", error);
+  }
+};
 
-  getAuctions: async () => {
-    try {
-      return await query(`
+export const getAuctions = async () => {
+  try {
+    /*
+    `
         SELECT
             a.auction_id,
             a.created_at,
@@ -62,99 +84,116 @@ export default {
         LEFT JOIN inventories i ON i.inventory_id = ai.inventory_id
         WHERE a.deleted_at IS NULL
         GROUP BY a.auction_id;
-        `);
-    } catch (error) {
-      logger.error({ func: "getAuctions", error });
-      throw { message: "DB error" };
-    }
-  },
-
-  createAuction: async (branch) => {
-    try {
-      const response = await query(
-        `INSERT INTO auctions(created_at) VALUES (NOW());`
-      );
-
-      const auction = await query(
-        `SELECT auction_id, created_at FROM auctions WHERE auction_id = ?`,
-        [response.insertId]
-      );
-      return auction[0];
-    } catch (error) {
-      logger.error({ func: "createAuction", error });
-      throw { message: "DB error" };
-    }
-  },
-
-  deleteAuction: async (id) => {
-    try {
-      return await query(
         `
+    **/
+    return await query(
+      `
+        SELECT
+          a.auction_id,
+          DATE_FORMAT(a.created_at, '%M %d, %Y %h:%i%p, %W') AS created_at,
+          COUNT(ab.auction_bidders_id) AS number_of_bidders
+        FROM auctions a
+        LEFT JOIN auctions_bidders ab ON ab.auction_id = a.auction_id
+        GROUP BY a.auction_id
+      `
+    );
+  } catch (error) {
+    throw new DBErrorException("getAuctions", error);
+  }
+};
+
+export const createAuction = async (branch) => {
+  try {
+    const response = await query(
+      `INSERT INTO auctions(created_at) VALUES (NOW());`
+    );
+
+    const [auction] = await query(
+      `
+      SELECT
+        auction_id,
+        DATE_FORMAT(created_at, '%M %d, %Y %h:%i%p') AS created_at
+      FROM auctions
+      WHERE auction_id = ?
+      AND deleted_at IS NULL`,
+      [response.insertId]
+    );
+    return auction;
+  } catch (error) {
+    throw new DBErrorException("createAuction", error);
+  }
+};
+
+export const deleteAuction = async (id) => {
+  try {
+    return await query(
+      `
           UPDATE auctions
           SET deleted_at = NOW()
           WHERE auction_id = ? AND deleted_at IS NULL;
         `,
-        [id]
-      );
-    } catch (error) {
-      logger.error({ func: "deleteAuction", error });
-      throw { message: "DB error" };
-    }
-  },
+      [id]
+    );
+  } catch (error) {
+    logger.error({ func: "deleteAuction", error });
+    throw { message: "DB error" };
+  }
+};
 
-  registerBidderAtAuction: async (
-    auction_id,
-    { bidder_id, service_charge, registration_fee }
-  ) => {
-    try {
-      await query(
-        `
+export const registerBidderAtAuction = async (
+  auction_id,
+  { bidder_id, service_charge, registration_fee }
+) => {
+  try {
+    const auction_bidders_response = await query(
+      `
           INSERT INTO auctions_bidders(bidder_id, auction_id, service_charge, registration_fee)
           VALUES (?, ?, ?, ?);
         `,
-        [bidder_id, auction_id, service_charge, registration_fee]
-      );
-      const bidders = await query(
-        `
-        SELECT
-          b.bidder_id,
-          b.bidder_number,
-          b.first_name,
-          b.last_name,
-          ab.registration_fee,
-          ab.service_charge
-        FROM auctions_bidders ab
-        RIGHT JOIN bidders b ON ab.bidder_id = b.bidder_id
-        WHERE ab.bidder_id = ? AND ab.auction_id = ?
+      [bidder_id, auction_id, service_charge, registration_fee]
+    );
+
+    await query(
+      `
+        INSERT INTO payments(auction_bidders_id, balance, amount_paid, payment_type, purpose)
+        VALUES (?, ?, ?, ?, "REGISTRATION");
       `,
-        [bidder_id, auction_id]
-      );
+      [
+        auction_bidders_response.insertId,
+        registration_fee * -1,
+        registration_fee,
+        "CASH",
+      ]
+    );
 
-      await query(
-        `
-        INSERT INTO payments(bidder_id, auction_id, purpose, balance, payment, payment_type)
-        VALUES (?, ?, ?, ?, ?, ?);
-        `,
-        [
-          bidder_id,
-          auction_id,
-          "REGISTRATION",
-          registration_fee,
-          registration_fee,
-          "CASH",
-        ]
-      );
-      return bidders.length ? bidders[0] : null;
-    } catch (error) {
-      logger.error({ func: "registerBidderAtAuction", error });
-      throw { message: "DB error" };
-    }
-  },
+    const [auction_bidders] = await query(
+      `
+        SELECT
+          ab.auction_bidders_id,
+          DATE_FORMAT(a.created_at, '%M %d, %Y %h:%i%p') AS auction_date,
+          CONCAT(b.first_name, " ", b.last_name) AS full_name,
+          b.bidder_number,
+          CONCAT(ab.service_charge, "%") AS service_charge,
+          ab.registration_fee,
+          DATE_FORMAT(ab.created_at, '%M %d, %Y %h:%i%p') AS registered_date
+        FROM auctions_bidders ab
+        LEFT JOIN auctions a ON a.auction_id = ab.auction_id
+        LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
+        WHERE ab.auction_bidders_id = ?
+      `,
+      [auction_bidders_response.insertId]
+    );
 
-  getMonitoring: async (auction_id) => {
-    try {
-      return await query(
-        `
+    return auction_bidders;
+  } catch (error) {
+    throw new DBErrorException("registerBidderAtAuction", error);
+  }
+};
+
+export const getMonitoring = async (auction_id) => {
+  try {
+    return await query(
+      `
           SELECT
             ai.auction_id,
             i.inventory_id,
@@ -173,146 +212,153 @@ export default {
           LEFT JOIN bidders b ON b.bidder_id = ai.bidder_id
           WHERE ai.auction_id = ?;
         `,
-        [auction_id]
-      );
-    } catch (error) {
-      logger.error({ func: "getMonitoring", error });
-      throw { message: "DB error" };
-    }
-  },
+      [auction_id]
+    );
+  } catch (error) {
+    logger.error({ func: "getMonitoring", error });
+    throw { message: "DB error" };
+  }
+};
 
-  encodeInventoryOnAuction: async (auction_id, manifest) => {
-    try {
-      let auction_inventories = manifest
-        .filter((item) => item.bidder_id && item.inventory_id)
-        .map((item) => [item.bidder_id, item.inventory_id, auction_id]);
-      await query(
-        `
+export const encodeInventoryOnAuction = async (auction_id, manifest) => {
+  try {
+    let auction_inventories = manifest
+      .filter((item) => item.bidder_id && item.inventory_id)
+      .map((item) => [item.bidder_id, item.inventory_id, auction_id]);
+    await query(
+      `
         INSERT INTO auctions_inventories(bidder_id, inventory_id, auction_id)
         VALUES ?
         `,
-        [auction_inventories]
-      );
+      [auction_inventories]
+    );
 
-      const inventories = manifest
-        .filter((item) => item.bidder_id && item.inventory_id)
-        .map((item) => [item.inventory_id, item.price, item.qty]);
-      console.log({ inventories, auction_id });
+    const inventories = manifest
+      .filter((item) => item.bidder_id && item.inventory_id)
+      .map((item) => [item.inventory_id, item.price, item.qty]);
+    console.log({ inventories, auction_id });
 
-      await query(
-        `CREATE TEMPORARY TABLE TEMP_UPDATE_INVENTORIES (inventory_id BIGINT, price VARCHAR(255), qty VARCHAR(255))`
-      );
-      await query(
-        `INSERT INTO TEMP_UPDATE_INVENTORIES(inventory_id, price, qty) VALUES ?`,
-        [inventories]
-      );
+    await query(
+      `CREATE TEMPORARY TABLE TEMP_UPDATE_INVENTORIES (inventory_id BIGINT, price VARCHAR(255), qty VARCHAR(255))`
+    );
+    await query(
+      `INSERT INTO TEMP_UPDATE_INVENTORIES(inventory_id, price, qty) VALUES ?`,
+      [inventories]
+    );
 
-      await query(
-        `
+    await query(
+      `
         UPDATE inventories i
         JOIN TEMP_UPDATE_INVENTORIES temp
         ON i.inventory_id = temp.inventory_id
         SET i.price = temp.price, i.qty = temp.qty
         `
-      );
+    );
 
-      await query(`DROP TEMPORARY TABLE TEMP_UPDATE_INVENTORIES;`);
-    } catch (error) {
-      logger.error({ func: "encodeInventoryOnAuction", error });
-      throw { message: "DB error" };
-    }
-  },
+    await query(`DROP TEMPORARY TABLE TEMP_UPDATE_INVENTORIES;`);
+  } catch (error) {
+    logger.error({ func: "encodeInventoryOnAuction", error });
+    throw { message: "DB error" };
+  }
+};
 
-  getRegisteredBidders: async (auction_id) => {
-    try {
-      return await query(
-        `
-          SELECT
-            ab.bidder_id,
-            b.bidder_number,
-            b.first_name,
-            b.middle_name,
-            b.last_name,
-            ab.registration_fee,
-            ab.service_charge,
-            COUNT(ai.inventory_id) AS num_of_items,
-            SUM(i.price) AS total_price
-          FROM auctions_bidders ab
-          LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
-          LEFT JOIN auctions_inventories ai ON ai.bidder_id = ab.bidder_id
-          LEFT JOIN inventories i ON i.inventory_id = ai.inventory_id
-          WHERE ab.auction_id = ?
-          GROUP BY ab.bidder_id, b.bidder_number, b.first_name, b.middle_name, b.last_name, ab.registration_fee, ab.service_charge, ab.already_consumed;
-        `,
-        [auction_id]
-      );
-    } catch (error) {
-      logger.error({ func: "getRegisteredBidders", error });
-      throw { message: "DB error" };
-    }
-  },
+export const getRegisteredBidders = async (auction_id) => {
+  try {
+    const [response] = await query(
+      `
+        SELECT
+          a.auction_id,
+          DATE_FORMAT(a.created_at, '%M %d, %Y %h:%i%p, %W') AS auction_date,
+          IF(COUNT(ab.auction_bidders_id) = 0,
+            JSON_ARRAY(),
+            JSON_ARRAYAGG(JSON_OBJECT(
+              'auctions_bidders_id', ab.auction_bidders_id,
+              'bidder_id', ab.bidder_id,
+              'bidder_number', b.bidder_number,
+              'service_charge', CONCAT(ab.service_charge, "%"),
+              'registration_fee', ab.registration_fee
+            ))
+          ) AS bidders
+        FROM auctions a
+        LEFT JOIN auctions_bidders ab ON ab.auction_id = a.auction_id
+        LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
+        WHERE a.auction_id = ? AND a.deleted_at IS NULL
+        GROUP BY a.auction_id
+      `,
+      [auction_id]
+    );
+    return response;
+  } catch (error) {
+    throw new DBErrorException("getRegisteredBidders", error);
+  }
+};
 
-  updateBidderPayment: async (auction_id, bidder_id, amount, item_ids) => {
-    try {
-      const [{ receipt_number }] = await query(
-        `
+export const updateBidderPayment = async (
+  auction_id,
+  bidder_id,
+  amount,
+  item_ids
+) => {
+  try {
+    const [{ receipt_number }] = await query(
+      `
           SELECT receipt_number
           FROM payments
           WHERE bidder_id = ? AND auction_id = ?
           ORDER BY receipt_number DESC
           LIMIT 1
       `,
-        [bidder_id, auction_id]
-      );
+      [bidder_id, auction_id]
+    );
 
-      const payment = await query(
-        `
+    const payment = await query(
+      `
           INSERT INTO payments(bidder_id, auction_id, purpose, receipt_number, payment, payment_type)
           VALUES (?, ?, ?, ?, ?, ?)
         `,
-        [bidder_id, auction_id, "PULL_OUT", receipt_number + 1, amount, "CASH"]
-      );
+      [bidder_id, auction_id, "PULL_OUT", receipt_number + 1, amount, "CASH"]
+    );
 
-      await query(
-        `
+    await query(
+      `
           UPDATE auctions_inventories
           SET status = "PAID", payment_id = ?
           WHERE auction_id = ? AND bidder_id = ? AND inventory_id in (?)
         `,
-        [payment.insertId, auction_id, bidder_id, item_ids]
-      );
+      [payment.insertId, auction_id, bidder_id, item_ids]
+    );
 
-      const [{ auction_bidders_id, already_consumed }] = await query(
-        `
+    const [{ auction_bidders_id, already_consumed }] = await query(
+      `
         SELECT auction_bidders_id, already_consumed
         FROM auctions_bidders
         WHERE auction_id = ? AND bidder_id = ?;  
       `,
-        [auction_id, bidder_id]
-      );
+      [auction_id, bidder_id]
+    );
 
-      if (!already_consumed) {
-        await query(
-          `
+    if (!already_consumed) {
+      await query(
+        `
           UPDATE auctions_bidders
           SET already_consumed = 1
           WHERE auction_bidders_id = ?
         `,
-          [auction_bidders_id]
-        );
-      }
-
-      return { auction_id, bidder_id, amount };
-    } catch (error) {
-      logger.error({ func: "updateBidderPayment", error });
-      throw { message: "DB error" };
+        [auction_bidders_id]
+      );
     }
-  },
 
-  getBidderItems: async (auction_id, bidder_id) => {
-    try {
-      return await query(
-        `
+    return { auction_id, bidder_id, amount };
+  } catch (error) {
+    logger.error({ func: "updateBidderPayment", error });
+    throw { message: "DB error" };
+  }
+};
+
+export const getBidderItems = async (auction_id, bidder_id) => {
+  try {
+    return await query(
+      `
           SELECT 
               COALESCE(data_inventories.data, JSON_ARRAY()) AS data,
               ab.bidder_id,
@@ -353,69 +399,69 @@ export default {
           WHERE a.auction_id = ?
           AND b.bidder_id = ?;
         `,
-        [auction_id, bidder_id]
-      );
-    } catch (error) {
-      logger.error({ func: "getBidderItems", error });
-      throw { message: "DB error" };
-    }
-  },
+      [auction_id, bidder_id]
+    );
+  } catch (error) {
+    logger.error({ func: "getBidderItems", error });
+    throw { message: "DB error" };
+  }
+};
 
-  removeRegisteredBidder: async (auction_id, bidder_id) => {
-    try {
-      const response = await query(
-        `DELETE FROM auctions_bidders WHERE auction_id = ? AND bidder_id = ?`,
-        [auction_id, bidder_id]
-      );
-    } catch (error) {
-      logger.error({ func: "removeRegisteredBidder", error });
-      throw { message: "DB error" };
-    }
-  },
+export const removeRegisteredBidder = async (auction_id, bidder_id) => {
+  try {
+    const response = await query(
+      `DELETE FROM auctions_bidders WHERE auction_id = ? AND bidder_id = ?`,
+      [auction_id, bidder_id]
+    );
+  } catch (error) {
+    logger.error({ func: "removeRegisteredBidder", error });
+    throw { message: "DB error" };
+  }
+};
 
-  validateExistingAuctionInventories: async (sheet_items) => {
-    try {
-      const result = await query(
-        `
+export const validateExistingAuctionInventories = async (sheet_items) => {
+  try {
+    const result = await query(
+      `
           SELECT auction_id, bidder_id, inventory_id
           FROM auctions_inventories
           WHERE (auction_id, bidder_id, inventory_id) in (?)
         `,
-        [sheet_items]
-      );
-      return result;
-    } catch (error) {
-      logger.error({ func: "validateExistingAuctionInventories", error });
-      throw { message: "DB error" };
-    }
-  },
+      [sheet_items]
+    );
+    return result;
+  } catch (error) {
+    logger.error({ func: "validateExistingAuctionInventories", error });
+    throw { message: "DB error" };
+  }
+};
 
-  cancelItem: async (auction_id, inventory_id) => {
-    try {
-      const [inventory] = await query(
-        `SELECT status FROM auctions_inventories WHERE inventory_id = ? ORDER BY auction_inventory_id DESC LIMIT 1`,
-        [inventory_id]
-      );
+export const cancelItem = async (auction_id, inventory_id) => {
+  try {
+    const [inventory] = await query(
+      `SELECT status FROM auctions_inventories WHERE inventory_id = ? ORDER BY auction_inventory_id DESC LIMIT 1`,
+      [inventory_id]
+    );
 
-      await query(
-        `
+    await query(
+      `
           UPDATE auctions_inventories
           SET status = "CANCELLED"
           WHERE auction_id = ? AND inventory_id = ?
         `,
-        [auction_id, inventory_id]
-      );
+      [auction_id, inventory_id]
+    );
 
-      await query(
-        `
+    await query(
+      `
         INSERT INTO inventory_histories (auction_id, inventory_id, item_status, auction_status)
         VALUES (?, ?, ?, ?)
       `,
-        [auction_id, inventory_id, inventory.status, "CANCELLED"]
-      );
+      [auction_id, inventory_id, inventory.status, "CANCELLED"]
+    );
 
-      const result = await query(
-        `
+    const result = await query(
+      `
           SELECT
             ai.auction_id,
             i.inventory_id,
@@ -434,12 +480,11 @@ export default {
           LEFT JOIN bidders b ON b.bidder_id = ai.bidder_id
           WHERE ai.auction_id = ? AND i.inventory_id = ?;
         `,
-        [auction_id, inventory_id]
-      );
-      return result;
-    } catch (error) {
-      logger.error({ func: "cancelItem", error });
-      throw { message: "DB error" };
-    }
-  },
+      [auction_id, inventory_id]
+    );
+    return result;
+  } catch (error) {
+    logger.error({ func: "cancelItem", error });
+    throw { message: "DB error" };
+  }
 };

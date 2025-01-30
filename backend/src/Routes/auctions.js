@@ -1,6 +1,5 @@
 import express from "express";
-import service from "../services/auctions.js";
-const {
+import {
   getAuctionDetails,
   getAuctions,
   createAuction,
@@ -14,20 +13,30 @@ const {
   removeRegisteredBidder,
   validateExistingAuctionInventories,
   cancelItem,
-} = service;
-import bidderService from "../services/bidders.js";
-const { getBidder, getMultipleBiddersByBidderNumber } = bidderService;
-import inventoryService from "../services/inventories.js";
-const {
+} from "../services/auctions.js";
+
+import {
+  getBidder,
+  getMultipleBiddersByBidderNumber,
+} from "../services/bidders.js";
+import {
   getInventoryByBarcodeAndControl,
   addInventoryFromEncoding,
   addAuctionInventoriesFromEncoding,
-} = inventoryService;
+} from "../services/inventories.js";
 import {
   getContainerIdByBarcode,
   getBarcodesFromContainers,
 } from "../services/containers.js";
 import { logger } from "../logger.js";
+import {
+  AUCTIONS_401,
+  AUCTIONS_402,
+  AUCTIONS_403,
+  AUCTIONS_501,
+  AUCTIONS_503,
+  renderHttpError,
+} from "./error_infos.js";
 const router = express.Router();
 import Joi from "joi";
 import {
@@ -35,29 +44,57 @@ import {
   formatNumberPadding,
   formatNumberToCurrency,
 } from "../utils/index.js";
+import { DB_ERROR_EXCEPTION } from "../services/index.js";
 
 router.get("/", async (_, res) => {
   try {
     let auctions = await getAuctions();
-    auctions = auctions.map((item) => ({
-      ...item,
-      total_registration: formatNumberToCurrency(item.total_registration),
-      total_sales: formatNumberToCurrency(item.total_sales),
-    }));
-    res.status(200).json({ status: "success", data: auctions });
+    // auctions = auctions.map((item) => ({
+    //   ...item,
+    //   total_registration: formatNumberToCurrency(item.total_registration),
+    //   total_sales: formatNumberToCurrency(item.total_sales),
+    // }));
+    res.status(200).json({ data: auctions });
   } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
+    return renderHttpError(res, {
+      log: error,
+      error: error[DBErrorException] ? AUCTIONS_501 : AUCTIONS_503,
+    });
+  }
+});
+
+router.get("/:auction_id", async (req, res) => {
+  try {
+    const { auction_id } = req.params;
+    const auction = await getAuctionDetails(auction_id);
+    if (!auction) {
+      return renderHttpError(res, {
+        log: `Auction with ID: ${auction_id} does not exist.`,
+        error: AUCTIONS_403,
+      });
+    }
+    return res.status(200).json({ data: auction });
+  } catch (error) {
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
+    });
   }
 });
 
 router.post("/", async (_, res) => {
   try {
+    /*
+      NOTE: DO NOT FORGET TO ADD VALIDATION FOR 1 AUCTION ONLY PER DAY
+      PS: I DID NOT ADD IT YET FOR TESTING PURPOSES
+    **/
     const auction = await createAuction();
-    res.status(200).send({ status: "success", data: auction });
-  } catch (e) {
-    logger.error(error);
-    res.status(500).send({ status: "fail", error });
+    res.status(200).send({ data: auction });
+  } catch (error) {
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
+    });
   }
 });
 
@@ -66,7 +103,7 @@ router.delete("/:auction_id", async (req, res) => {
     const { auction_id } = req.params;
     await deleteAuction(auction_id);
     res.status(200).json({ status: "success" });
-  } catch (e) {
+  } catch (error) {
     logger.error(error);
     res.status(500).json({ status: "fail", error });
   }
@@ -75,17 +112,14 @@ router.delete("/:auction_id", async (req, res) => {
 router.post("/:auction_id/register-bidder", async (req, res) => {
   try {
     const { auction_id } = req.params;
+    const { body } = req;
     const schema = Joi.object({
-      auction_id: Joi.number().required().messages({}),
-      bidder_id: Joi.number().required().messages({}),
-      service_charge: Joi.number().required().messages({}),
-      registration_fee: Joi.number().required().messages({}),
+      bidder_id: Joi.required(),
+      service_charge: Joi.number().required(),
+      registration_fee: Joi.number().required(),
     });
 
-    const { error } = schema.validate({
-      auction_id,
-      ...req.body,
-    });
+    const { error } = schema.validate(body);
     if (error) {
       const errorDetails = error.details.map((err) => {
         return {
@@ -93,43 +127,40 @@ router.post("/:auction_id/register-bidder", async (req, res) => {
           message: err.message,
         };
       });
-
-      logger.error(JSON.stringify(errorDetails, null, 2));
-      return res.status(400).json({
-        status: "fail",
-        code: 400,
-        errors: errorDetails,
+      return renderHttpError(res, {
+        log: JSON.stringify(errorDetails, null, 2),
+        error: AUCTIONS_401,
       });
     }
 
-    const bidders = await getBidder(req.body.bidder_id);
-    if (!bidders.length) {
-      logger.error({
-        message: `Bidder ID - ${req.body.bidder_id} does not exist`,
+    const bidder = await getBidder(body.bidder_id);
+    if (!bidder) {
+      return renderHttpError(res, {
+        log: `Bidder with ID: ${body.bidder_id} does not exist`,
+        error: AUCTIONS_403,
       });
-      return res
-        .status(404)
-        .json({ status: "fail", message: "Internal Server Error" });
     }
 
-    const registeredBidders = await getRegisteredBidders(auction_id);
-    const isAlreadyRegistered = registeredBidders.filter(
-      (bidder) => bidder.bidder_id === req.body.bidder_id
-    );
-    if (isAlreadyRegistered.length) {
-      logger.error({
-        message: `Bidder Number ${isAlreadyRegistered[0].bidder_number} is already in auction`,
-      });
-      return res
-        .status(404)
-        .json({ status: "fail", message: "Internal Server Error" });
+    const { bidders } = await getRegisteredBidders(auction_id);
+    if (bidders.length) {
+      const [isAlreadyRegistered] = bidders.filter(
+        (bidder) => bidder.bidder_id === parseInt(body.bidder_id)
+      );
+      if (isAlreadyRegistered) {
+        return renderHttpError(res, {
+          log: `Bidder with ID: ${body.bidder_id} and number: ${isAlreadyRegistered.bidder_number} already registered.`,
+          error: AUCTIONS_402,
+        });
+      }
     }
 
-    const bidder = await registerBidderAtAuction(auction_id, req.body);
-    res.status(200).json({ status: "success", data: bidder });
+    const auction_bidder = await registerBidderAtAuction(auction_id, req.body);
+    return res.status(200).json({ data: auction_bidder });
   } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
+    });
   }
 });
 
@@ -401,12 +432,16 @@ router.get("/:auction_id/bidders", async (req, res) => {
   try {
     const { auction_id } = req.params;
     let registered_bidders = await getRegisteredBidders(auction_id);
-    registered_bidders = registered_bidders.map((item) => ({
-      ...item,
-      total_price: formatNumberToCurrency(item.total_price),
-    }));
-    res.status(200).json({ status: "success", data: registered_bidders });
+    // registered_bidders = registered_bidders.map((item) => ({
+    //   ...item,
+    //   total_price: formatNumberToCurrency(item.total_price),
+    // }));
+    return res.status(200).json({ data: registered_bidders });
   } catch (error) {
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
+    });
     logger.error(error);
     res.status(500).json({ status: "fail", error });
   }
@@ -481,15 +516,15 @@ router.post("/:auction_id/payment", async (req, res) => {
   }
 });
 
-router.get("/:auction_id/details", async (req, res) => {
-  try {
-    const [auction] = await getAuctionDetails();
-    return res.status(200).json({ status: "success", data: auction });
-  } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
-  }
-});
+// router.get("/:auction_id/details", async (req, res) => {
+//   try {
+//     const [auction] = await getAuctionDetails();
+//     return res.status(200).json({ status: "success", data: auction });
+//   } catch (error) {
+//     logger.error(error);
+//     res.status(500).json({ status: "fail", error });
+//   }
+// });
 
 router.post("/:auction_id/cancel-item/:inventory_id", async (req, res) => {
   try {
