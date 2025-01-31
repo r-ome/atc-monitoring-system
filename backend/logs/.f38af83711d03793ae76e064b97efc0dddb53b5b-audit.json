@@ -59,6 +59,11 @@
             "date": 1738213698420,
             "name": "logs/monitoring-2025-01-30.log",
             "hash": "4ae330ee21fdd2922a39772b95087c719771766e369f6fd944fd7154dabc7fc0"
+        },
+        {
+            "date": 1738291495510,
+            "name": "logs/monitoring-2025-01-31.log",
+            "hash": "c80aef3b12c18f66ff5af5e96e2cb40265abe2e03854a76d646b2d88ac360737"
         }
     ],
     "hashType": "sha256"

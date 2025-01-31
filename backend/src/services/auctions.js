@@ -37,21 +37,23 @@ export const getAuctionDetails = async (auction_id) => {
         WHERE a.auction_id = 1;
       `
      */
+    // IF(COUNT(ab.auction_bidders_id) = 0,
+    //   JSON_ARRAY(),
+    //   JSON_ARRAYAGG(JSON_OBJECT(
+    //     'bidder_id', b.bidder_id,
+    //     'bidder_number', b.bidder_number,
+    //     'service_charge', CONCAT(ab.service_charge, "%"),
+    //     'registration_fee', CONCAT("₱", FORMAT(ab.registration_fee, 2)),
+    //     'full_name', CONCAT(b.first_name, " ", b.last_name)
+    //   ))
+    // ) as bidders
+
     const [auction] = await query(
       `
         SELECT
           a.auction_id,
-          DATE_FORMAT(a.created_at, '%M %d, %Y, %a') AS auction_date,
-          IF(COUNT(ab.auction_bidders_id) = 0,
-            JSON_ARRAY(),
-            JSON_ARRAYAGG(JSON_OBJECT(
-              'bidder_id', b.bidder_id,
-              'bidder_number', b.bidder_number,
-              'service_charge', CONCAT(ab.service_charge, "%"),
-              'registration_fee', CONCAT("₱", FORMAT(ab.registration_fee, 2)),
-              'full_name', CONCAT(b.first_name, " ", b.last_name)
-            ))
-          ) as bidders
+          DATE_FORMAT(a.created_at, '%M %d, %Y %W') AS auction_date,
+          COUNT(ab.auction_bidders_id) AS number_of_bidders
         FROM auctions a
         LEFT JOIN auctions_bidders ab ON ab.auction_id = a.auction_id
         LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
@@ -269,15 +271,16 @@ export const getRegisteredBidders = async (auction_id) => {
       `
         SELECT
           a.auction_id,
-          DATE_FORMAT(a.created_at, '%M %d, %Y %h:%i%p, %W') AS auction_date,
+          DATE_FORMAT(a.created_at, '%M %d, %Y, %W') AS auction_date,
           IF(COUNT(ab.auction_bidders_id) = 0,
             JSON_ARRAY(),
             JSON_ARRAYAGG(JSON_OBJECT(
               'auctions_bidders_id', ab.auction_bidders_id,
               'bidder_id', ab.bidder_id,
+              'full_name', CONCAT(b.first_name, " ", b.last_name),
               'bidder_number', b.bidder_number,
               'service_charge', CONCAT(ab.service_charge, "%"),
-              'registration_fee', ab.registration_fee
+              'registration_fee', CONCAT("₱", FORMAT(ab.registration_fee, 2))
             ))
           ) AS bidders
         FROM auctions a

@@ -516,16 +516,6 @@ router.post("/:auction_id/payment", async (req, res) => {
   }
 });
 
-// router.get("/:auction_id/details", async (req, res) => {
-//   try {
-//     const [auction] = await getAuctionDetails();
-//     return res.status(200).json({ status: "success", data: auction });
-//   } catch (error) {
-//     logger.error(error);
-//     res.status(500).json({ status: "fail", error });
-//   }
-// });
-
 router.post("/:auction_id/cancel-item/:inventory_id", async (req, res) => {
   try {
     const { auction_id, inventory_id } = req.params;
