@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer } from "react";
+import { createContext, useContext, useReducer, useCallback } from "react";
 import { Bidder, BidderAuction } from "../../types";
 import axios from "axios";
 import * as BidderActions from "./actions";
@@ -18,7 +18,7 @@ interface BidderState {
   };
   payments: any[];
   isLoading: boolean;
-  error: any;
+  errors: any;
 }
 
 interface BidderStateContextType extends BidderState {
@@ -89,7 +89,7 @@ const initialState = {
   },
   isLoading: false,
   payments: [],
-  error: null,
+  errors: null,
 };
 
 const BidderContext = createContext<BidderStateContextType>({
@@ -127,7 +127,7 @@ const bidderReducer = (
         ...state,
         isLoading: false,
         bidder: action.payload.data,
-        error: null,
+        errors: null,
       };
     case BidderActions.FETCH_BIDDER_AUCTIONS_SUCCESS:
       return {
@@ -143,7 +143,7 @@ const bidderReducer = (
         ...state,
         isLoading: false,
         payments: action.payload.data,
-        error: null,
+        errors: null,
       };
 
     case BidderActions.FETCH_BIDDER_FAILED:
@@ -153,14 +153,14 @@ const bidderReducer = (
     case BidderActions.FETCH_BIDDER_AUCTIONS_FAILED:
     case BidderActions.FETCH_AUCTION_BIDDER_ITEMS_FAILED:
     case BidderActions.FETCH_BIDDER_PAYMENT_HISTORY_FAILED:
-      return { ...state, isLoading: false, error: action.payload };
+      return { ...state, isLoading: false, errors: action.payload };
   }
 };
 
 export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, dispatch] = useReducer(bidderReducer, initialState);
 
-  const fetchBidder = async (bidderId: string) => {
+  const fetchBidder = useCallback(async (bidderId: string) => {
     dispatch({ type: BidderActions.FETCH_BIDDER });
     try {
       const response = await axios.get(`/bidders/${bidderId}`);
@@ -174,9 +174,9 @@ export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
         payload: error.data,
       });
     }
-  };
+  }, []);
 
-  const fetchBidders = async () => {
+  const fetchBidders = useCallback(async () => {
     dispatch({ type: BidderActions.FETCH_BIDDERS });
     try {
       const response = await axios.get(`/bidders/`);
@@ -187,10 +187,10 @@ export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       dispatch({
         type: BidderActions.FETCH_BIDDERS_FAILED,
-        payload: error,
+        payload: error.response.data,
       });
     }
-  };
+  }, []);
 
   const createBidder = async (body: any) => {
     dispatch({ type: BidderActions.CREATE_BIDDER });
@@ -223,7 +223,6 @@ export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
         payload: response.data,
       });
     } catch (error: any) {
-      console.log({ error });
       dispatch({
         type: BidderActions.UPDATE_BIDDER_FAILED,
         payload: error.response.data,

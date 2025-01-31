@@ -1,124 +1,133 @@
 import { useEffect, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import { useAuction, useBidders } from "../../../context";
 import { Button, Input, Select } from "../../../components";
 import { Bidder } from "../../../types";
-import { AUCTIONS_402, AUCTIONS_501 } from "../errors";
+import { AUCTIONS_402, AUCTIONS_501, BIDDERS_501 } from "../errors";
+import { useSession } from "../../hooks";
 
 const RegisterBidder = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-
   const methods = useForm();
   const [hasError, setHasError] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
-  const [auction, setAuction] = useState<any>(null);
+  const [auction] = useSession<any>("auction", null);
   const {
     bidders,
     fetchBidders,
     isLoading: isFetchingBidders,
-    error: hasBidderErrors,
+    errors: hasBidderErrors,
   } = useBidders();
-  const { registerBidderAtAuction, registeredBidder, isLoading, errors } =
-    useAuction();
+  const {
+    registeredBidders,
+    registerBidderAtAuction,
+    registeredBidder,
+    isLoading,
+    errors,
+  } = useAuction();
   const [unregisteredBidders, setUnregisteredBidders] = useState<Bidder[]>([]);
-
-  useEffect(() => {
-    if (auction && auction?.bidders) {
-      if (bidders.length && !unregisteredBidders.length) {
-        const registeredBidders = auction.bidders.map(
-          (item: Bidder) => item.bidder_id
-        );
-
-        const unregisteredBiddersList = bidders.filter(
-          (bidder) => !registeredBidders.includes(bidder.bidder_id)
-        );
-        setUnregisteredBidders(unregisteredBiddersList);
-      }
-    }
-  }, [bidders]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
       await fetchBidders();
     };
     fetchInitialData();
-
-    let sessionAuction = sessionStorage.getItem("auction");
-    if (sessionAuction) {
-      setAuction(JSON.parse(sessionAuction));
-    }
-  }, []);
+  }, [fetchBidders]);
 
   useEffect(() => {
-    if (!errors && !isLoading && registeredBidder) {
-      methods.reset();
+    if (bidders && registeredBidders?.bidders) {
+      if (bidders.length && !unregisteredBidders.length) {
+        const unregisteredBiddersList = bidders.filter(
+          (bidder) =>
+            !registeredBidders?.bidders
+              .map((item) => item.bidder_id)
+              .includes(bidder.bidder_id)
+        );
+
+        setUnregisteredBidders(unregisteredBiddersList);
+      }
+    }
+  }, [bidders]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (!errors && registeredBidder) {
+        methods.reset();
+        setHasError(false);
+        setIsSuccess(true);
+      }
+
+      if (errors) {
+        setIsSuccess(false);
+        setHasError(true);
+      }
+    }
+
+    return () => {
       setHasError(false);
-      setIsSuccess(true);
-    }
-
-    if (errors) {
       setIsSuccess(false);
-      setHasError(true);
-    }
-  }, [errors, isLoading]);
-
-  useEffect(() => {
-    setHasError(false);
-    setIsSuccess(false);
-  }, [location.key]);
+    };
+  }, [errors, isLoading, methods, registeredBidder?.auction_bidders_id]);
 
   const handleSubmitRegisterBidder = methods.handleSubmit(async (data) => {
-    await registerBidderAtAuction(auction.auction_id, data);
+    await registerBidderAtAuction(auction?.auction_id, data);
   });
+
+  if (hasBidderErrors) {
+    return (
+      <div className="mt-8">
+        {hasBidderErrors?.error === BIDDERS_501 ? (
+          <div className="border p-2 rounded border-red-500 mb-10">
+            <h1 className="text-red-500 text-xl flex justify-center">
+              Please take a look back later...
+            </h1>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div>
-      <div className="w-full">
-        <Button
-          buttonType="secondary"
-          onClick={() => navigate(-1)}
-          className="text-blue-500"
-        >
-          Go Back
-        </Button>
-      </div>
-      <div className="flex justify-between my-2">
+      <div className="flex justify-center items-center my-4">
         <h1 className="text-3xl">Register Bidder</h1>
       </div>
 
-      <div className="block p-10 border rounded-lg shadow-lg">
-        {isLoading && isFetchingBidders ? (
-          <div className="text-3xl flex justify-center">Loading...</div>
-        ) : (
-          <FormProvider {...methods}>
-            {hasError ? (
-              <h1 className="text-red-500 text-xl flex justify-center">
-                {errors?.error === AUCTIONS_501 ? (
-                  <>Please take a look back later...</>
-                ) : null}
-                {errors?.error === AUCTIONS_402 ? (
-                  <>Bidder already registered!</>
-                ) : null}
-              </h1>
-            ) : null}
+      {!unregisteredBidders.length ? (
+        <div className="border p-2 flex flex-col gap-4 items-center w-full rounded border-red-500">
+          <div className="text-red-500 text-xl">
+            No bidders to register. Please go to the Bidders Page and create a
+            Bidder.
+          </div>
 
-            {isSuccess ? (
-              <h1 className="text-green-500 text-xl flex justify-center">
-                Successfully Registered Bidder!
-              </h1>
-            ) : null}
-
-            {!unregisteredBidders.length ? (
-              <div className="border p-2 rounded border-red-500">
+          <Link to={`/auctions/${auction.auction_id}`}>
+            Go back to Bidders Page
+          </Link>
+        </div>
+      ) : (
+        <div className="block p-10 border rounded-lg shadow-lg">
+          {isLoading && isFetchingBidders ? (
+            <div className="text-3xl flex justify-center">Loading...</div>
+          ) : (
+            <FormProvider {...methods}>
+              {hasError ? (
                 <h1 className="text-red-500 text-xl flex justify-center">
-                  No bidders to register. Please go to the Bidders Page and
-                  create a Bidder.
+                  {errors?.error === AUCTIONS_501 ? (
+                    <>Please take a look back later...</>
+                  ) : null}
+                  {errors?.error === AUCTIONS_402 ? (
+                    <>Bidder already registered!</>
+                  ) : null}
                 </h1>
-              </div>
-            ) : (
+              ) : null}
+
+              {isSuccess ? (
+                <h1 className="text-green-500 text-xl flex justify-center">
+                  Successfully Registered Bidder!
+                </h1>
+              ) : null}
+
               <form
                 id="register_bidder"
                 onSubmit={(e) => e.preventDefault()}
@@ -181,10 +190,10 @@ const RegisterBidder = () => {
                   </Button>
                 </div>
               </form>
-            )}
-          </FormProvider>
-        )}
-      </div>
+            </FormProvider>
+          )}
+        </div>
+      )}
     </div>
   );
 };

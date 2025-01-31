@@ -11,24 +11,26 @@ const CreateSupplier = () => {
   const methods = useForm();
   const [hasError, setHasError] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
-  const { createBidder, isLoading, error, bidder } = useBidders();
+  const { createBidder, isLoading, errors, bidder } = useBidders();
 
   const handleSubmitCreateBidder = methods.handleSubmit(async (data) => {
     await createBidder(data);
   });
 
   useEffect(() => {
-    if (!error && !isLoading && bidder) {
-      methods.reset();
-      setHasError(false);
-      setIsSuccess(true);
-    }
+    if (!isLoading) {
+      if (!errors && bidder) {
+        methods.reset();
+        setHasError(false);
+        setIsSuccess(true);
+      }
 
-    if (error) {
-      setIsSuccess(false);
-      setHasError(true);
+      if (errors) {
+        setIsSuccess(false);
+        setHasError(true);
+      }
     }
-  }, [error, isLoading]);
+  }, [errors, isLoading, methods, bidder]);
 
   useEffect(() => {
     setHasError(false);
@@ -40,7 +42,7 @@ const CreateSupplier = () => {
       <div className="w-full">
         <Button
           buttonType="secondary"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/bidders")}
           className="text-blue-500"
         >
           Go Back
@@ -58,10 +60,10 @@ const CreateSupplier = () => {
             {hasError ? (
               <div className="border p-2 rounded border-red-500 mb-10">
                 <h1 className="text-red-500 text-xl flex justify-center">
-                  {[BIDDERS_503, BIDDERS_501].includes(error?.error) ? (
+                  {[BIDDERS_503, BIDDERS_501].includes(errors?.error) ? (
                     <>Please take a look back later...</>
                   ) : null}
-                  {error?.error === BIDDERS_402 ? (
+                  {errors?.error === BIDDERS_402 ? (
                     <>Bidder Number already taken!</>
                   ) : null}
                 </h1>

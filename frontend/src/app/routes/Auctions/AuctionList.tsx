@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+
 import { Auction } from "../../../types";
 import { Modal, Button, Table } from "../../../components";
 import { useAuction } from "../../../context";
-import { useNavigate } from "react-router-dom";
+import { AUCTIONS_501 } from "../errors";
 
 const AuctionList = () => {
   const navigate = useNavigate();
@@ -18,6 +20,20 @@ const AuctionList = () => {
 
     fetchInitialData();
   }, []);
+
+  if (errors) {
+    return (
+      <div className="mt-8">
+        {errors?.error === AUCTIONS_501 ? (
+          <div className="border p-2 rounded border-red-500 mb-10">
+            <h1 className="text-red-500 text-xl flex justify-center">
+              Please take a look back later...
+            </h1>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div>

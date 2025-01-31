@@ -1,15 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Bidder } from "../../../types";
 import { Button, Table } from "../../../components";
 import { useBidders } from "../../../context";
 import { useNavigate } from "react-router-dom";
+import { BIDDERS_501 } from "../errors";
 
 const BidderList = () => {
   const navigate = useNavigate();
   const {
     bidders,
     fetchBidders,
-    error,
+    errors,
     isLoading: isFetchingBidders,
   } = useBidders();
 
@@ -18,7 +19,21 @@ const BidderList = () => {
       await fetchBidders();
     };
     fetchInitialData();
-  }, []);
+  }, [fetchBidders]);
+
+  if (errors) {
+    return (
+      <>
+        {errors?.error === BIDDERS_501 ? (
+          <div className="border p-2 rounded border-red-500 mb-10">
+            <h1 className="text-red-500 text-xl flex justify-center">
+              Please take a look back later...
+            </h1>
+          </div>
+        ) : null}
+      </>
+    );
+  }
 
   return (
     <div>

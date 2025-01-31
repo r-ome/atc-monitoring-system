@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Button, Table } from "../../../components";
+import { useEffect } from "react";
+import { useNavigate, useParams, Outlet, useLocation } from "react-router-dom";
+import { Button } from "../../../components";
 import { useAuction } from "../../../context";
 import { AUCTIONS_403 } from "../errors";
 import { useSession } from "../../hooks";
@@ -8,25 +8,38 @@ import { useSession } from "../../hooks";
 const AuctionProfile = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const params = useParams();
   const {
     auction,
     fetchAuctionDetails,
+    fetchRegisteredBidders,
     isLoading: isFetchingAuctionDetails,
     errors,
   } = useAuction();
   const [sessionAuction, setSessionAuction] = useSession<any>("auction", null);
 
   useEffect(() => {
-    const { auction_id: auctionId } = location.state.auction;
-    const fetchInitialData = async () => {
-      await fetchAuctionDetails(auctionId);
-    };
-    fetchInitialData();
+    const { auction_id: auctionId } = params;
+    if (auctionId) {
+      const fetchInitialData = async () => {
+        await fetchAuctionDetails(auctionId);
+        await fetchRegisteredBidders(auctionId);
+      };
+      fetchInitialData();
+    }
+  }, [
+    params.auction_id,
+    fetchRegisteredBidders,
+    fetchAuctionDetails,
+    location.key,
+  ]);
 
+  useEffect(() => {
     if (auction) {
       if (sessionAuction) {
         if (sessionAuction.auction_id !== auction.auction_id) {
           setSessionAuction(auction);
+          return;
         }
       }
       setSessionAuction(auction);
@@ -45,20 +58,22 @@ const AuctionProfile = () => {
 
     return (
       <>
-        {profileDetails.map((item, i) => {
-          if (
-            ["auction id", "bidders", "auction date"].includes(
-              item.label.toLowerCase()
-            )
+        {profileDetails
+          .filter(
+            (item) =>
+              !["auction id", "auction date"].includes(item.label.toLowerCase())
           )
-            return;
-          return (
-            <div key={i} className="flex justify-between items-center p-2">
-              <div>{item.label}:</div>
-              <div className="text-lg font-bold">{item.value}</div>
-            </div>
-          );
-        })}
+          .map((item, i) => {
+            return (
+              <div
+                key={i}
+                className="flex justify-between items-center p-2 w-1/5"
+              >
+                <div>{item.label}:</div>
+                <div className="text-lg font-bold">{item.value}</div>
+              </div>
+            );
+          })}
       </>
     );
   };
@@ -69,7 +84,7 @@ const AuctionProfile = () => {
         <div className="w-full">
           <Button
             buttonType="secondary"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/auctions")}
             className="text-blue-500"
           >
             Go Back
@@ -89,7 +104,7 @@ const AuctionProfile = () => {
       <div className="w-full">
         <Button
           buttonType="secondary"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/auctions")}
           className="text-blue-500"
         >
           Go Back
@@ -98,57 +113,35 @@ const AuctionProfile = () => {
 
       {!isFetchingAuctionDetails && auction ? (
         <div className="h-full">
-          <div className="flex flex-grow gap-2">
-            <div className="w-2/6 border rounded shadow-md p-4 h-full">
+          <div className="flex flex-col gap-2">
+            <div className="w-full border rounded shadow-md p-4 h-full">
               <h1 className="text-3xl font-bold">{auction?.auction_date}</h1>
-              <Button
-                buttonType="secondary"
-                onClick={() =>
-                  navigate(`/auctions/${auction.auction_id}/payments`, {
-                    state: { auction },
-                  })
-                }
-                className="text-blue-500"
-              >
-                Go to Payments
-              </Button>
-
               <div className="flex mt-4">
                 <div className="flex-col w-full gap-4">
                   {renderProfileDetails(auction)}
                 </div>
               </div>
+              <Button
+                buttonType="secondary"
+                onClick={() =>
+                  navigate(`/auctions/${auction.auction_id}`, {
+                    state: { auction },
+                  })
+                }
+                className="text-blue-500"
+              >
+                Bidders
+              </Button>
+              <Button
+                buttonType="secondary"
+                onClick={() => navigate(`payments`, { state: { auction } })}
+                className="text-blue-500"
+              >
+                Payments
+              </Button>
             </div>
 
-            <div className="w-5/6 border p-4 h-full">
-              <div className="flex justify-between items-center w-full p-2">
-                <h1 className="text-3xl font-bold">Registered Bidders</h1>
-                <Button
-                  buttonType="primary"
-                  onClick={() =>
-                    navigate(`/auctions/${auction.auction_id}/register-bidder`)
-                  }
-                >
-                  Register Bidder
-                </Button>
-              </div>
-              <Table
-                data={auction?.bidders || []}
-                loading={isFetchingAuctionDetails}
-                rowKeys={[
-                  "bidder_number",
-                  "full_name",
-                  "service_charge",
-                  "registration_fee",
-                ]}
-                columnHeaders={[
-                  "Bidder Number",
-                  "Bidder Name",
-                  "Service Charge",
-                  "Registration Fee",
-                ]}
-              />
-            </div>
+            <Outlet />
           </div>
         </div>
       ) : (

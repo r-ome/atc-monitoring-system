@@ -1,5 +1,10 @@
-import { createContext, useContext, useReducer } from "react";
-import { Auction, Bidder, Monitoring, InventoryDetails } from "../../types";
+import { createContext, useCallback, useContext, useReducer } from "react";
+import {
+  Auction,
+  Monitoring,
+  InventoryDetails,
+  RegisteredBidders,
+} from "../../types";
 import axios from "axios";
 import * as AuctionActions from "./actions";
 
@@ -7,7 +12,7 @@ interface AuctionState {
   auction: any;
   auctions: Auction[];
   monitoring: Monitoring[];
-  auctionBidders: Bidder[];
+  registeredBidders?: RegisteredBidders;
   registeredBidder: any;
   inventory: InventoryDetails | null;
   payment: any;
@@ -21,7 +26,7 @@ interface AuctionStateContextType extends AuctionState {
   getAuctions: () => Promise<void>;
   fetchAuctionDetails: (id: string) => Promise<void>;
   getMonitoring: (id: number) => Promise<void>;
-  getAuctionBidders: (id: number) => Promise<void>;
+  fetchRegisteredBidders: (id: string) => Promise<void>;
   uploadMonitoring: (file: any) => Promise<void>;
   registerBidderAtAuction: (id: number, bidder: any) => Promise<void>;
   payBidderItems: (
@@ -45,7 +50,10 @@ export type MonitoringAction =
   | { type: "CANCEL_ITEM" }
   | { type: "FETCH_MONITORING_SUCCESS"; payload: { data: Monitoring[] } }
   | { type: "FETCH_AUCTIONS_SUCCESS"; payload: { data: Auction[] } }
-  | { type: "FETCH_AUCTION_BIDDERS_SUCCESS"; payload: { data: Bidder[] } }
+  | {
+      type: "FETCH_AUCTION_BIDDERS_SUCCESS";
+      payload: { data: RegisteredBidders };
+    }
   | { type: "CREATE_AUCTION_SUCCESS"; payload: { data: Auction } }
   | { type: "UPLOAD_MONITORING_SUCCESS"; payload: { data: any } }
   | { type: "REGISTER_BIDDER_AT_AUCTION_SUCCESS"; payload: { data: any } }
@@ -66,7 +74,8 @@ const initialState = {
   auction: {},
   auctions: [],
   monitoring: [],
-  registeredBidder: {},
+  registeredBidders: undefined,
+  registeredBidder: undefined,
   auctionBidders: [],
   inventory: null,
   payment: {},
@@ -80,7 +89,7 @@ const AuctionContext = createContext<AuctionStateContextType>({
   createAuction: async () => {},
   getMonitoring: async () => {},
   getAuctions: async () => {},
-  getAuctionBidders: async () => {},
+  fetchRegisteredBidders: async () => {},
   uploadMonitoring: async () => {},
   registerBidderAtAuction: async () => {},
   fetchAuctionDetails: async () => {},
@@ -120,7 +129,7 @@ const monitoringReducer = (
       return {
         ...state,
         isLoading: false,
-        auctionBidders: action.payload.data,
+        registeredBidders: action.payload.data,
       };
 
     case AuctionActions.UPLOAD_MONITORING_SUCCESS:
@@ -132,12 +141,10 @@ const monitoringReducer = (
       };
 
     case AuctionActions.REGISTER_BIDDER_AT_AUCTION_SUCCESS:
-      state.auction.bidders = [...state.auction.bidders, action.payload.data];
       return {
         ...state,
         isLoading: false,
         registeredBidder: action.payload.data,
-        auctionBidders: [...state.auctionBidders, action.payload.data],
         errors: null,
       };
 
@@ -208,11 +215,14 @@ export const AuctionProvider = ({
         payload: response.data,
       });
     } catch (error: any) {
-      dispatch({ type: AuctionActions.FETCH_AUCTIONS_FAILED, payload: error });
+      dispatch({
+        type: AuctionActions.FETCH_AUCTIONS_FAILED,
+        payload: error.response.data,
+      });
     }
   };
 
-  const getAuctionBidders = async (auctionId: number) => {
+  const fetchRegisteredBidders = useCallback(async (auctionId: string) => {
     dispatch({ type: AuctionActions.FETCH_AUCTION_BIDDERS });
     try {
       const response = await axios.get(`/auctions/${auctionId}/bidders`);
@@ -223,10 +233,10 @@ export const AuctionProvider = ({
     } catch (error: any) {
       dispatch({
         type: AuctionActions.FETCH_AUCTION_BIDDERS_FAILED,
-        payload: error,
+        payload: error.response.data,
       });
     }
-  };
+  }, []);
 
   const createAuction = async () => {
     dispatch({ type: AuctionActions.CREATE_AUCTION });
@@ -280,7 +290,7 @@ export const AuctionProvider = ({
     }
   };
 
-  const fetchAuctionDetails = async (auctionId: string) => {
+  const fetchAuctionDetails = useCallback(async (auctionId: string) => {
     dispatch({ type: AuctionActions.FETCH_AUCTION_DETAILS });
     try {
       const response = await axios.get(`/auctions/${auctionId}`);
@@ -294,7 +304,7 @@ export const AuctionProvider = ({
         payload: error.response.data,
       });
     }
-  };
+  }, []);
 
   const payBidderItems = async (
     auctionId: number,
@@ -309,7 +319,6 @@ export const AuctionProvider = ({
         inventory_ids: inventoryIds,
         amount,
       });
-      console.log(response.data);
       dispatch({
         type: AuctionActions.BIDDER_PAYMENT_SUCCESS,
         payload: response.data,
@@ -347,7 +356,7 @@ export const AuctionProvider = ({
         createAuction,
         getMonitoring,
         getAuctions,
-        getAuctionBidders,
+        fetchRegisteredBidders,
         uploadMonitoring,
         registerBidderAtAuction,
         fetchAuctionDetails,

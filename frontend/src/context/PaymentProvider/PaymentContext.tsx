@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer } from "react";
+import { createContext, useCallback, useContext, useReducer } from "react";
 import axios from "axios";
 import { Payment } from "../../types";
 import * as PaymentActions from "./action";
@@ -53,7 +53,7 @@ export const PaymentProvider = ({
 }) => {
   const [state, dispatch] = useReducer(paymentsReducer, initialState);
 
-  const fetchAuctionPayments = async (auctionId: string) => {
+  const fetchAuctionPayments = useCallback(async (auctionId: string) => {
     dispatch({ type: PaymentActions.FETCH_AUCTION_PAYMENT });
     try {
       const response = await axios.get(`/auctions/${auctionId}/payments`);
@@ -67,7 +67,7 @@ export const PaymentProvider = ({
         payload: error.payload,
       });
     }
-  };
+  }, []);
 
   return (
     <PaymentContext.Provider

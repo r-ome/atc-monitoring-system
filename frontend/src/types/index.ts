@@ -168,3 +168,14 @@ export interface Payment {
   payment_type: string;
   created_at: string;
 }
+
+export interface RegisteredBidders {
+  auction_id: number;
+  auction_date: string;
+  bidders: {
+    bidder_id: number;
+    service_charge: string;
+    registration_fee: string;
+    auction_bidders_id: number;
+  }[];
+}

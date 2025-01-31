@@ -1,21 +1,23 @@
 import { useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button, Table } from "../../../components";
 import { useBidders } from "../../../context";
 import { useSession } from "../../hooks";
 
 const BidderProfile = () => {
   const navigate = useNavigate();
-  const location = useLocation();
+  const params = useParams();
   const { bidder, isLoading: isFetchingBidder, fetchBidder } = useBidders();
   const [sessionBidder, setSessionBidder] = useSession<any>("bidder", null);
 
   useEffect(() => {
-    const { bidder_id: bidderId } = location.state.bidder;
-    const fetchInitialData = async () => {
-      await fetchBidder(bidderId);
-    };
-    fetchInitialData();
+    const { bidder_id: bidderId } = params;
+    if (bidderId) {
+      const fetchInitialData = async () => {
+        await fetchBidder(bidderId);
+      };
+      fetchInitialData();
+    }
 
     if (bidder) {
       if (sessionBidder) {
@@ -26,7 +28,7 @@ const BidderProfile = () => {
       }
       setSessionBidder(bidder);
     }
-  }, [JSON.stringify(bidder)]);
+  }, [params.bidder_id, fetchBidder, JSON.stringify(bidder)]);
 
   const renderProfileDetails = (bidder: any) => {
     let bidderDetails = bidder;
@@ -41,16 +43,19 @@ const BidderProfile = () => {
 
     return (
       <>
-        {profileDetails.map((item, i) => {
-          if (["bidder id", "requirements"].includes(item.label.toLowerCase()))
-            return;
-          return (
-            <div key={i} className="flex justify-between items-center p-2">
-              <div>{item.label}:</div>
-              <div className="text-lg font-bold">{item.value}</div>
-            </div>
-          );
-        })}
+        {profileDetails
+          .filter(
+            (item) =>
+              !["bidder id", "requirements"].includes(item.label.toLowerCase())
+          )
+          .map((item, i) => {
+            return (
+              <div key={i} className="flex justify-between items-center p-2">
+                <div>{item.label}:</div>
+                <div className="text-lg font-bold">{item.value}</div>
+              </div>
+            );
+          })}
       </>
     );
   };
@@ -82,7 +87,8 @@ const BidderProfile = () => {
             </div>
 
             <div className="w-4/6 border p-4 h-full">
-              <div className="flex justify-end w-full p-2">
+              <div className="flex justify-between items-center w-full p-2">
+                <h1 className="text-3xl font-bold">Requirements</h1>
                 <Button
                   buttonType="primary"
                   onClick={() =>
@@ -92,6 +98,7 @@ const BidderProfile = () => {
                   Add Bidder Requirement
                 </Button>
               </div>
+
               <Table
                 data={bidder.requirements || []}
                 loading={isFetchingBidder}
