@@ -4,6 +4,7 @@ import AuctionPayments from "./AuctionPayments";
 import Monitoring from "./Monitoring";
 import RegisterBidder from "./RegisterBidder";
 import AuctionBidders from "./AuctionBidders";
+import ManifestList from "./ManifestList";
 
 export {
   AuctionList,
@@ -12,4 +13,5 @@ export {
   AuctionPayments,
   RegisterBidder,
   AuctionBidders,
+  ManifestList,
 };

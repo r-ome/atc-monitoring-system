@@ -101,6 +101,7 @@ const CreateInventory = () => {
                 name="description"
                 placeholder="Description"
                 label="Description: "
+                className="uppercase"
                 validations={{
                   required: {
                     value: true,

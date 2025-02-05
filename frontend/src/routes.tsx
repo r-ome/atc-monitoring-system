@@ -20,7 +20,9 @@ import {
   AuctionBidders,
   AuctionPayments,
   RegisterBidder,
+  Monitoring,
 } from "./app/routes";
+import { ManifestList } from "./app/routes/Auctions";
 
 const routes: RouteObject[] = [
   {
@@ -100,6 +102,14 @@ const routes: RouteObject[] = [
           {
             path: "register-bidder",
             element: <RegisterBidder />,
+          },
+          {
+            path: "monitoring",
+            element: <Monitoring />,
+          },
+          {
+            path: "manifest-records",
+            element: <ManifestList />,
           },
         ],
       },

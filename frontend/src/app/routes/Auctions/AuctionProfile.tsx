@@ -1,5 +1,11 @@
 import { useEffect } from "react";
-import { useNavigate, useParams, Outlet, useLocation } from "react-router-dom";
+import {
+  useNavigate,
+  useParams,
+  Outlet,
+  useLocation,
+  NavLink,
+} from "react-router-dom";
 import { Button } from "../../../components";
 import { useAuction } from "../../../context";
 import { AUCTIONS_403 } from "../errors";
@@ -13,6 +19,8 @@ const AuctionProfile = () => {
     auction,
     fetchAuctionDetails,
     fetchRegisteredBidders,
+    fetchMonitoring,
+    fetchManifestRecords,
     isLoading: isFetchingAuctionDetails,
     errors,
   } = useAuction();
@@ -23,7 +31,9 @@ const AuctionProfile = () => {
     if (auctionId) {
       const fetchInitialData = async () => {
         await fetchAuctionDetails(auctionId);
+        await fetchMonitoring(auctionId);
         await fetchRegisteredBidders(auctionId);
+        await fetchManifestRecords(auctionId);
       };
       fetchInitialData();
     }
@@ -78,6 +88,41 @@ const AuctionProfile = () => {
     );
   };
 
+  const renderAuctionNavigation = (auction: any) => {
+    const navigation = [
+      {
+        label: "Bidders",
+        route: `/auctions/${auction.auction_id}`,
+      },
+      {
+        label: "Payments",
+        route: "payments",
+      },
+      {
+        label: "Monitoring",
+        route: "monitoring",
+      },
+      {
+        label: "Manifests",
+        route: "manifest-records",
+      },
+    ];
+    return navigation.map((item, i) => (
+      <NavLink
+        key={i}
+        state={auction}
+        to={item.route}
+        end
+        className={({ isActive }: any) =>
+          "p-2 rounded cursor-pointer hover:text-blue-500 " +
+          (isActive ? "text-blue-500 font-bold underline" : "text-black")
+        }
+      >
+        {item.label}
+      </NavLink>
+    ));
+  };
+
   if (errors && errors.error === AUCTIONS_403) {
     return (
       <>
@@ -121,24 +166,9 @@ const AuctionProfile = () => {
                   {renderProfileDetails(auction)}
                 </div>
               </div>
-              <Button
-                buttonType="secondary"
-                onClick={() =>
-                  navigate(`/auctions/${auction.auction_id}`, {
-                    state: { auction },
-                  })
-                }
-                className="text-blue-500"
-              >
-                Bidders
-              </Button>
-              <Button
-                buttonType="secondary"
-                onClick={() => navigate(`payments`, { state: { auction } })}
-                className="text-blue-500"
-              >
-                Payments
-              </Button>
+              <div className="flex gap-2">
+                {renderAuctionNavigation(auction)}
+              </div>
             </div>
 
             <Outlet />

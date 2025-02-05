@@ -25,7 +25,6 @@ const AuctionPayments = () => {
         fetchInitialData();
       }
     }
-
     if (sessionAuction) {
       setAuction(sessionAuction);
     }

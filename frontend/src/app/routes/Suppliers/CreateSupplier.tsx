@@ -115,7 +115,6 @@ const CreateSupplier = () => {
                 placeholder="Code"
                 label="Supplier Code:"
                 validations={{
-                  minLength: { value: 3, message: "Minimum of 3 character" },
                   required: {
                     value: true,
                     message: "Supplier Code is required",

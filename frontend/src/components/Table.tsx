@@ -37,8 +37,8 @@ const Table: React.FC<TableInteface> = ({
           return (
             <tr
               key={i}
-              className={`bg-white even:bg-gray-100 hover:bg-gray-300 ${
-                onRowClick ? "cursor-pointer" : null
+              className={`bg-white ${onRowClick ? "cursor-pointer" : null} ${
+                data?.remarks === "INVALID_ROW" ? "bg-red-400 text-white" : ""
               }`}
               onClick={() => (onRowClick ? onRowClick(data) : null)}
             >

@@ -30,9 +30,9 @@ const Input: React.FC<InputProps> = ({
 
       <input
         type={rest.type ? rest.type : "text"}
-        className={`mt-2 p-4 placeholder-blueGray-300 text-blueGray-600 relative bg-white rounded text-lg border outline-none focus:outline-none focus:ring w-full ${rest.className}`}
         {...rest}
         {...register(name, validations)}
+        className={`mt-2 p-4 placeholder-blueGray-300 text-blueGray-600 relative bg-white rounded text-lg border outline-none focus:outline-none focus:ring w-full ${rest.className}`}
       />
       {isInvalid && (
         <div className="text-red-500">{inputError?.error.message}</div>

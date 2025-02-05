@@ -1,9 +1,9 @@
-import { useNavigate } from "react-router-dom";
 import { Button, Table } from "../../../components";
 import { useAuction } from "../../../context";
 
 const Monitoring = () => {
-  const { monitoring, isLoading: isFetchingMonitoring } = useAuction();
+  const { manifestRecords, isLoading: isFetchingManifestRecords } =
+    useAuction();
 
   return (
     <>
@@ -11,23 +11,21 @@ const Monitoring = () => {
         <div className="flex flex-col gap-2">
           <div className="w-full border p-4 h-full">
             <div className="flex justify-between items-center w-full p-2">
-              <h1 className="text-3xl font-bold">Monitoring</h1>
-              <Button buttonType="primary" onClick={() => alert("ENCODE PAGE")}>
-                ENCODE
-              </Button>
+              <h1 className="text-3xl font-bold">Manifest List</h1>
             </div>
-            {!isFetchingMonitoring && monitoring ? (
+            {!isFetchingManifestRecords && manifestRecords ? (
               <Table
-                data={monitoring || []}
-                loading={isFetchingMonitoring}
+                data={manifestRecords || []}
+                loading={isFetchingManifestRecords}
                 rowKeys={[
-                  "barcode",
+                  "barcode_number",
                   "control_number",
                   "description",
-                  "bidder.bidder_number",
+                  "bidder_number",
                   "qty",
                   "price",
                   "manifest_number",
+                  "error_messages",
                 ]}
                 columnHeaders={[
                   "barcode",
@@ -37,6 +35,7 @@ const Monitoring = () => {
                   "qty",
                   "price",
                   "manifest",
+                  "error",
                 ]}
               />
             ) : (

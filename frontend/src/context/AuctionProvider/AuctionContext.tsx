@@ -12,6 +12,7 @@ interface AuctionState {
   auction: any;
   auctions: Auction[];
   monitoring: Monitoring[];
+  manifestRecords: any[];
   registeredBidders?: RegisteredBidders;
   registeredBidder: any;
   inventory: InventoryDetails | null;
@@ -25,7 +26,8 @@ interface AuctionStateContextType extends AuctionState {
   createAuction: () => Promise<void>;
   getAuctions: () => Promise<void>;
   fetchAuctionDetails: (id: string) => Promise<void>;
-  getMonitoring: (id: number) => Promise<void>;
+  fetchMonitoring: (id: string) => Promise<void>;
+  fetchManifestRecords: (id: string) => Promise<void>;
   fetchRegisteredBidders: (id: string) => Promise<void>;
   uploadMonitoring: (file: any) => Promise<void>;
   registerBidderAtAuction: (id: number, bidder: any) => Promise<void>;
@@ -40,6 +42,7 @@ interface AuctionStateContextType extends AuctionState {
 
 export type MonitoringAction =
   | { type: "FETCH_MONITORING" }
+  | { type: "FETCH_MANIFEST_RECORDS" }
   | { type: "FETCH_AUCTIONS" }
   | { type: "FETCH_AUCTION_BIDDERS" }
   | { type: "CREATE_AUCTION" }
@@ -48,6 +51,7 @@ export type MonitoringAction =
   | { type: "FETCH_AUCTION_DETAILS" }
   | { type: "BIDDER_PAYMENT" }
   | { type: "CANCEL_ITEM" }
+  | { type: "FETCH_MANIFEST_RECORDS_SUCCESS"; payload: { data: any[] } }
   | { type: "FETCH_MONITORING_SUCCESS"; payload: { data: Monitoring[] } }
   | { type: "FETCH_AUCTIONS_SUCCESS"; payload: { data: Auction[] } }
   | {
@@ -60,6 +64,7 @@ export type MonitoringAction =
   | { type: "FETCH_AUCTION_DETAILS_SUCCESS"; payload: { data: any } }
   | { type: "BIDDER_PAYMENT_SUCCESS"; payload: { data: any } }
   | { type: "CANCEL_ITEM_SUCCESS"; payload: { data: InventoryDetails } }
+  | { type: "FETCH_MANIFEST_RECORDS_FAILED"; payload: { errors: null } }
   | { type: "FETCH_AUCTIONS_FAILED"; payload: { errors: null } }
   | { type: "FETCH_MONITORING_FAILED"; payload: { errors: null } }
   | { type: "FETCH_AUCTION_BIDDERS_FAILED"; payload: { errors: null } }
@@ -73,6 +78,7 @@ export type MonitoringAction =
 const initialState = {
   auction: {},
   auctions: [],
+  manifestRecords: [],
   monitoring: [],
   registeredBidders: undefined,
   registeredBidder: undefined,
@@ -87,7 +93,8 @@ const initialState = {
 const AuctionContext = createContext<AuctionStateContextType>({
   ...initialState,
   createAuction: async () => {},
-  getMonitoring: async () => {},
+  fetchMonitoring: async () => {},
+  fetchManifestRecords: async () => {},
   getAuctions: async () => {},
   fetchRegisteredBidders: async () => {},
   uploadMonitoring: async () => {},
@@ -104,6 +111,7 @@ const monitoringReducer = (
   switch (action.type) {
     case AuctionActions.CREATE_AUCTION:
     case AuctionActions.FETCH_AUCTIONS:
+    case AuctionActions.FETCH_MANIFEST_RECORDS:
     case AuctionActions.FETCH_AUCTION_BIDDERS:
     case AuctionActions.FETCH_MONITORING:
     case AuctionActions.UPLOAD_MONITORING:
@@ -121,6 +129,12 @@ const monitoringReducer = (
         errors: null,
       };
 
+    case AuctionActions.FETCH_MANIFEST_RECORDS_SUCCESS:
+      return {
+        ...state,
+        isLoading: false,
+        manifestRecords: action.payload.data,
+      };
     case AuctionActions.FETCH_MONITORING_SUCCESS:
       return { ...state, isLoading: false, monitoring: action.payload.data };
     case AuctionActions.FETCH_AUCTIONS_SUCCESS:
@@ -171,6 +185,7 @@ const monitoringReducer = (
       };
 
     case AuctionActions.UPLOAD_MONITORING_FAILED:
+    case AuctionActions.FETCH_MANIFEST_RECORDS_FAILED:
     case AuctionActions.CREATE_AUCTION_FAILED:
     case AuctionActions.FETCH_AUCTIONS_FAILED:
     case AuctionActions.FETCH_MONITORING_FAILED:
@@ -190,7 +205,25 @@ export const AuctionProvider = ({
 }) => {
   const [state, dispatch] = useReducer(monitoringReducer, initialState);
 
-  const getMonitoring = async (auctionId: number) => {
+  const fetchManifestRecords = useCallback(async (auctionId: string) => {
+    dispatch({ type: AuctionActions.FETCH_MANIFEST_RECORDS });
+    try {
+      const response = await axios.get(
+        `/auctions/${auctionId}/manifest-records`
+      );
+      dispatch({
+        type: AuctionActions.FETCH_MANIFEST_RECORDS_SUCCESS,
+        payload: response.data,
+      });
+    } catch (error: any) {
+      dispatch({
+        type: AuctionActions.FETCH_MANIFEST_RECORDS_FAILED,
+        payload: error.payload,
+      });
+    }
+  }, []);
+
+  const fetchMonitoring = useCallback(async (auctionId: string) => {
     dispatch({ type: AuctionActions.FETCH_MONITORING });
     try {
       const response = await axios.get(`/auctions/${auctionId}/monitoring`);
@@ -201,10 +234,10 @@ export const AuctionProvider = ({
     } catch (error: any) {
       dispatch({
         type: AuctionActions.FETCH_MONITORING_FAILED,
-        payload: error,
+        payload: error.payload,
       });
     }
-  };
+  }, []);
 
   const getAuctions = async () => {
     dispatch({ type: AuctionActions.FETCH_AUCTIONS });
@@ -354,7 +387,8 @@ export const AuctionProvider = ({
       value={{
         ...state,
         createAuction,
-        getMonitoring,
+        fetchManifestRecords,
+        fetchMonitoring,
         getAuctions,
         fetchRegisteredBidders,
         uploadMonitoring,
