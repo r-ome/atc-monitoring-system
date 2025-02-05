@@ -153,14 +153,13 @@
                 <constraints nullable="false" />
             </column>
             <column name="description" type="varchar(255)"/>
-            <column name="price" type="bigint"/>
             <column name="control_number" type="varchar(255)"/>
             <column name="url" type="varchar(255)"/>
-            <column name="qty" type="varchar(255)"/>
             <column name="barcode" type="varchar(255)"/>
             <column name="status" type="enum('SOLD', 'UNSOLD')" defaultValue="UNSOLD">
-                <constraints nullable="false" />
+                <constraints nullable="false"/>
             </column>
+            <column name="v4_identifier" type="varchar(255)"/>
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
                 <constraints nullable="false"/>
             </column>
@@ -280,6 +279,12 @@
             <column name="status" type="enum('PAID', 'UNPAID', 'CANCELLED', 'REFUNDED')" defaultValue="UNPAID">
                 <constraints nullable="false" />
             </column>
+            <column name="price" type="bigint">
+                <constraints nullable="false" />
+            </column>
+            <column name="qty" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
             <column name="manifest_number" type="varchar(255)"/>
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
                 <constraints nullable="false"/>
@@ -287,12 +292,6 @@
             <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
             <column name="deleted_at" type="datetime"/>
         </createTable>
-
-        <addUniqueConstraint 
-            columnNames="inventory_id" 
-            tableName="auctions_inventories" 
-            constraintName="unique_inventory_id"
-        />
 
         <addForeignKeyConstraint
             baseTableName="auctions_inventories"
@@ -323,6 +322,30 @@
             onUpdate="CASCADE"
             onDelete="CASCADE"
         />
+
+        <createTable tableName="manifest_records">
+            <column name="manifest_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="auction_id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="barcode_number" type="varchar(255)"/>
+            <column name="control_number" type="varchar(255)"/>
+            <column name="description" type="varchar(255)"/>
+            <column name="price" type="varchar(255)"/>
+            <column name="bidder_number" type="varchar(255)"/>
+            <column name="qty" type="varchar(255)"/>
+            <column name="manifest_number" type="varchar(255)"/>
+            <column name="remarks" type="varchar(255)"/>
+            <column name="error_messages" type="varchar(255)"/>
+            <column name="batch_number" type="varchar(255)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
+            <column name="deleted_at" type="datetime"/>
+        </createTable>
 
         <createTable tableName="inventory_histories">
             <column name="inventory_history_id" type="bigint" autoIncrement="true">
@@ -356,6 +379,62 @@
             onUpdate="CASCADE"
             onDelete="CASCADE"
         />
+
+        <sql>
+            INSERT INTO suppliers(name, supplier_code, japanese_name, num_of_containers, shipper)
+            VALUES ("Sample Supplier", "27", null, 1, "COSCO");
+        </sql>
+
+        <sql>
+            INSERT INTO containers(
+            supplier_id,
+            barcode,
+            container_num,
+            departure_date_from_japan,
+            bill_of_lading_number,
+            port_of_landing,
+            eta_to_ph,
+            carrier,
+            arrival_date_warehouse_ph,
+            sorting_date,
+            auction_date,
+            payment_date,
+            telegraphic_transferred,
+            vessel,
+            invoice_num,
+            gross_weight,
+            vanning_date,
+            devanning_date,
+            auction_or_sell,
+            branch_id
+            )
+            VALUES (
+                1,
+                "27-01",
+                1,
+                "2025-02-04 00:00:00",
+                "asdf",
+                "asdf",
+                "2025-02-04 00:00:00",
+                "carrier",
+                "2025-02-04 00:00:00",
+                "2025-02-04 00:00:00",
+                "2025-02-04 00:00:00",
+                "2025-02-04 00:00:00",
+                "2025-02-04 00:00:00",
+                "vessel",
+                "invoicenum",
+                "6000kg",
+                "2025-02-04 00:00:00",
+                "2025-02-04 00:00:00",
+                "AUCTION",
+                "1");
+        </sql>
+
+        <sql>
+            INSERT INTO bidders(first_name, middle_name, last_name, bidder_number)
+            VALUES ("John", "", "Agoncillo", "001");
+        </sql>
     </changeSet>
 
 </databaseChangeLog>

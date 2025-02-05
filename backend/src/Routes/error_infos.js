@@ -29,6 +29,12 @@ export const renderHttpError = (res, { log, error }) => {
   return res.status(httpCode).json({ error, message });
 };
 
+export const INVALID_ROW = "INVALID_ROW";
+export const VALID_ROW = "VALID_ROW";
+
+export const FILE_UPLOAD_401 = "FILE_UPLOAD_401";
+export const SYSTEM_503 = "SYSTEM_503";
+
 export const SUPPLIERS_401 = "SUPPLIERS_401";
 export const SUPPLIERS_402 = "SUPPLIERS_402";
 export const SUPPLIERS_403 = "SUPPLIERS_403";

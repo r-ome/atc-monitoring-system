@@ -14,9 +14,13 @@ import {
   bidders,
   payments,
 } from "./Routes/index.js";
+import { FILE_UPLOAD_ERROR_EXCEPTION } from "./utils/index.js";
+import { renderHttpError, FILE_UPLOAD_401 } from "./Routes/error_infos.js";
 
 logger.info("STARTING APPLICATION");
+
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(function (req, res, next) {
   req.bodyContent = JSON.stringify(req.body);
   next();
@@ -31,8 +35,6 @@ app.use(
   })
 );
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 suppliers.use(
   "/:supplier_id/containers",
   (req, res, next) => {
@@ -74,6 +76,20 @@ app.get("/", (req, res) => {
     console.error("Error connecting to MySQL:", err);
     res.status(500).send("Error connecting to MySQL.");
   }
+});
+
+app.use((error, req, res, next) => {
+  if (error[FILE_UPLOAD_ERROR_EXCEPTION]) {
+    return renderHttpError(res, {
+      log: error.message,
+      error: FILE_UPLOAD_401,
+    });
+  }
+
+  return renderHttpError(res, {
+    log: err.message,
+    error: SYSTEM_503,
+  });
 });
 
 const port = 3001;

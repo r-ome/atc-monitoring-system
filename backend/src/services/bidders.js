@@ -36,11 +36,11 @@ export const getBidder = async (bidder_id) => {
 
 export const getBidderByBidderNumber = async (bidder_number) => {
   try {
-    const response = await query(
+    const result = await query(
       `SELECT * from bidders WHERE bidder_number = ?`,
       [bidder_number]
     );
-    return response;
+    return result;
   } catch (error) {
     throw new DBErrorException("getBidderByBidderNumber", error);
   }
@@ -51,17 +51,20 @@ export const getMultipleBiddersByBidderNumber = async (
   bidder_numbers
 ) => {
   try {
-    const response = await query(
+    const result = await query(
       `
-          SELECT b.bidder_id, b.bidder_number
-          FROM bidders b
-          LEFT JOIN auctions_bidders ab ON ab.bidder_id = b.bidder_id
-          WHERE ab.auction_id = ? AND bidder_number in (?)
-        `,
-      [auction_id, bidder_numbers]
+        SELECT
+          ab.auction_bidders_id,
+          b.bidder_number
+        FROM auctions_bidders ab 
+        LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
+        WHERE b.bidder_number = ?
+        AND ab.auction_id = ?
+      `,
+      [bidder_numbers, auction_id]
     );
 
-    return response;
+    return result;
   } catch (error) {
     throw new DBErrorException("getMultipleBiddersByBidderNumber", error);
   }

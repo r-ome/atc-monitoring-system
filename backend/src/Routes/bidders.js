@@ -28,7 +28,7 @@ import {
   BIDDER_REQUIREMENT_501,
   BIDDER_REQUIREMENT_502,
   BIDDER_REQUIREMENT_503,
-} from "../Routes/error_infos.js";
+} from "./error_infos.js";
 import { DB_ERROR_EXCEPTION } from "../services/index.js";
 
 const router = express.Router();

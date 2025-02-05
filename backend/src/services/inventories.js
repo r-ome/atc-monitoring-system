@@ -49,7 +49,7 @@ export const createContainerInventory = async (container_id, inventory) => {
         `,
       [
         container_id,
-        inventory.barcode,
+        inventory.barcode_number,
         inventory.description,
         inventory.control_number,
         inventory.url,
@@ -117,16 +117,16 @@ export const deleteInventory = async (id) => {
   );
 };
 
-export const getInventoryByBarcodeAndControl = async (val) => {
+export const getInventoryByBarcode = async (barcodes) => {
   try {
     await query(
-      `CREATE TEMPORARY TABLE TEMP_INVENTORIES (barcode VARCHAR(255), control_number VARCHAR(255));`
+      `CREATE TEMPORARY TABLE TEMP_INVENTORIES (barcode VARCHAR(255));`
     );
 
-    await query(
-      `INSERT INTO TEMP_INVENTORIES(barcode, control_number) VALUES ?`,
-      [val]
-    );
+    const formattedBarcodes = barcodes.map((barcode) => [barcode]);
+    await query(`INSERT INTO TEMP_INVENTORIES(barcode) VALUES ?`, [
+      formattedBarcodes,
+    ]);
 
     const inventories = await query(
       `
@@ -137,7 +137,6 @@ export const getInventoryByBarcodeAndControl = async (val) => {
           FROM inventories i
           JOIN TEMP_INVENTORIES temp
           ON i.barcode = temp.barcode
-          AND i.control_number = temp.control_number
         `
     );
 
@@ -145,74 +144,134 @@ export const getInventoryByBarcodeAndControl = async (val) => {
 
     return inventories;
   } catch (error) {
-    logger.error({ func: "getInventoryByBarcodeAndControl", error });
-    throw { message: "DB error" };
+    console.log(error);
+    throw new DBErrorException("getInventoryByBarcode", error);
   }
 };
 
-export const addInventoryFromEncoding = async (inventories) => {
+export const checkDuplicateInventory = async (auction_id) => {
   try {
-    await query(
+    const something = await query(
       `
-          INSERT INTO inventories(container_id, barcode, control_number, description, price,qty, status)
-          VALUES ?
-        `,
-      [inventories]
+        SELECT
+          i.barcode AS BARCODE,
+          i.control_number AS CONTROL,
+          i.description AS DESCRIPTION,
+          b.bidder_number AS BIDDER,
+          ai.qty AS QTY,
+          CONVERT(ai.price, CHAR) as PRICE
+        FROM inventories i
+        LEFT JOIN auctions_inventories ai ON ai.inventory_id = i.inventory_id
+        LEFT JOIN auctions_bidders ab ON ab.auction_bidders_id = ai.auction_bidders_id
+        LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
+        WHERE ab.auction_id = ?
+      `,
+      [auction_id]
     );
+    return something;
+  } catch (error) {
+    throw new DBErrorException("checkDuplicateInventory", error);
+  }
+};
 
-    const inventory_barcode_control_number = inventories.map((item) => [
-      item[1], // barcode
-      item[2], // control_number
+export const bulkCreateContainerInventory = async (inventories) => {
+  try {
+    const formattedInventories = inventories.map((item) => [
+      item.container_id,
+      item.DESCRIPTION,
+      item.CONTROL,
+      item.BARCODE,
+      "SOLD",
+      item.v4_identifier,
     ]);
 
-    const inventory_ids = await query(
+    await query(
       `
-        SELECT inventory_id, barcode, control_number
-        FROM inventories
-        WHERE (barcode, control_number) in (?)
+        INSERT INTO INVENTORIES (container_id, description, control_number, barcode, status, v4_identifier)
+        VALUES ?
       `,
-      [inventory_barcode_control_number]
+      [formattedInventories]
     );
 
-    return inventory_ids;
+    let container_inventories = inventories
+      .map((item) => ({ container_id: item.container_id, num_of_items: 0 }))
+      .reduce((acc, { container_id }) => {
+        acc[container_id] = (acc[container_id] || 0) + 1;
+        return acc;
+      }, {});
+
+    container_inventories = Object.entries(container_inventories).map(
+      ([container_id, count]) => [Number(container_id), count]
+    );
+
+    const update_cases = container_inventories
+      .map(
+        ([container_id, count]) =>
+          `WHEN ${container_id} THEN num_of_items + ${count}`
+      )
+      .join(" ");
+
+    const container_ids = container_inventories.map(
+      ([container_id]) => container_id
+    );
+    await query(
+      `
+        UPDATE containers
+        SET num_of_items = CASE container_id
+        ${update_cases}
+        END
+        WHERE container_id in (${container_ids.join(", ")})
+      `
+    );
+
+    const inventory_v4s = inventories.map((item) => item.v4_identifier);
+    const inserted_inventories = await query(
+      ` SELECT inventory_id, v4_identifier FROM inventories WHERE v4_identifier in (?)`,
+      [inventory_v4s]
+    );
+
+    const formattedInventoriesFinal = inventories.map((item) => {
+      const inventory = inserted_inventories.find(
+        (temp) => temp.v4_identifier === item.v4_identifier
+      );
+      item.inventory_id = inventory.inventory_id;
+      return item;
+    });
+
+    return formattedInventoriesFinal;
   } catch (error) {
-    logger.error({ func: "addInventoryFromEncoding", error });
-    throw { message: "DB error" };
+    console.log(error);
+    throw new DBErrorException("bulkCreateContainerInventory", error);
   }
 };
 
-export const addAuctionInventoriesFromEncoding = async (
-  auction_inventories
-) => {
+export const bulkCreateAuctionInventories = async (auctions_inventories) => {
   try {
-    console.log({ auction_inventories });
-    const result = await query(
-      `
-        INSERT INTO auctions_inventories (auction_id, inventory_id, bidder_id, status, manifest_number)
-        VALUES ?
-        ON DUPLICATE KEY UPDATE inventory_id = VALUES(inventory_id);
-      `,
-      [auction_inventories]
-    );
+    const formatted_auctions_inventories = auctions_inventories.map((item) => [
+      item.auction_bidders_id,
+      item.inventory_id,
+      "UNPAID",
+      item.PRICE,
+      item.QTY,
+      item.MANIFEST,
+    ]);
 
-    auction_inventories = auction_inventories.map((item) =>
-      item.map((el) => {
-        item[2] = "AUCTION";
-        item[4] = "SOLD";
-        return el;
-      })
+    const inventory_ids = auctions_inventories.map((item) => item.inventory_id);
+    await query(
+      `UPDATE inventories SET status = "SOLD" WHERE inventory_id in (?)`,
+      [inventory_ids]
     );
 
     await query(
       `
-          INSERT INTO inventory_histories(auction_id, inventory_id, uploaded_from, item_status, auction_status)
-          VALUES ?
-        `,
-      [auction_inventories]
+        INSERT INTO auctions_inventories (auction_bidders_id, inventory_id, status, price, qty, manifest_number)
+        VALUES ?
+      `,
+      [formatted_auctions_inventories]
     );
-    return result;
+
+    return;
   } catch (error) {
-    logger.error({ func: "addAuctionInventoriesFromEncoding", error });
-    throw { message: "DB error" };
+    throw new DBErrorException("bulkCreateAuctionInventories", error);
   }
 };

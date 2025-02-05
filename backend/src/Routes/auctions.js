@@ -1,4 +1,6 @@
 import express from "express";
+import moment from "moment";
+import { v4 as uuidv4 } from "uuid";
 import {
   getAuctionDetails,
   getAuctions,
@@ -6,28 +8,25 @@ import {
   deleteAuction,
   registerBidderAtAuction,
   getMonitoring,
-  encodeInventoryOnAuction,
   getBidderItems,
   updateBidderPayment,
   getRegisteredBidders,
   removeRegisteredBidder,
-  validateExistingAuctionInventories,
   cancelItem,
+  createManifestRecords,
+  getManifestRecords,
 } from "../services/auctions.js";
-
 import {
   getBidder,
   getMultipleBiddersByBidderNumber,
 } from "../services/bidders.js";
 import {
-  getInventoryByBarcodeAndControl,
-  addInventoryFromEncoding,
-  addAuctionInventoriesFromEncoding,
+  getInventoryByBarcode,
+  bulkCreateContainerInventory,
+  bulkCreateAuctionInventories,
+  checkDuplicateInventory,
 } from "../services/inventories.js";
-import {
-  getContainerIdByBarcode,
-  getBarcodesFromContainers,
-} from "../services/containers.js";
+import { getBarcodesFromContainers } from "../services/containers.js";
 import { logger } from "../logger.js";
 import {
   AUCTIONS_401,
@@ -36,13 +35,18 @@ import {
   AUCTIONS_501,
   AUCTIONS_503,
   renderHttpError,
+  INVALID_ROW,
+  VALID_ROW,
 } from "./error_infos.js";
+
 const router = express.Router();
 import Joi from "joi";
 import {
   sanitizeBarcode,
   formatNumberPadding,
   formatNumberToCurrency,
+  uploadMulterMiddleware,
+  readXLSXfile,
 } from "../utils/index.js";
 import { DB_ERROR_EXCEPTION } from "../services/index.js";
 
@@ -182,249 +186,256 @@ router.get("/:auction_id/monitoring", async (req, res) => {
   try {
     const { auction_id } = req.params;
     const monitoring = await getMonitoring(auction_id);
-    res.status(200).json({ status: "success", data: monitoring });
-  } catch (e) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
+    return res.status(200).json({ data: monitoring });
+  } catch (error) {
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
+    });
   }
 });
 
-router.post("/:auction_id/encode", async (req, res) => {
+router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
   try {
-    const { file } = req.body;
     const { auction_id } = req.params;
-    let errors = [];
-    let bidder_numbers_in_sheet = [];
-    let bidder_ids_from_db = [];
-    let valid_rows = [];
-
-    if (file.length) {
-      // validate file contents
-      for (row of file) {
-        // row validations
-        if (!row.barcode) {
-          errors.push({ row, message: "barcode is a required field" });
-          continue;
-        } else {
-          row.barcode = sanitizeBarcode(row.barcode);
-        }
-
-        if (!row.control_number) {
-          errors.push({ row, message: "control number is a required field" });
-          continue;
-        } else {
-          if (isNaN(row.control_number)) {
-            errors.push({
-              row,
-              message: `Invalid control Number: ${row.control_number}`,
-            });
-            continue;
-          }
-          row.control_number = formatNumberPadding(row.control_number, 4);
-        }
-
-        if (!row.description) {
-          row.description = "NO DESCRIPTION";
-        } else {
-          row.description = row.description.toUpperCase();
-        }
-
-        if (!row.bidder) {
-          errors.push({ row, message: "bidder is a required field" });
-          continue;
-        }
-
-        if (!row.qty) {
-          row.qty = "NO QTY";
-        }
-
-        if (!row.price) {
-          errors.push({ row, message: "price is a required field" });
-        }
-
-        if (!row.manifest_number) {
-          row.manifest_number = "NO MANIFEST NUMBER";
-        }
-
-        if (!bidder_numbers_in_sheet.includes(row.bidder)) {
-          bidder_numbers_in_sheet.push(row.bidder);
-        }
-
-        row.auction_id = auction_id;
-        valid_rows.push(row);
-      }
-
-      // set bidder id(db) by bidder num(sheet)
-      bidder_ids_from_db = await getMultipleBiddersByBidderNumber(
-        auction_id,
-        bidder_numbers_in_sheet
-      );
-      bidder_ids_from_db = Object.assign(
-        {},
-        ...bidder_ids_from_db.map((item) => ({
-          [item.bidder_number]: item.bidder_id,
-        }))
-      );
-
-      valid_rows = valid_rows.map((row) => ({
-        ...row,
-        bidder_id: bidder_ids_from_db[row.bidder] || null,
-      }));
-
-      // validate invalid bidders
-      let bidder_valid_rows = [];
-      for (const row of valid_rows) {
-        if (!row.bidder_id) {
-          errors.push({
-            row,
-            message: `bidder number ${row.bidder} does not exist or not in auction`,
-          });
-          continue;
-        } else bidder_valid_rows.push(row);
-      }
-
-      if (bidder_valid_rows.length) {
-        // check if row already exists in inventory table
-        // if true - skip - add to auctions_inventories table
-        // else add item to inventory
-        let barcodes_from_db = await getBarcodesFromContainers();
-        barcodes_from_db = barcodes_from_db.map((item) => item.barcode);
-
-        // validate invalid barcode
-        let barcode_valid_rows = [];
-        for (const row of bidder_valid_rows) {
-          let barcodeCheck = row.barcode;
-          if (barcodeCheck.split("-").length >= 3) {
-            barcodeCheck = row.barcode.split("-").slice(0, 2).join("-");
-          }
-
-          if (!barcodes_from_db.includes(barcodeCheck)) {
-            errors.push({
-              row,
-              message: `BARCODE ${row.barcode} does not exist`,
-            });
-            continue;
-          } else {
-            barcode_valid_rows.push(row);
-          }
-        }
-
-        if (barcode_valid_rows.length) {
-          // get existing inventories from sheet
-          let barcode_control_number_from_sheet = barcode_valid_rows.map(
-            (row) => [row.barcode, row.control_number]
-          );
-          const inventory_ids = await getInventoryByBarcodeAndControl(
-            barcode_control_number_from_sheet
-          );
-
-          // add unexisting items in inventories table
-          let items_for_inventory = [];
-
-          for (row of barcode_valid_rows) {
-            let inventory_id =
-              inventory_ids.find(
-                (inventory) =>
-                  inventory.barcode_number === row.barcode &&
-                  inventory.control_number === row.control_number
-              )?.inventory_id || null;
-
-            if (inventory_id) {
-              row.inventory_id = inventory_id;
-            } else {
-              let barcode = row.barcode;
-              if (barcode.split("-").length === 3) {
-                barcode = barcode.split("-").slice(0, -1).join("-");
-              }
-              const [{ container_id }] = await getContainerIdByBarcode(barcode);
-              if (container_id) {
-                items_for_inventory.push([
-                  container_id,
-                  row.barcode,
-                  row.control_number,
-                  row.description,
-                  row.price,
-                  row.qty,
-                  "SOLD",
-                ]);
-              }
-            }
-          }
-
-          if (items_for_inventory.length) {
-            const newly_added_inventory_ids = await addInventoryFromEncoding(
-              items_for_inventory
-            );
-
-            // add inventory_id for valid rows (newly added)
-            // to prepare for adding rows to auctions_inventories
-            for (row of valid_rows) {
-              if (items_for_inventory.length) {
-                row.inventory_id = newly_added_inventory_ids.find(
-                  (inventory) =>
-                    inventory.barcode_number === row.barcode &&
-                    inventory.control_number === row.control_number
-                )?.inventory_id;
-              }
-            }
-          }
-
-          // validate if sheet data is already in auctions_inventories
-          const sheet_inventories = valid_rows.map((item) => [
-            item.auction_id,
-            item.bidder_id,
-            item.inventory_id,
-          ]);
-          let existing_inventories = await validateExistingAuctionInventories(
-            sheet_inventories
-          );
-          existing_inventories = existing_inventories.map(
-            (item) => item.inventory_id
-          );
-
-          let inventory_valid_rows = [];
-          for (const row of barcode_valid_rows) {
-            if (existing_inventories.includes(row.inventory_id)) {
-              errors.push({ row, message: "Already encoded" });
-              continue;
-            } else {
-              inventory_valid_rows.push(row);
-            }
-          }
-
-          if (inventory_valid_rows.length) {
-            // add sheet to inventory items
-            let auction_inventories = inventory_valid_rows.map((row) => [
-              row.auction_id,
-              row.inventory_id,
-              row.bidder_id,
-              "UNPAID",
-              row.manifest_number,
-            ]);
-            console.log(auction_inventories);
-            await addAuctionInventoriesFromEncoding(auction_inventories);
-          }
-
-          valid_rows = inventory_valid_rows;
-        }
-      }
-
-      // get new set of monitoring
-      const monitoring = await getMonitoring(auction_id);
-
-      return res.status(200).json({
-        monitoring,
-        valid_rows,
-        sheet_errors: errors,
+    if (!req.file) {
+      return renderHttpError(res, {
+        log: "Please upload a file",
+        error: AUCTIONS_401,
       });
-    } else {
-      return res
-        .status(400)
-        .json({ status: "success", message: "manifest is empty " });
     }
+
+    const { path } = req.file;
+    const raw_sheet_data = readXLSXfile(path);
+
+    const removedEmptyCells = (sheet_data) => {
+      return sheet_data
+        .map((item) => ({
+          ...item,
+          DESCRIPTION: item.DESCRIPTION ? item.DESCRIPTION.toUpperCase() : null,
+          CONTROL: item.CONTROL
+            ? formatNumberPadding(item.CONTROL, 4)
+            : item.CONTROL,
+          v4_identifier: uuidv4(),
+          error_messages: null,
+          remarks: VALID_ROW,
+        }))
+        .map((item) => {
+          for (let key in item) {
+            if (!item[key] && key !== "error_messages") {
+              item.error_messages = `${key} is empty`;
+              item.remarks = INVALID_ROW;
+            }
+          }
+          return item;
+        });
+    };
+
+    const validateSheetBidders = async (sheet_data) => {
+      // validate if bidders in sheet is registered
+      // get registered bidders in the auction
+      const { bidders } = await getRegisteredBidders(auction_id);
+      const registered_bidders = bidders.map((bidder) => bidder.bidder_number);
+
+      // get bidders in sheet/manifest
+      const sheet_bidders = [...new Set(sheet_data.map((item) => item.BIDDER))];
+
+      // remove from filtered_empty_rows_sheet the rows where bidders are not registered
+      const unregistered_bidders = sheet_bidders.filter(
+        (item) => !new Set(registered_bidders).has(item)
+      );
+
+      // add bidder_id for auctions_inventories table
+      const filtered_unregistered_bidders = filtered_empty_rows_sheet.map(
+        (item) => {
+          if (unregistered_bidders.includes(item.BIDDER)) {
+            if (item.remarks === VALID_ROW) {
+              item.remarks = INVALID_ROW;
+              item.error_messages = `Bidder #${item.BIDDER} is not registered`;
+            }
+          }
+          return item;
+        }
+      );
+
+      // get VALID bidder numbers from sheet
+      let sheet_bidder_numbers = filtered_unregistered_bidders
+        .filter((item) => item.remarks === VALID_ROW)
+        .map((item) => item.BIDDER);
+      // get unique values
+      sheet_bidder_numbers = [...new Set(sheet_bidder_numbers)];
+
+      // get registered bidder id from auction_bidders table by bidder number
+      const registered_auction_bidder_ids =
+        await getMultipleBiddersByBidderNumber(
+          auction_id,
+          sheet_bidder_numbers
+        );
+
+      // add auction_bidders_id to sheet
+      return filtered_unregistered_bidders.map((item) => {
+        if (item.remarks === VALID_ROW) {
+          const bidder = registered_auction_bidder_ids.find(
+            (bidder) => bidder.bidder_number === item.BIDDER
+          );
+          item.auction_bidders_id = bidder.auction_bidders_id;
+          return item;
+        }
+        return item;
+      });
+    };
+
+    const validateInventories = async (sheet_data) => {
+      // if item is in inventories table, update status = SOLD
+      // get list of barcodes from sheet
+      // check if it has inventory barcode (27-01-01) (the 3rd digit from the combination)
+      // if barcode is only a combination of container barcode we skip it and consider it as new inventory
+      const sheet_barcodes = sheet_data
+        .map((item) => item.BARCODE)
+        .filter((item) => item.split("-").length === 3);
+
+      // get list of inventories
+      const existing_inventories = sheet_barcodes.length
+        ? await getInventoryByBarcode(sheet_barcodes)
+        : [];
+
+      // if item from manifest already exists in inventories table, add inventory_id (1)
+      const sheet_with_inventory_id = sheet_with_bidder_id.map((item) => {
+        const inventory = existing_inventories.find(
+          (temp) => temp.barcode === item.BARCODE
+        );
+        item.inventory_id = inventory ? inventory.inventory_id : null;
+        return item;
+      });
+
+      // check duplicates (combination of manifest)
+      const normalize = (obj) =>
+        JSON.stringify({
+          BARCODE: obj.BARCODE,
+          CONTROL: obj.CONTROL,
+          DESCRIPTION: obj.DESCRIPTION,
+          BIDDER: obj.BIDDER,
+          QTY: obj.QTY,
+          PRICE: obj.PRICE,
+        });
+      const current_inventories = await checkDuplicateInventory(auction_id);
+      const current_inventories_set = new Set(
+        current_inventories.map(normalize)
+      );
+      return sheet_with_inventory_id.map((item) => {
+        const is_duplicate = current_inventories_set.has(normalize(item));
+        if (item.remarks === INVALID_ROW) {
+          return item;
+        }
+        if (is_duplicate) {
+          item.remarks = INVALID_ROW;
+          item.error_messages = `DUPLICATE ENCODE`;
+        }
+        return item;
+      });
+    };
+
+    const addContainerIdKey = async (sheet_data) => {
+      // add container_id for inventories table
+      // PS: this is the array with complete data
+      // get container barcodes
+      const container_barcodes = await getBarcodesFromContainers();
+      return sheet_data.map((item) => {
+        if (item.remarks === INVALID_ROW) return item;
+        let itemBarcode = item.BARCODE.split("-");
+        itemBarcode =
+          itemBarcode.length === 3
+            ? itemBarcode.slice(0, -1).join("-")
+            : item.BARCODE;
+        const container = container_barcodes.find(
+          (temp) => temp.barcode === itemBarcode
+        );
+
+        if (!container) {
+          item.remarks = INVALID_ROW;
+          item.error_messages = "INVALID BARCODE";
+          return item;
+        }
+
+        item.container_id = container.container_id;
+        return item;
+      });
+    };
+
+    const filtered_empty_rows_sheet = removedEmptyCells(raw_sheet_data);
+    const sheet_with_bidder_id = await validateSheetBidders(
+      filtered_empty_rows_sheet
+    );
+    const sheet_with_marked_duplicates = await validateInventories(
+      sheet_with_bidder_id
+    );
+    const sheet_with_container_id = await addContainerIdKey(
+      sheet_with_marked_duplicates
+    );
+
+    const valid_items = sheet_with_container_id.filter(
+      (item) => item.remarks === VALID_ROW
+    );
+
+    const manifest = sheet_with_container_id.map((item) => [
+      auction_id,
+      item.BARCODE,
+      item.CONTROL,
+      item.DESCRIPTION,
+      item.PRICE,
+      item.BIDDER,
+      item.QTY,
+      item.MANIFEST,
+      moment().format("YYYYMMDDhhmmssA"),
+      item.remarks,
+      item.error_messages,
+    ]);
+
+    await createManifestRecords(manifest);
+
+    if (!valid_items.length) {
+      return res
+        .status(200)
+        .json({ data: `${valid_items.length} rows created!` });
+    }
+
+    let rows_for_inserting = sheet_with_container_id.filter(
+      (item) => !item.inventory_id && item.remarks === VALID_ROW
+    );
+
+    // creating an inventory record for item in manifest
+    // this will return the newly created item with an inventory_id
+    // for the new items
+    await bulkCreateContainerInventory(rows_for_inserting);
+
+    // add back the removed/existing items from manifest to update their status
+    const new_rows_with_inventory_id = sheet_with_container_id.filter(
+      (item) => item.inventory_id && item.remarks === VALID_ROW
+    );
+
+    // create a record for auction_inventories
+    await bulkCreateAuctionInventories(new_rows_with_inventory_id);
+    return res
+      .status(200)
+      .json({ data: `${new_rows_with_inventory_id.length} rows created` });
   } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
+    });
+  }
+});
+
+router.get("/:auction_id/manifest-records", async (req, res) => {
+  try {
+    const { auction_id } = req.params;
+    const manifest_records = await getManifestRecords(auction_id);
+    return res.status(200).json({ data: manifest_records });
+  } catch (error) {
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
+    });
   }
 });
 

@@ -7,7 +7,6 @@ import {
   updateContainerInventory,
   deleteInventory,
 } from "../services/inventories.js";
-import { logger } from "../logger.js";
 import {
   formatNumberPadding,
   sanitizeBarcode,
@@ -102,7 +101,10 @@ router.post("/", async (req, res) => {
 
     const inventory = await createContainerInventory(container_id, {
       ...body,
-      barcode_number: sanitizeBarcode(body.barcode),
+      description: body.description.toUpperCase(),
+      barcode_number:
+        container.barcode + "-" + formatNumberPadding(body.barcode),
+      // barcode_number: sanitizeBarcode(body.barcode),
       control_number: formatNumberPadding(body.control_number, 4),
     });
     return res.status(200).json({ data: inventory });
