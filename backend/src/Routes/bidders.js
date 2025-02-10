@@ -36,7 +36,7 @@ const router = express.Router();
 router.get("/:bidder_id", async (req, res) => {
   try {
     const { bidder_id } = req.params;
-    const [bidder] = await getBidder(bidder_id);
+    const bidder = await getBidder(bidder_id);
     if (!bidder) {
       return renderHttpError(res, {
         log: `Bidder with ID:${bidder_id} does not exist`,
@@ -134,7 +134,7 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const bidderExists = await getBidder(req.params.id);
-    if (!bidderExists.length) {
+    if (!bidderExists) {
       res.status(404).json({ status: "fail", message: "Bidder not found" });
     }
     const schema = Joi.object({
@@ -170,7 +170,6 @@ router.put("/:id", async (req, res) => {
     const { error } = schema.validate(req.body);
     if (error) {
       const errorDetails = error.details.map((err) => {
-        console.log(err);
         return {
           field: err.context.key,
           message: err.message,

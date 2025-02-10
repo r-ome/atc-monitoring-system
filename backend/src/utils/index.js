@@ -47,7 +47,6 @@ export const formatToReadableDate = (resource) => {
  * @returns string
  */
 const generateFolderName = () => {
-  const today = new Date();
   const folderName = moment().format("YYYY-MM-DD");
   const uploadPath = path.join("manifests", folderName);
 
@@ -63,14 +62,14 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, generateFolderName());
   },
-  filename: (req, file, cb) => {
+  filename: (_, file, cb) => {
     cb(null, `${moment().format("YYYY-MMM-DD")}-${file.originalname}`);
   },
 });
 
 const uploadMulter = multer({
   storage,
-  fileFilter: function (req, file, cb) {
+  fileFilter: function (_, file, cb) {
     const ext = path.extname(file.originalname);
     if (ext !== ".xlsx" && ext !== ".xls" && ext !== ".numbers") {
       return cb(new Error("Only Excel files are allowed"));
@@ -144,7 +143,10 @@ export const readXLSXfile = (filePath) => {
 
   const sanitizedData = data
     .slice(1)
-    .filter((row) => !isRowEmpty(row))
+    .filter((row) => {
+      if (row.length) return true;
+      return !isRowEmpty(row);
+    })
     .map((row) => {
       const sanitizedRow = {};
       headers.forEach((header) => {
@@ -155,7 +157,8 @@ export const readXLSXfile = (filePath) => {
       });
 
       return sanitizedRow;
-    });
+    })
+    .filter((item) => Object.keys(item).length);
 
   deleteFile(filePath);
   return sanitizedData;

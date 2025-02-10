@@ -2,7 +2,7 @@ import { query, DBErrorException } from "./index.js";
 
 export const getBidder = async (bidder_id) => {
   try {
-    return await query(
+    const [result] = await query(
       `
         SELECT
           b.bidder_id,
@@ -29,6 +29,7 @@ export const getBidder = async (bidder_id) => {
       `,
       [bidder_id]
     );
+    return result;
   } catch (error) {
     throw new DBErrorException("getBidder", error);
   }

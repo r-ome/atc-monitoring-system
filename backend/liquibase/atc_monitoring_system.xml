@@ -202,6 +202,7 @@
             <column name="service_charge" type="int"/>
             <column name="already_consumed" type="tinyint" defaultValue="0"/>
             <column name="registration_fee" type="int"/>
+            <column name="balance" type="int" defaultValue="0"/>
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
                 <constraints nullable="false"/>
             </column>
@@ -239,11 +240,8 @@
             <column name="purpose" type="enum('REGISTRATION', 'PULL_OUT')" defaultValue="REGISTRATION">
                 <constraints nullable="false" />
             </column>
-            <column name="balance" type="bigint" defaultValue="0"/>
             <column name="amount_paid" type="bigint" defaultValue="0"/>
-            <column name="receipt_number" type="varchar(255)">
-                <constraints nullable="true" />
-            </column>
+            <column name="receipt_number" type="bigint" defaultValue="0"/>
             <column name="payment_type" type="enum('CASH', 'CHEQUE', 'BANK_TRANSFER')" defaultValue="CASH">
                 <constraints nullable="false" />
             </column>

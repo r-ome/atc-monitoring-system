@@ -149,7 +149,6 @@ router.put("/:id", async (req, res) => {
     const { error } = schema.validate(req.body);
     if (error) {
       const errorDetails = error.details.map((err) => {
-        console.log(err);
         return {
           field: err.context.key,
           message: err.message,

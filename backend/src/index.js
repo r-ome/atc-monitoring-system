@@ -15,12 +15,16 @@ import {
   payments,
 } from "./Routes/index.js";
 import { FILE_UPLOAD_ERROR_EXCEPTION } from "./utils/index.js";
-import { renderHttpError, FILE_UPLOAD_401 } from "./Routes/error_infos.js";
+import {
+  renderHttpError,
+  FILE_UPLOAD_401,
+  SYSTEM_503,
+} from "./Routes/error_infos.js";
 
 logger.info("STARTING APPLICATION");
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: "50mb" }));
+app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 app.use(function (req, res, next) {
   req.bodyContent = JSON.stringify(req.body);
   next();
@@ -78,7 +82,7 @@ app.get("/", (req, res) => {
   }
 });
 
-app.use((error, req, res, next) => {
+app.use((error, _, res) => {
   if (error[FILE_UPLOAD_ERROR_EXCEPTION]) {
     return renderHttpError(res, {
       log: error.message,
@@ -87,7 +91,7 @@ app.use((error, req, res, next) => {
   }
 
   return renderHttpError(res, {
-    log: err.message,
+    log: error.message,
     error: SYSTEM_503,
   });
 });

@@ -144,7 +144,6 @@ export const getInventoryByBarcode = async (barcodes) => {
 
     return inventories;
   } catch (error) {
-    console.log(error);
     throw new DBErrorException("getInventoryByBarcode", error);
   }
 };
@@ -240,7 +239,6 @@ export const bulkCreateContainerInventory = async (inventories) => {
 
     return formattedInventoriesFinal;
   } catch (error) {
-    console.log(error);
     throw new DBErrorException("bulkCreateContainerInventory", error);
   }
 };
@@ -257,6 +255,42 @@ export const bulkCreateAuctionInventories = async (auctions_inventories) => {
     ]);
 
     const inventory_ids = auctions_inventories.map((item) => item.inventory_id);
+    // for updating balance in auctions_bidders
+    let bidder_balance = auctions_inventories
+      .map((item) => ({
+        auction_bidders_id: item.auction_bidders_id,
+        balance: item.PRICE,
+      }))
+      .reduce((acc, item) => {
+        acc[item.auction_bidders_id] =
+          (acc[item.auction_bidders_id] || 0) + item.balance;
+        return acc;
+      }, {});
+
+    bidder_balance = Object.entries(bidder_balance).map(
+      ([auction_bidders_id, price]) => [Number(auction_bidders_id), price]
+    );
+
+    const update_cases = bidder_balance
+      .map(([auction_bidders_id, price]) => {
+        return `WHEN ${auction_bidders_id} THEN balance + ((${price} * service_charge)/100) + ${price} `;
+      })
+      .join(" ");
+
+    const auction_bidder_ids = bidder_balance.map(
+      ([auction_bidders_id]) => auction_bidders_id
+    );
+
+    await query(
+      `
+        UPDATE auctions_bidders
+        SET balance = CASE auction_bidders_id
+        ${update_cases}
+        END
+        WHERE auction_bidders_id in (${auction_bidder_ids.join(", ")})
+      `
+    );
+
     await query(
       `UPDATE inventories SET status = "SOLD" WHERE inventory_id in (?)`,
       [inventory_ids]

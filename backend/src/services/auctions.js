@@ -54,7 +54,11 @@ export const getAuctionDetails = async (auction_id) => {
           a.auction_id,
           DATE_FORMAT(a.created_at, '%M %d, %Y %W') AS auction_date,
           COUNT(DISTINCT ab.auction_bidders_id) AS number_of_bidders,
-          COUNT(ai.auction_inventory_id) AS total_items
+          COUNT(ai.auction_inventory_id) AS total_items,
+          IF(SUM(ai.price) is null,
+            CONCAT("₱", 0.00),
+            CONCAT("₱", FORMAT(SUM(ai.price), 2))
+          ) AS total_price
         FROM auctions a
         LEFT JOIN auctions_bidders ab ON ab.auction_id = a.auction_id
         LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
@@ -67,7 +71,7 @@ export const getAuctionDetails = async (auction_id) => {
     );
     return auction;
   } catch (error) {
-    throw new DBErrorException("getBidderItems", error);
+    throw new DBErrorException("getAuctionDetails", error);
   }
 };
 
@@ -152,23 +156,24 @@ export const registerBidderAtAuction = async (
   try {
     const auction_bidders_response = await query(
       `
-          INSERT INTO auctions_bidders(bidder_id, auction_id, service_charge, registration_fee)
-          VALUES (?, ?, ?, ?);
+          INSERT INTO auctions_bidders(bidder_id, auction_id, service_charge, registration_fee, balance)
+          VALUES (?, ?, ?, ?, ?);
         `,
-      [bidder_id, auction_id, service_charge, registration_fee]
+      [
+        bidder_id,
+        auction_id,
+        service_charge,
+        registration_fee,
+        registration_fee * -1,
+      ]
     );
 
     await query(
       `
-        INSERT INTO payments(auction_bidders_id, balance, amount_paid, payment_type, purpose)
-        VALUES (?, ?, ?, ?, "REGISTRATION");
+        INSERT INTO payments(auction_bidders_id, amount_paid, payment_type, purpose)
+        VALUES (?, ?, ?, "REGISTRATION");
       `,
-      [
-        auction_bidders_response.insertId,
-        registration_fee * -1,
-        registration_fee,
-        "CASH",
-      ]
+      [auction_bidders_response.insertId, registration_fee, "CASH"]
     );
 
     const [auction_bidders] = await query(
@@ -247,7 +252,6 @@ export const createManifestRecords = async (manifest) => {
       [manifest]
     );
   } catch (error) {
-    console.log(error);
     throw new DBErrorException("createManifestRecords", error);
   }
 };
@@ -287,142 +291,84 @@ export const getRegisteredBidders = async (auction_id) => {
         SELECT
           a.auction_id,
           DATE_FORMAT(a.created_at, '%M %d, %Y, %W') AS auction_date,
-          IF(COUNT(ab.auction_bidders_id) = 0,
-            JSON_ARRAY(),
-            JSON_ARRAYAGG(JSON_OBJECT(
-              'auctions_bidders_id', ab.auction_bidders_id,
-              'bidder_id', ab.bidder_id,
-              'full_name', CONCAT(b.first_name, " ", b.last_name),
-              'bidder_number', b.bidder_number,
-              'service_charge', CONCAT(ab.service_charge, "%"),
-              'registration_fee', CONCAT("₱", FORMAT(ab.registration_fee, 2))
-            ))
+          IF(
+              COUNT(ab.auction_bidders_id) = 0,
+              JSON_ARRAY(),
+              JSON_ARRAYAGG(
+                  JSON_OBJECT(
+                      'auctions_bidders_id', ab.auction_bidders_id,
+                      'bidder_id', ab.bidder_id,
+                      'full_name', CONCAT(b.first_name, " ", b.last_name),
+                      'bidder_number', b.bidder_number,
+                      'service_charge', CONCAT(ab.service_charge, "%"),
+                      'registration_fee', CONCAT("₱", FORMAT(ab.registration_fee, 2)),
+                      'total_no_items', COALESCE(ai_counts.total_items, 0),
+                      'balance',  CONCAT("₱",IF(ab.balance < 0,CONCAT("(",FORMAT(ab.balance * -1, 2),")"),FORMAT(ab.balance, 2)))
+                  )
+              )
           ) AS bidders
         FROM auctions a
         LEFT JOIN auctions_bidders ab ON ab.auction_id = a.auction_id
         LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
+        LEFT JOIN (
+            SELECT
+              auction_bidders_id,
+              COUNT(auction_inventory_id) AS total_items,
+              SUM(price) AS total_price
+            FROM auctions_inventories
+            GROUP BY auction_bidders_id
+        ) AS ai_counts ON ai_counts.auction_bidders_id = ab.auction_bidders_id
         WHERE a.auction_id = ? AND a.deleted_at IS NULL
-        GROUP BY a.auction_id
+        GROUP BY a.auction_id;
       `,
       [auction_id]
     );
     return response;
   } catch (error) {
+    console.error(error);
     throw new DBErrorException("getRegisteredBidders", error);
   }
 };
 
-export const updateBidderPayment = async (
-  auction_id,
-  bidder_id,
-  amount,
-  item_ids
-) => {
+export const getBidderAuctionProfile = async (auction_id, bidder_id) => {
   try {
-    const [{ receipt_number }] = await query(
+    const [result] = await query(
       `
-          SELECT receipt_number
-          FROM payments
-          WHERE bidder_id = ? AND auction_id = ?
-          ORDER BY receipt_number DESC
-          LIMIT 1
+        SELECT
+          ab.auction_bidders_id,
+          b.bidder_id,
+          b.bidder_number,
+          CONCAT(b.first_name, " ", b.last_name) AS full_name,
+          ab.already_consumed,
+          CONCAT(ab.service_charge, "%") AS service_charge,
+          CONCAT("₱", FORMAT(ab.registration_fee, 2)) AS registration_fee,
+          CONCAT("₱", FORMAT(ab.balance, 2)) AS balance,
+          COUNT(ai.auction_inventory_id) as total_items,
+          IF(COUNT(ai.auction_inventory_id) = 0,
+            JSON_ARRAY(),
+            JSON_ARRAYAGG(JSON_OBJECT(
+              'auction_inventory_id', ai.auction_inventory_id,
+              'barcode', i.barcode,
+              'control', i.control_number,
+              'description', i.description,
+              'price', CONCAT("₱", FORMAT(ai.price, 2)),
+              'qty', ai.qty,
+              'manifest_number', ai.manifest_number,
+              'status', ai.status
+            ))
+          ) AS items
+        FROM bidders b
+        LEFT JOIN auctions_bidders ab ON ab.bidder_id = b.bidder_id
+        LEFT JOIN auctions_inventories ai ON ai.auction_bidders_id = ab.auction_bidders_id
+        LEFT JOIN inventories i ON i.inventory_id = ai.inventory_id
+        WHERE b.bidder_id = ? AND ab.auction_id = ?
+        GROUP BY ab.auction_bidders_id
       `,
       [bidder_id, auction_id]
     );
-
-    const payment = await query(
-      `
-          INSERT INTO payments(bidder_id, auction_id, purpose, receipt_number, payment, payment_type)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `,
-      [bidder_id, auction_id, "PULL_OUT", receipt_number + 1, amount, "CASH"]
-    );
-
-    await query(
-      `
-          UPDATE auctions_inventories
-          SET status = "PAID", payment_id = ?
-          WHERE auction_id = ? AND bidder_id = ? AND inventory_id in (?)
-        `,
-      [payment.insertId, auction_id, bidder_id, item_ids]
-    );
-
-    const [{ auction_bidders_id, already_consumed }] = await query(
-      `
-        SELECT auction_bidders_id, already_consumed
-        FROM auctions_bidders
-        WHERE auction_id = ? AND bidder_id = ?;  
-      `,
-      [auction_id, bidder_id]
-    );
-
-    if (!already_consumed) {
-      await query(
-        `
-          UPDATE auctions_bidders
-          SET already_consumed = 1
-          WHERE auction_bidders_id = ?
-        `,
-        [auction_bidders_id]
-      );
-    }
-
-    return { auction_id, bidder_id, amount };
+    return result;
   } catch (error) {
-    logger.error({ func: "updateBidderPayment", error });
-    throw { message: "DB error" };
-  }
-};
-
-export const getBidderItems = async (auction_id, bidder_id) => {
-  try {
-    return await query(
-      `
-          SELECT 
-              COALESCE(data_inventories.data, JSON_ARRAY()) AS data,
-              ab.bidder_id,
-              ab.service_charge AS auction_service_charge,
-              b.service_charge AS bidder_service_charge,
-              ab.registration_fee,
-              ab.already_consumed,
-              a.created_at,
-              b.bidder_number,
-              CONCAT(b.first_name, " ", b.last_name) as bidder_name
-          FROM auctions_bidders ab
-          LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
-          LEFT JOIN auctions a ON a.auction_id = ab.auction_id
-          LEFT JOIN (
-              SELECT 
-                  ai.auction_id,
-                  ab.bidder_id,
-                  JSON_ARRAYAGG(
-                      JSON_OBJECT(
-                          'inventory_id', i.inventory_id,
-                          'auction_inventory_id', ai.auction_inventory_id,
-                          'barcode_number', i.barcode_number,
-                          'control_number', i.control_number,
-                          'price', i.price,
-                          'description', i.description,
-                          'qty', i.qty,
-                          'url', i.url,
-                          'status', i.status,
-                          'auction_status', ai.status
-                      )
-                  ) AS data
-              FROM inventories i
-              LEFT JOIN auctions_inventories ai ON ai.inventory_id = i.inventory_id
-              LEFT JOIN auctions_bidders ab ON ab.auction_id = ai.auction_id
-              WHERE ai.auction_id = 1
-              GROUP BY ai.auction_id, ab.bidder_id, ab.already_consumed
-          ) AS data_inventories ON data_inventories.auction_id = ab.auction_id AND data_inventories.bidder_id = ab.bidder_id
-          WHERE a.auction_id = ?
-          AND b.bidder_id = ?;
-        `,
-      [auction_id, bidder_id]
-    );
-  } catch (error) {
-    logger.error({ func: "getBidderItems", error });
-    throw { message: "DB error" };
+    throw new DBErrorException("getBidderItems", error);
   }
 };
 

@@ -8,8 +8,7 @@ import {
   deleteAuction,
   registerBidderAtAuction,
   getMonitoring,
-  getBidderItems,
-  updateBidderPayment,
+  getBidderAuctionProfile,
   getRegisteredBidders,
   removeRegisteredBidder,
   cancelItem,
@@ -44,7 +43,6 @@ import Joi from "joi";
 import {
   sanitizeBarcode,
   formatNumberPadding,
-  formatNumberToCurrency,
   uploadMulterMiddleware,
   readXLSXfile,
 } from "../utils/index.js";
@@ -208,6 +206,13 @@ router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
     const { path } = req.file;
     const raw_sheet_data = readXLSXfile(path);
 
+    if (!raw_sheet_data.length) {
+      return renderHttpError(res, {
+        logger: "No valid rows for this sheet.",
+        error: AUCTIONS_401,
+      });
+    }
+
     const removedEmptyCells = (sheet_data) => {
       return sheet_data
         .map((item) => ({
@@ -315,13 +320,14 @@ router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
           CONTROL: obj.CONTROL,
           DESCRIPTION: obj.DESCRIPTION,
           BIDDER: obj.BIDDER,
-          QTY: obj.QTY,
-          PRICE: obj.PRICE,
+          QTY: obj.QTY.toString(),
+          PRICE: obj.PRICE.toString(),
         });
       const current_inventories = await checkDuplicateInventory(auction_id);
       const current_inventories_set = new Set(
         current_inventories.map(normalize)
       );
+
       return sheet_with_inventory_id.map((item) => {
         const is_duplicate = current_inventories_set.has(normalize(item));
         if (item.remarks === INVALID_ROW) {
@@ -363,6 +369,7 @@ router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
     };
 
     const filtered_empty_rows_sheet = removedEmptyCells(raw_sheet_data);
+
     const sheet_with_bidder_id = await validateSheetBidders(
       filtered_empty_rows_sheet
     );
@@ -393,10 +400,25 @@ router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
 
     await createManifestRecords(manifest);
 
+    let display_manifest = sheet_with_container_id.map((item) => ({
+      barcode: item.BARCODE,
+      control_number: item.CONTROL,
+      description: item.DESCRIPTION,
+      price: item.PRICE,
+      bidder_number: item.BIDDER,
+      qty: item.QTY,
+      manifest_number: item.MANIFEST,
+      remarks: item.remarks,
+      error_messages: item.error_messages,
+    }));
+
     if (!valid_items.length) {
-      return res
-        .status(200)
-        .json({ data: `${valid_items.length} rows created!` });
+      return res.status(200).json({
+        data: {
+          message: `${valid_items.length} rows created!`,
+          manifest: display_manifest,
+        },
+      });
     }
 
     let rows_for_inserting = sheet_with_container_id.filter(
@@ -415,9 +437,12 @@ router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
 
     // create a record for auction_inventories
     await bulkCreateAuctionInventories(new_rows_with_inventory_id);
-    return res
-      .status(200)
-      .json({ data: `${new_rows_with_inventory_id.length} rows created` });
+    return res.status(200).json({
+      data: {
+        message: `${valid_items.length} rows created!`,
+        manifest: display_manifest,
+      },
+    });
   } catch (error) {
     return renderHttpError(res, {
       log: error,
@@ -443,87 +468,25 @@ router.get("/:auction_id/bidders", async (req, res) => {
   try {
     const { auction_id } = req.params;
     let registered_bidders = await getRegisteredBidders(auction_id);
-    // registered_bidders = registered_bidders.map((item) => ({
-    //   ...item,
-    //   total_price: formatNumberToCurrency(item.total_price),
-    // }));
     return res.status(200).json({ data: registered_bidders });
   } catch (error) {
     return renderHttpError(res, {
       log: error,
       error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
     });
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
   }
 });
 
 router.get("/:auction_id/bidders/:bidder_id", async (req, res) => {
   try {
     const { auction_id, bidder_id } = req.params;
-    let [
-      {
-        data,
-        already_consumed,
-        auction_service_charge,
-        registration_fee,
-        created_at,
-        bidder_number,
-        bidder_name,
-      },
-    ] = await getBidderItems(auction_id, bidder_id);
-    let total_balance = 0;
-    if (data.length) {
-      total_balance = data
-        .filter((item) => item.auction_status === "UNPAID")
-        .reduce((acc, curr) => (acc += parseInt(curr.price)), 0);
-      let service_charge = (total_balance * auction_service_charge) / 100;
-      total_balance += service_charge;
-      if (!already_consumed) {
-        total_balance -= registration_fee;
-      }
-    }
-
-    data = data.map((item) => ({
-      ...item,
-      price: formatNumberToCurrency(item.price),
-    }));
-
-    res.status(200).json({
-      status: "success",
-      data: {
-        data,
-        already_consumed,
-        totalBalance: total_balance,
-        totalItems: data.length,
-        paidItems: data.filter((item) => item.auction_status === "PAID").length,
-        unpaidItems: data.filter((item) => item.auction_status === "UNPAID")
-          .length,
-        auction: created_at,
-        bidderNumber: bidder_number,
-        bidderName: bidder_name,
-      },
+    const bidder = await getBidderAuctionProfile(auction_id, bidder_id);
+    res.status(200).json({ data: bidder });
+  } catch (error) {
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
     });
-  } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
-  }
-});
-
-router.post("/:auction_id/payment", async (req, res) => {
-  try {
-    const { auction_id } = req.params;
-    const { bidder_id, amount } = req.body;
-    const payment = await updateBidderPayment(
-      auction_id,
-      bidder_id,
-      amount,
-      req.body.inventory_ids
-    );
-    return res.status(200).json({ status: "success", data: payment });
-  } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
   }
 });
 
