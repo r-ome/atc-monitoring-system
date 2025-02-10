@@ -5,6 +5,8 @@ import Monitoring from "./Monitoring";
 import RegisterBidder from "./RegisterBidder";
 import AuctionBidders from "./AuctionBidders";
 import ManifestList from "./ManifestList";
+import AuctionBidderProfile from "./AuctionBidderProfile";
+import EncodePage from "./EncodePage";
 
 export {
   AuctionList,
@@ -14,4 +16,6 @@ export {
   RegisterBidder,
   AuctionBidders,
   ManifestList,
+  AuctionBidderProfile,
+  EncodePage,
 };

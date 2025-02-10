@@ -21,8 +21,9 @@ import {
   AuctionPayments,
   RegisterBidder,
   Monitoring,
+  EncodePage,
 } from "./app/routes";
-import { ManifestList } from "./app/routes/Auctions";
+import { AuctionBidderProfile, ManifestList } from "./app/routes/Auctions";
 
 const routes: RouteObject[] = [
   {
@@ -102,6 +103,14 @@ const routes: RouteObject[] = [
           {
             path: "register-bidder",
             element: <RegisterBidder />,
+          },
+          {
+            path: "encode",
+            element: <EncodePage />,
+          },
+          {
+            path: "bidders/:bidder_id",
+            element: <AuctionBidderProfile />,
           },
           {
             path: "monitoring",

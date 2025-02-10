@@ -1,4 +1,4 @@
-import { Button, Table } from "../../../components";
+import { Table } from "../../../components";
 import { useAuction } from "../../../context";
 
 const Monitoring = () => {
@@ -17,6 +17,7 @@ const Monitoring = () => {
               <Table
                 data={manifestRecords || []}
                 loading={isFetchingManifestRecords}
+                hasCount
                 rowKeys={[
                   "barcode_number",
                   "control_number",

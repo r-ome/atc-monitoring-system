@@ -15,6 +15,7 @@ import {
   Monitoring,
   RegisterBidder,
   AuctionBidders,
+  EncodePage,
 } from "./Auctions";
 import { AuctionInventory, CreateInventory } from "./Inventories";
 
@@ -26,6 +27,7 @@ export {
   CreateBidderRequirement,
   CreateBranch,
   CreateContainer,
+  EncodePage,
   BranchProfile,
   BidderAuction,
   RegisterBidder,

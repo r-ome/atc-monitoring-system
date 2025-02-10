@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { Button, Table } from "../../../components";
+import { useParams } from "react-router-dom";
+import { Table } from "../../../components";
 import { usePayments } from "../../../context";
 import { useSession } from "../../hooks";
 
 const AuctionPayments = () => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const params = useParams();
   const [auction, setAuction] = useState<any>(null);
   const [sessionAuction] = useSession<any>("auction", null);
@@ -37,14 +37,6 @@ const AuctionPayments = () => {
           <div className="w-full border p-4 h-full">
             <div className="flex justify-between items-center w-full p-2">
               <h1 className="text-3xl font-bold">Payments</h1>
-              <Button
-                buttonType="primary"
-                onClick={() =>
-                  navigate(`/auctions/${auction.auction_id}/register-bidder`)
-                }
-              >
-                Bidder Pullout
-              </Button>
             </div>
             {!isFetchingAuctionPayments && payments ? (
               <Table
@@ -63,7 +55,7 @@ const AuctionPayments = () => {
                   "Bidder Number",
                   // "Bidder Name",
                   "Purpose",
-                  "Amount",
+                  "Amount Paid",
                   "Payment Type",
                 ]}
               />

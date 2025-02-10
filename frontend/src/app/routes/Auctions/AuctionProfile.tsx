@@ -171,7 +171,9 @@ const AuctionProfile = () => {
               </div>
             </div>
 
-            <Outlet />
+            <div className="">
+              <Outlet />
+            </div>
           </div>
         </div>
       ) : (

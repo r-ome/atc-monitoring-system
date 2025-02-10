@@ -3,6 +3,7 @@ import { Button, Table } from "../../../components";
 import { useAuction } from "../../../context";
 
 const Monitoring = () => {
+  const navigate = useNavigate();
   const { monitoring, isLoading: isFetchingMonitoring } = useAuction();
 
   return (
@@ -12,7 +13,10 @@ const Monitoring = () => {
           <div className="w-full border p-4 h-full">
             <div className="flex justify-between items-center w-full p-2">
               <h1 className="text-3xl font-bold">Monitoring</h1>
-              <Button buttonType="primary" onClick={() => alert("ENCODE PAGE")}>
+              <Button
+                buttonType="primary"
+                onClick={() => navigate("../encode")}
+              >
                 ENCODE
               </Button>
             </div>
@@ -20,6 +24,7 @@ const Monitoring = () => {
               <Table
                 data={monitoring || []}
                 loading={isFetchingMonitoring}
+                hasCount
                 rowKeys={[
                   "barcode",
                   "control_number",

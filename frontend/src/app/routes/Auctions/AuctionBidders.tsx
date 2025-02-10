@@ -45,17 +45,26 @@ const AuctionBidders = () => {
         <Table
           data={registeredBidders?.bidders || []}
           loading={isFetchingRegisteredBidders}
+          onRowClick={(bidder) => {
+            navigate(
+              `/auctions/${sessionAuction.auction_id}/bidders/${bidder.bidder_id}`
+            );
+          }}
           rowKeys={[
             "bidder_number",
             "full_name",
             "service_charge",
             "registration_fee",
+            "total_no_items",
+            "balance",
           ]}
           columnHeaders={[
             "Bidder Number",
             "Bidder Name",
             "Service Charge",
             "Registration Fee",
+            "Number of items",
+            "balance",
           ]}
         />
       ) : (

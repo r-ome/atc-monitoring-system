@@ -11,6 +11,7 @@ export const BRANCHES_403 = "BRANCHES_403";
 export const BRANCHES_503 = "BRANCHES_503";
 export const BRANCHES_501 = "BRANCHES_501";
 
+export const AUCTIONS_401 = "AUCTIONS_401";
 export const AUCTIONS_402 = "AUCTIONS_402";
 export const AUCTIONS_403 = "AUCTIONS_403";
 export const AUCTIONS_501 = "AUCTIONS_501";
