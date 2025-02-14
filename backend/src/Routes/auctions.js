@@ -1,19 +1,21 @@
 import express from "express";
 import moment from "moment";
+import Joi from "joi";
 import { v4 as uuidv4 } from "uuid";
 import {
   getAuctionDetails,
   getAuctions,
   createAuction,
-  deleteAuction,
   registerBidderAtAuction,
   getMonitoring,
   getBidderAuctionProfile,
   getRegisteredBidders,
-  removeRegisteredBidder,
+  reassignAuctionItem,
   cancelItem,
   createManifestRecords,
   getManifestRecords,
+  getAuctionItemDetails,
+  discountItem,
 } from "../services/auctions.js";
 import {
   getBidder,
@@ -26,7 +28,6 @@ import {
   checkDuplicateInventory,
 } from "../services/inventories.js";
 import { getBarcodesFromContainers } from "../services/containers.js";
-import { logger } from "../logger.js";
 import {
   AUCTIONS_401,
   AUCTIONS_402,
@@ -37,25 +38,20 @@ import {
   INVALID_ROW,
   VALID_ROW,
 } from "./error_infos.js";
-
-const router = express.Router();
-import Joi from "joi";
 import {
-  sanitizeBarcode,
   formatNumberPadding,
   uploadMulterMiddleware,
   readXLSXfile,
 } from "../utils/index.js";
 import { DB_ERROR_EXCEPTION } from "../services/index.js";
+import { AUCTION_STATUS } from "./constants.js";
 
+const router = express.Router();
+
+// GET LIST OF AUCTIONS
 router.get("/", async (_, res) => {
   try {
-    let auctions = await getAuctions();
-    // auctions = auctions.map((item) => ({
-    //   ...item,
-    //   total_registration: formatNumberToCurrency(item.total_registration),
-    //   total_sales: formatNumberToCurrency(item.total_sales),
-    // }));
+    const auctions = await getAuctions();
     res.status(200).json({ data: auctions });
   } catch (error) {
     return renderHttpError(res, {
@@ -65,6 +61,7 @@ router.get("/", async (_, res) => {
   }
 });
 
+// GET AUCTION DETAILS
 router.get("/:auction_id", async (req, res) => {
   try {
     const { auction_id } = req.params;
@@ -84,6 +81,7 @@ router.get("/:auction_id", async (req, res) => {
   }
 });
 
+// CREATE AUCTION
 router.post("/", async (_, res) => {
   try {
     /*
@@ -100,17 +98,7 @@ router.post("/", async (_, res) => {
   }
 });
 
-router.delete("/:auction_id", async (req, res) => {
-  try {
-    const { auction_id } = req.params;
-    await deleteAuction(auction_id);
-    res.status(200).json({ status: "success" });
-  } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
-  }
-});
-
+// REGISTER BIDDER AT AUCTION
 router.post("/:auction_id/register-bidder", async (req, res) => {
   try {
     const { auction_id } = req.params;
@@ -143,11 +131,20 @@ router.post("/:auction_id/register-bidder", async (req, res) => {
       });
     }
 
+    const auction = await getAuctionDetails(auction_id);
+    if (!auction) {
+      return renderHttpError(res, {
+        log: `Auction with ID: ${auction_id} does not exist`,
+        error: AUCTIONS_403,
+      });
+    }
+
     const { bidders } = await getRegisteredBidders(auction_id);
     if (bidders.length) {
       const [isAlreadyRegistered] = bidders.filter(
         (bidder) => bidder.bidder_id === parseInt(body.bidder_id)
       );
+      console.log(isAlreadyRegistered);
       if (isAlreadyRegistered) {
         return renderHttpError(res, {
           log: `Bidder with ID: ${body.bidder_id} and number: ${isAlreadyRegistered.bidder_number} already registered.`,
@@ -166,20 +163,7 @@ router.post("/:auction_id/register-bidder", async (req, res) => {
   }
 });
 
-router.post("/remove-registered-bidder", async (req, res) => {
-  try {
-    const auction_id = req.body.auction_id;
-    const bidder_id = req.body.bidder_id;
-    await removeRegisteredBidder(auction_id, bidder_id);
-    res
-      .status(200)
-      .json({ status: "success", message: "Bidder removed from auction" });
-  } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
-  }
-});
-
+// GET MONITORING FOR AUCTION
 router.get("/:auction_id/monitoring", async (req, res) => {
   try {
     const { auction_id } = req.params;
@@ -193,6 +177,7 @@ router.get("/:auction_id/monitoring", async (req, res) => {
   }
 });
 
+// UPLOAD MANIFEST || ENCODE MANIFEST IN AUCTION
 router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
   try {
     const { auction_id } = req.params;
@@ -213,6 +198,14 @@ router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
       });
     }
 
+    const { bidders } = await getRegisteredBidders(auction_id);
+    if (!bidders.length) {
+      return renderHttpError(res, {
+        log: "Cannot upload file because there are no Registered Bidders",
+        error: AUCTIONS_401,
+      });
+    }
+
     const removedEmptyCells = (sheet_data) => {
       return sheet_data
         .map((item) => ({
@@ -221,6 +214,9 @@ router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
           CONTROL: item.CONTROL
             ? formatNumberPadding(item.CONTROL, 4)
             : item.CONTROL,
+          BIDDER: item.BIDDER
+            ? formatNumberPadding(item.BIDDER, 4)
+            : item.bidder,
           v4_identifier: uuidv4(),
           error_messages: null,
           remarks: VALID_ROW,
@@ -236,10 +232,10 @@ router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
         });
     };
 
-    const validateSheetBidders = async (sheet_data) => {
+    const validateSheetBidders = async (sheet_data, bidders) => {
       // validate if bidders in sheet is registered
       // get registered bidders in the auction
-      const { bidders } = await getRegisteredBidders(auction_id);
+
       const registered_bidders = bidders.map((bidder) => bidder.bidder_number);
 
       // get bidders in sheet/manifest
@@ -371,7 +367,8 @@ router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
     const filtered_empty_rows_sheet = removedEmptyCells(raw_sheet_data);
 
     const sheet_with_bidder_id = await validateSheetBidders(
-      filtered_empty_rows_sheet
+      filtered_empty_rows_sheet,
+      bidders
     );
     const sheet_with_marked_duplicates = await validateInventories(
       sheet_with_bidder_id
@@ -406,7 +403,7 @@ router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
       description: item.DESCRIPTION,
       price: item.PRICE,
       bidder_number: item.BIDDER,
-      qty: item.QTY,
+      qty: item.QTY.toString(),
       manifest_number: item.MANIFEST,
       remarks: item.remarks,
       error_messages: item.error_messages,
@@ -451,6 +448,7 @@ router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
   }
 });
 
+// GET MANIFEST RECORDS
 router.get("/:auction_id/manifest-records", async (req, res) => {
   try {
     const { auction_id } = req.params;
@@ -464,6 +462,7 @@ router.get("/:auction_id/manifest-records", async (req, res) => {
   }
 });
 
+// GET REGISTERED BIDDERS
 router.get("/:auction_id/bidders", async (req, res) => {
   try {
     const { auction_id } = req.params;
@@ -477,11 +476,12 @@ router.get("/:auction_id/bidders", async (req, res) => {
   }
 });
 
+// GET BIDDER DETAILS IN AUCTION
 router.get("/:auction_id/bidders/:bidder_id", async (req, res) => {
   try {
     const { auction_id, bidder_id } = req.params;
     const bidder = await getBidderAuctionProfile(auction_id, bidder_id);
-    res.status(200).json({ data: bidder });
+    return res.status(200).json({ data: bidder });
   } catch (error) {
     return renderHttpError(res, {
       log: error,
@@ -490,16 +490,185 @@ router.get("/:auction_id/bidders/:bidder_id", async (req, res) => {
   }
 });
 
-router.post("/:auction_id/cancel-item/:inventory_id", async (req, res) => {
+// GET AUCTION ITEM DETAILS
+router.get("/:auction_id/item/:auction_inventory_id", async (req, res) => {
   try {
-    const { auction_id, inventory_id } = req.params;
-    const [inventory] = await cancelItem(auction_id, inventory_id);
+    const { auction_inventory_id } = req.params;
+    const inventory = await getAuctionItemDetails(auction_inventory_id);
+    if (!inventory) {
+      return renderHttpError(res, {
+        log: `Auction Item with ID: ${auction_inventory_id} does not exist`,
+        error: AUCTIONS_403,
+      });
+    }
 
-    return res.status(200).json({ status: "success", data: inventory });
+    return res.status(200).json({ data: inventory });
   } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
+    });
   }
 });
+
+// CANCEL ITEM
+router.post(
+  "/:auction_id/cancel-item/:auction_inventory_id",
+  async (req, res) => {
+    try {
+      const { auction_id, auction_inventory_id } = req.params;
+      const inventory = await getAuctionItemDetails(auction_inventory_id);
+      if (!inventory) {
+        return renderHttpError(res, {
+          log: `Auction Item with ID:${auction_inventory_id} does not exist`,
+          error: AUCTIONS_403,
+        });
+      }
+      if (inventory.auction_status === AUCTION_STATUS.CANCELLED) {
+        return renderHttpError(res, {
+          log: `Auction Item with ID:${auction_inventory_id} is already CANCELLED`,
+          error: AUCTIONS_401,
+        });
+      }
+
+      const data = await cancelItem(auction_id, auction_inventory_id);
+      return res.status(200).json({ data });
+    } catch (error) {
+      return renderHttpError(res, {
+        log: error,
+        error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
+      });
+    }
+  }
+);
+
+// REASSIGN ITEM FROM AND TO BIDDER
+router.post(
+  "/:auction_id/reassign-item/:auction_inventory_id",
+  async (req, res) => {
+    try {
+      const { auction_id, auction_inventory_id } = req.params;
+      const { new_bidder_number } = req.body;
+      const inventory = await getAuctionItemDetails(auction_inventory_id);
+      if (!inventory) {
+        return renderHttpError(res, {
+          log: `Auction Item with ID: ${auction_inventory_id} does not exist`,
+          error: AUCTIONS_403,
+        });
+      }
+
+      if (inventory.auction_status === AUCTION_STATUS.PAID) {
+        return renderHttpError(res, {
+          log: `Item not yet CANCELLED. CANCEL ITEM first before transfer of ownership`,
+          error: AUCTIONS_401,
+        });
+      }
+
+      const schema = Joi.object({
+        new_bidder_number: Joi.string().required(),
+      });
+      const { error } = schema.validate(req.body);
+      if (error) {
+        const errorDetails = error.details.map((err) => {
+          return {
+            field: err.context.key,
+            message: err.message,
+          };
+        });
+
+        return renderHttpError(res, {
+          log: JSON.stringify(errorDetails, null, 2),
+          error: AUCTIONS_401,
+        });
+      }
+
+      const registered_bidders = await getRegisteredBidders(auction_id);
+      const bidder_numbers = registered_bidders.bidders.map((item) => ({
+        auction_bidders_id: item.auction_bidders_id,
+        service_charge: parseInt(item.service_charge.replace("%", ""), 10),
+        bidder_number: item.bidder_number,
+      }));
+
+      const new_bidder = bidder_numbers.find(
+        (item) => item.bidder_number === new_bidder_number
+      );
+
+      if (!new_bidder) {
+        return renderHttpError(res, {
+          log: `Reassigned Bidder Number:${new_bidder_number} does not exist | not registered in auction`,
+          error: AUCTIONS_403,
+        });
+      }
+
+      if (inventory.bidder.bidder_number === new_bidder.bidder_number) {
+        return renderHttpError(res, {
+          log: `Cannot assign item to same bidder ${new_bidder_number}`,
+          error: AUCTIONS_401,
+        });
+      }
+
+      const data = await reassignAuctionItem(auction_inventory_id, new_bidder);
+      return res.status(200).json({ data });
+    } catch (error) {
+      return renderHttpError(res, {
+        log: error,
+        error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
+      });
+    }
+  }
+);
+
+// REFUND OR DISCOUNT(LESS) ITEM PRICE
+router.post(
+  "/:auction_id/discount-item/:auction_inventory_id",
+  async (req, res) => {
+    try {
+      const { auction_inventory_id } = req.params;
+      const { new_price } = req.body;
+      const inventory = await getAuctionItemDetails(auction_inventory_id);
+      if (!inventory) {
+        return renderHttpError(res, {
+          log: `Auction Item with ID:${auction_inventory_id} does not exist`,
+          error: AUCTIONS_403,
+        });
+      }
+      if (inventory.auction_status === AUCTION_STATUS.CANCELLED) {
+        return renderHttpError(res, {
+          log: `Auction Item with ID:${auction_inventory_id} is already CANCELLED`,
+          error: AUCTIONS_401,
+        });
+      }
+
+      const schema = Joi.object({
+        new_price: Joi.number().required(),
+      });
+      const { error } = schema.validate(req.body);
+      if (error) {
+        const errorDetails = error.details.map((err) => {
+          return {
+            field: err.context.key,
+            message: err.message,
+          };
+        });
+
+        return renderHttpError(res, {
+          log: JSON.stringify(errorDetails, null, 2),
+          error: AUCTIONS_401,
+        });
+      }
+
+      const data = await discountItem(
+        inventory.auction_inventory_id,
+        new_price
+      );
+      return res.status(200).json({ data });
+    } catch (error) {
+      return renderHttpError(res, {
+        log: error,
+        error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
+      });
+    }
+  }
+);
 
 export default router;

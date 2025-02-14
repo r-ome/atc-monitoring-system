@@ -7,11 +7,7 @@ import {
   updateContainerInventory,
   deleteInventory,
 } from "../services/inventories.js";
-import {
-  formatNumberPadding,
-  sanitizeBarcode,
-  formatNumberToCurrency,
-} from "../utils/index.js";
+import { formatNumberPadding } from "../utils/index.js";
 import {
   INVENTORIES_401,
   INVENTORIES_403,

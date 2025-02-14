@@ -63,7 +63,7 @@ export const handleBidderPullout = async (
       `
         SELECT CONVERT(SUM(price),DECIMAL(10,2)) as total_price
         FROM auctions_inventories
-        WHERE auction_inventory_id in (?)
+        WHERE auction_inventory_id in (?) AND status = "UNPAID"
       `,
       [auction_inventory_ids]
     );
@@ -79,13 +79,24 @@ export const handleBidderPullout = async (
       );
     }
 
+    const [{ receipt_number }] = await query(
+      `SELECT MAX(receipt_number) as receipt_number FROM payments WHERE auction_bidders_id = ?`,
+      [auction_bidders_id]
+    );
+
     // create payment record
     const payment = await query(
       `
         INSERT INTO payments(auction_bidders_id, purpose, amount_paid, receipt_number, payment_type)
         VALUES (?, ?, ?, ? ,?);
       `,
-      [auction_bidders_id, "PULL_OUT", total_amount_to_be_paid, 1, "CASH"]
+      [
+        auction_bidders_id,
+        "PULL_OUT",
+        total_amount_to_be_paid,
+        receipt_number + 1,
+        "CASH",
+      ]
     );
 
     // update auctions_inventories table status = PAID
@@ -107,12 +118,12 @@ export const handleBidderPullout = async (
       [current_balance, auction_bidders_id]
     );
 
-    const payment_result = await query(
+    const [payment_result] = await query(
       `
         SELECT
           p.payment_id,
           p.purpose,
-          p.receipt_number,
+          CONCAT(b.bidder_number, "-", p.receipt_number) AS receipt_number,
           p.payment_type,
           ab.auction_id,
           b.bidder_number,
@@ -128,5 +139,42 @@ export const handleBidderPullout = async (
     return payment_result;
   } catch (error) {
     throw new DBErrorException("handleBidderPullout", error);
+  }
+};
+
+export const getBidderAuctionTransactions = async (auction_bidders_id) => {
+  try {
+    return await query(
+      `
+        SELECT
+          p.payment_id,
+          REPLACE(p.purpose,"_"," ") as purpose,
+          CONCAT("₱", FORMAT(p.amount_paid, 2)) AS amount_paid,
+          IF(p.purpose = "REGISTRATION", "---", CONCAT(b.bidder_number, "-", p.receipt_number)) AS receipt_number,
+          p.payment_type,
+          DATE_FORMAT(p.created_at, '%b %d, %Y %h:%i:%S%p') as created_at,
+          IF(p.purpose = "REGISTRATION", "---", COUNT(ai.auction_inventory_id)) AS total_items,
+          IF(COUNT(ai.auction_inventory_id) = 0,
+            JSON_ARRAY(),
+            JSON_ARRAYAGG(JSON_OBJECT(
+              'barcode', i.barcode,
+              'control_number', i.control_number,
+              'description', i.description,
+              'price', CONCAT("₱", FORMAT(ai.price, 2)),
+              'qty', ai.qty
+            ))
+          ) AS items
+        FROM payments p
+        LEFT JOIN auctions_bidders ab ON ab.auction_bidders_id = p.auction_bidders_id
+        LEFT JOIN auctions_inventories ai ON ai.payment_id = p.payment_id
+        LEFT JOIN inventories i ON i.inventory_id = ai.inventory_id
+        LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
+        WHERE ab.auction_bidders_id = ?
+        GROUP BY p.payment_id;
+      `,
+      [auction_bidders_id]
+    );
+  } catch (error) {
+    throw new DBErrorException("getBidderAuctionTransactions", error);
   }
 };

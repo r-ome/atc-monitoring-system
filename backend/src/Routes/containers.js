@@ -30,7 +30,7 @@ const router = express.Router({ mergeParams: true });
 router.get("/", async (req, res) => {
   try {
     const { supplier_id } = req.params;
-    const [containers] = await getContainersBySupplier(supplier_id);
+    const containers = await getContainersBySupplier(supplier_id);
     res.status(200).json({ data: containers });
   } catch (error) {
     return renderHttpError(res, {
@@ -153,16 +153,16 @@ router.post("/", async (req, res) => {
     }
 
     // validate if supplier exists
-    const suppliers = await getSupplier(supplier_id);
-    if (!suppliers.length) {
+    const supplier = await getSupplier(supplier_id);
+    if (!supplier) {
       return renderHttpError(res, {
         log: `Supplier with ID:${supplier_id} does not exist`,
         error: CONTAINERS_403,
       });
     }
     // validate if branch exists
-    const branches = await getBranch(body.branch_id);
-    if (!branches.length) {
+    const branch = await getBranch(body.branch_id);
+    if (!branch) {
       return renderHttpError(res, {
         log: `Branch with ID:${body.branch_id} does not exist`,
         error: CONTAINERS_403,

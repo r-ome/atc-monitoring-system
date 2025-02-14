@@ -3,33 +3,19 @@ import { logger } from "../logger.js";
 
 export const getContainerInventories = async (container_id) => {
   try {
-    const [inventories] = await query(
+    const inventories = await query(
       `
         SELECT
-          c.container_id,
-          c.barcode,
-          JSON_OBJECT(
-            'supplier_id', s.supplier_id,
-            'name', s.name
-          ) AS supplier,
-          IF(COUNT(i.inventory_id) = 0,
-            JSON_ARRAY(),
-            JSON_ARRAYAGG(JSON_OBJECT(
-              'inventory_id', i.inventory_id,
-              'barcode', i.barcode,
-              'description', i.description,
-              'control_number', i.control_number,
-              'url', i.url,
-              'status', i.status,
-              'created_at', DATE_FORMAT(i.created_at, '%b %d, %Y %h:%i%p'),
-              'updated_at', DATE_FORMAT(i.updated_at, '%b %d, %Y %h:%i%p')
-            ))
-          ) as inventories
-        FROM containers c
-        LEFT JOIN inventories i ON c.container_id = i.container_id
-        LEFT JOIN suppliers s ON s.supplier_id = c.supplier_id
-        WHERE c.container_id = ? AND c.deleted_at IS NULL AND i.deleted_at IS NULL
-        GROUP BY c.container_id
+          inventory_id,
+          barcode,
+          description,
+          control_number,
+          url,
+          status,
+          DATE_FORMAT(created_at, '%b %d, %Y %h:%i%p') AS created_at,
+          DATE_FORMAT(updated_at, '%b %d, %Y %h:%i%p') as updated_at
+        FROM inventories
+        WHERE container_id = ?;
       `,
       [container_id]
     );

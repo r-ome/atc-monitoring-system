@@ -1,4 +1,10 @@
+import {
+  AUCTION_STATUS,
+  PAYMENT_PURPOSE,
+  PAYMENT_TYPE,
+} from "../Routes/constants.js";
 import { query, DBErrorException } from "./index.js";
+import { formatNumberToCurrency } from "../utils/index.js";
 
 export const getAuctionDetails = async (auction_id) => {
   try {
@@ -58,7 +64,7 @@ export const getAuctionDetails = async (auction_id) => {
           IF(SUM(ai.price) is null,
             CONCAT("₱", 0.00),
             CONCAT("₱", FORMAT(SUM(ai.price), 2))
-          ) AS total_price
+          ) AS total_items_price
         FROM auctions a
         LEFT JOIN auctions_bidders ab ON ab.auction_id = a.auction_id
         LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
@@ -98,7 +104,7 @@ export const getAuctions = async () => {
       `
         SELECT
           a.auction_id,
-          DATE_FORMAT(a.created_at, '%M %d, %Y %h:%i%p, %W') AS created_at,
+          DATE_FORMAT(a.created_at, '%M %d, %Y %h:%i%p, %W') AS auction_date,
           COUNT(ab.auction_bidders_id) AS number_of_bidders
         FROM auctions a
         LEFT JOIN auctions_bidders ab ON ab.auction_id = a.auction_id
@@ -110,7 +116,7 @@ export const getAuctions = async () => {
   }
 };
 
-export const createAuction = async (branch) => {
+export const createAuction = async () => {
   try {
     const response = await query(
       `INSERT INTO auctions(created_at) VALUES (NOW());`
@@ -120,7 +126,7 @@ export const createAuction = async (branch) => {
       `
       SELECT
         auction_id,
-        DATE_FORMAT(created_at, '%M %d, %Y %h:%i%p, %W') AS created_at,
+        DATE_FORMAT(created_at, '%M %d, %Y %h:%i%p, %W') AS auction_date,
         0 as number_of_bidders
       FROM auctions
       WHERE auction_id = ?
@@ -133,19 +139,45 @@ export const createAuction = async (branch) => {
   }
 };
 
-export const deleteAuction = async (id) => {
+export const getAuctionItemDetails = async (auction_inventory_id) => {
   try {
-    return await query(
+    const [result] = await query(
       `
-          UPDATE auctions
-          SET deleted_at = NOW()
-          WHERE auction_id = ? AND deleted_at IS NULL;
-        `,
-      [id]
+        SELECT
+          ai.auction_inventory_id,
+          ab.auction_id,
+          CONCAT("₱", FORMAT(ai.price, 2)) as price,
+          i.status AS inventory_status,
+          ai.status AS auction_status,
+          ab.service_charge,
+          JSON_OBJECT(
+            'bidder_id', b.bidder_id,
+            'bidder_number', b.bidder_number,
+            'full_name', CONCAT(b.first_name, " ", b.last_name)
+          ) AS bidder,
+          IF (COUNT(ih.auction_inventory_id) = 0,
+            JSON_ARRAY(),
+            JSON_ARRAYAGG(JSON_OBJECT(
+              'inventory_history_id', ih.inventory_history_id,
+              'auction_inventory_id', ih.auction_inventory_id,
+              'status', ih.auction_status,
+              'remarks', ih.remarks,
+              'created_at', DATE_FORMAT(ih.created_at, '%M %d, %Y %h:%i%p')
+            ))
+          ) AS histories
+        FROM auctions_inventories ai
+        LEFT JOIN auctions_bidders ab ON ab.auction_bidders_id = ai.auction_bidders_id
+        LEFT JOIN inventories i ON i.inventory_id = ai.inventory_id
+        LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
+        LEFT JOIN inventory_histories ih ON ih.auction_inventory_id = ai.auction_inventory_id
+        WHERE ai.auction_inventory_id = ?
+        GROUP BY ai.auction_inventory_id
+      `,
+      [auction_inventory_id]
     );
+    return result;
   } catch (error) {
-    logger.error({ func: "deleteAuction", error });
-    throw { message: "DB error" };
+    throw new DBErrorException("getAuctionItem", error);
   }
 };
 
@@ -171,20 +203,28 @@ export const registerBidderAtAuction = async (
     await query(
       `
         INSERT INTO payments(auction_bidders_id, amount_paid, payment_type, purpose)
-        VALUES (?, ?, ?, "REGISTRATION");
+        VALUES (?, ?, ?, ?);
       `,
-      [auction_bidders_response.insertId, registration_fee, "CASH"]
+      [
+        auction_bidders_response.insertId,
+        registration_fee,
+        PAYMENT_TYPE.CASH,
+        PAYMENT_PURPOSE.REGISTRATION,
+      ]
     );
 
     const [auction_bidders] = await query(
       `
         SELECT
           ab.auction_bidders_id,
+          ab.bidder_id,
+          ab.balance,
           DATE_FORMAT(a.created_at, '%M %d, %Y %h:%i%p') AS auction_date,
           CONCAT(b.first_name, " ", b.last_name) AS full_name,
           b.bidder_number,
+          0 AS total_no_items,
           CONCAT(ab.service_charge, "%") AS service_charge,
-          ab.registration_fee,
+          CONCAT("₱", FORMAT(ab.registration_fee, 2)) AS registration_fee,
           DATE_FORMAT(ab.created_at, '%M %d, %Y %h:%i%p') AS registered_date
         FROM auctions_bidders ab
         LEFT JOIN auctions a ON a.auction_id = ab.auction_id
@@ -296,7 +336,7 @@ export const getRegisteredBidders = async (auction_id) => {
               JSON_ARRAY(),
               JSON_ARRAYAGG(
                   JSON_OBJECT(
-                      'auctions_bidders_id', ab.auction_bidders_id,
+                      'auction_bidders_id', ab.auction_bidders_id,
                       'bidder_id', ab.bidder_id,
                       'full_name', CONCAT(b.first_name, " ", b.last_name),
                       'bidder_number', b.bidder_number,
@@ -340,10 +380,16 @@ export const getBidderAuctionProfile = async (auction_id, bidder_id) => {
           b.bidder_number,
           CONCAT(b.first_name, " ", b.last_name) AS full_name,
           ab.already_consumed,
+          COUNT(ai.auction_inventory_id) as total_items,
           CONCAT(ab.service_charge, "%") AS service_charge,
           CONCAT("₱", FORMAT(ab.registration_fee, 2)) AS registration_fee,
+          CONCAT("₱", FORMAT(SUM(ai.price), 2)) AS total_item_price,
+          SUM(CASE WHEN ai.status = "UNPAID" THEN 1 ELSE 0 END) AS total_unpaid_items,
+          CONCAT(
+            "₱",
+            FORMAT(SUM(CASE WHEN ai.status = "UNPAID" THEN ai.price ELSE 0 END), 2)
+          ) AS total_unpaid_items_price,
           CONCAT("₱", FORMAT(ab.balance, 2)) AS balance,
-          COUNT(ai.auction_inventory_id) as total_items,
           IF(COUNT(ai.auction_inventory_id) = 0,
             JSON_ARRAY(),
             JSON_ARRAYAGG(JSON_OBJECT(
@@ -354,7 +400,8 @@ export const getBidderAuctionProfile = async (auction_id, bidder_id) => {
               'price', CONCAT("₱", FORMAT(ai.price, 2)),
               'qty', ai.qty,
               'manifest_number', ai.manifest_number,
-              'status', ai.status
+              'status', ai.status,
+              'updated_at', ai.updated_at
             ))
           ) AS items
         FROM bidders b
@@ -384,55 +431,312 @@ export const removeRegisteredBidder = async (auction_id, bidder_id) => {
   }
 };
 
-export const cancelItem = async (auction_id, inventory_id) => {
+export const getAuctionItemHistories = async (auction_inventory_id) => {
   try {
-    const [inventory] = await query(
-      `SELECT status FROM auctions_inventories WHERE inventory_id = ? ORDER BY auction_inventory_id DESC LIMIT 1`,
-      [inventory_id]
-    );
-
-    await query(
+    return await query(
       `
-          UPDATE auctions_inventories
-          SET status = "CANCELLED"
-          WHERE auction_id = ? AND inventory_id = ?
-        `,
-      [auction_id, inventory_id]
-    );
-
-    await query(
-      `
-        INSERT INTO inventory_histories (auction_id, inventory_id, item_status, auction_status)
-        VALUES (?, ?, ?, ?)
+        SELECT
+          inventory_history_id,
+          auction_inventory_id,
+          auction_status,
+          remarks,
+          created_at
+        FROM inventory_histories WHERE auction_inventory_id = ?
       `,
-      [auction_id, inventory_id, inventory.status, "CANCELLED"]
+      [auction_inventory_id]
     );
+  } catch (error) {
+    throw new DBErrorException("getAuctionItemHistories", error);
+  }
+};
 
-    const result = await query(
+export const cancelItem = async (auction_id, auction_inventory_id) => {
+  try {
+    const [auction_inventory] = await query(
       `
           SELECT
-            ai.auction_id,
-            i.inventory_id,
-            i.barcode_number,
-            i.control_number,
-            i.description,
-            i.qty,
-            i.price,
-            b.bidder_number,
-            i.status AS item_status,
             ai.auction_inventory_id,
+            ai.inventory_id,
+            ai.auction_bidders_id,
+            ai.price,
             ai.status,
-            ai.manifest_number
-          FROM inventories i
-          LEFT JOIN auctions_inventories ai ON ai.inventory_id = i.inventory_id
-          LEFT JOIN bidders b ON b.bidder_id = ai.bidder_id
-          WHERE ai.auction_id = ? AND i.inventory_id = ?;
+            ab.service_charge,
+            p.receipt_number
+          FROM auctions_inventories ai
+          LEFT JOIN auctions_bidders ab ON ab.auction_bidders_id = ai.auction_bidders_id
+          LEFT JOIN payments p ON p.payment_id = ai.payment_id
+          WHERE ab.auction_id = ? AND ai.auction_inventory_id = ?
+          AND ai.status IN ("PAID", "UNPAID");
         `,
-      [auction_id, inventory_id]
+      [auction_id, auction_inventory_id]
     );
-    return result;
+
+    const hasHistory = await getAuctionItemHistories(
+      auction_inventory.auction_inventory_id
+    );
+    if (!hasHistory.length) {
+      // record current status
+      await query(
+        `
+        INSERT INTO inventory_histories(auction_inventory_id, auction_status)
+        VALUES (?,?)
+      `,
+        [auction_inventory.auction_inventory_id, auction_inventory.status]
+      );
+    }
+
+    // record proposed status
+    await query(
+      `
+        INSERT INTO inventory_histories(auction_inventory_id, auction_status, remarks)
+        VALUES (?,?, ?)
+      `,
+      [auction_inventory.auction_inventory_id, "CANCELLED", "INCORRECT BIDDER"]
+    );
+
+    // update inventory status from SOLD to REBID
+    await query(
+      `UPDATE inventories SET status = "REBID" WHERE inventory_id = ?`,
+      [auction_inventory.inventory_id]
+    );
+
+    const computed_price =
+      auction_inventory.price +
+      (auction_inventory.price * auction_inventory.service_charge) / 100;
+    if (auction_inventory.status === AUCTION_STATUS.PAID) {
+      const payment = await query(
+        `INSERT INTO payments (auction_bidders_id, purpose, amount_paid, receipt_number)
+        VALUES (?, ?,?,?)`,
+        [
+          auction_inventory.auction_bidders_id,
+          PAYMENT_PURPOSE.REFUNDED,
+          computed_price * -1,
+          auction_inventory.receipt_number,
+        ]
+      );
+
+      await query(
+        `
+          UPDATE auctions_inventories
+          SET status = "CANCELLED", payment_id = ?
+          WHERE auction_inventory_id = ?
+        `,
+        [payment.insertId, auction_inventory.auction_inventory_id]
+      );
+    } else {
+      await query(
+        `
+          UPDATE auctions_inventories
+          SET status = "CANCELLED"
+          WHERE auction_inventory_id = ?
+        `,
+        [auction_inventory.auction_inventory_id]
+      );
+
+      await query(
+        `
+          UPDATE auctions_bidders SET balance = balance - ${computed_price}
+          WHERE auction_bidders_id = ?
+        `,
+        [auction_inventory.auction_bidders_id]
+      );
+    }
+
+    return auction_inventory;
   } catch (error) {
-    logger.error({ func: "cancelItem", error });
-    throw { message: "DB error" };
+    throw new DBErrorException("cancelItem", error);
+  }
+};
+
+export const reassignAuctionItem = async (auction_inventory_id, new_bidder) => {
+  try {
+    const [auction_inventory] = await query(
+      `
+        SELECT
+          ai.auction_inventory_id,
+          ab.auction_bidders_id,
+          ai.status,
+          ai.price,
+          ab.service_charge,
+          b.bidder_number
+        FROM auctions_inventories ai
+        LEFT JOIN auctions_bidders ab ON ab.auction_bidders_id = ai.auction_bidders_id
+        LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
+        WHERE auction_inventory_id = ?
+      `,
+      [auction_inventory_id]
+    );
+
+    const hasHistory = await getAuctionItemHistories(
+      auction_inventory.auction_inventory_id
+    );
+    if (!hasHistory.length) {
+      // record current auction_inventory
+      await query(
+        `
+          INSERT INTO inventory_histories(auction_inventory_id, auction_status, remarks)
+          VALUES(?,?,?)
+        `,
+        [auction_inventory.auction_inventory_id, auction_inventory.status, null]
+      );
+    }
+
+    // record proposed auction_inventory
+    await query(
+      `
+        INSERT INTO inventory_histories(auction_inventory_id, auction_status, remarks)
+        VALUES(?,?,?)
+      `,
+      [
+        auction_inventory.auction_inventory_id,
+        AUCTION_STATUS.DISCREPANCY,
+        `TRANSFER FROM BIDDER ${auction_inventory.bidder_number} TO BIDDER ${new_bidder.bidder_number}`,
+      ]
+    );
+
+    // update bidder_id in auctions_inventories
+    await query(
+      `
+        UPDATE auctions_inventories
+        SET auction_bidders_id = ?
+        WHERE auction_inventory_id = ?
+      `,
+      [new_bidder.auction_bidders_id, auction_inventory.auction_inventory_id]
+    );
+
+    const previous_bidder_computed_price =
+      auction_inventory.price +
+      (auction_inventory.price * auction_inventory.service_charge) / 100;
+
+    // update previous bidder owner balance
+    await query(
+      `
+        UPDATE auctions_bidders
+        SET balance = balance - ${previous_bidder_computed_price}
+        WHERE auction_bidders_id = ?
+      `,
+      [auction_inventory.auction_bidders_id]
+    );
+
+    const new_bidder_computed_price =
+      auction_inventory.price +
+      (auction_inventory.price * new_bidder.service_charge) / 100;
+
+    // update new bidder balance
+    await query(
+      `
+        UPDATE auctions_bidders
+        SET balance = balance + ${new_bidder_computed_price}
+        WHERE auction_bidders_id = ?
+      `,
+      [new_bidder.auction_bidders_id]
+    );
+
+    return auction_inventory;
+  } catch (error) {
+    console.error(error);
+    throw new DBErrorException("reassignAuctionItem", error);
+  }
+};
+
+export const discountItem = async (auction_inventory_id, new_price) => {
+  try {
+    const [auction_inventory] = await query(
+      `
+        SELECT
+          ai.auction_inventory_id,
+          ai.auction_bidders_id,
+          ai.status,
+          ai.price,
+          ab.service_charge,
+          b.bidder_number,
+          p.receipt_number
+        FROM auctions_inventories ai
+        LEFT JOIN auctions_bidders ab ON ab.auction_bidders_id = ai.auction_bidders_id
+        LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
+        LEFT JOIN payments p ON p.payment_id = ai.payment_id
+        WHERE auction_inventory_id = ?
+      `,
+      [auction_inventory_id]
+    );
+
+    const hasHistory = await getAuctionItemHistories(
+      auction_inventory.auction_inventory_id
+    );
+    if (!hasHistory.length) {
+      // record current auction_inventory
+      await query(
+        `
+          INSERT INTO inventory_histories(auction_inventory_id, auction_status, remarks)
+          VALUES(?,?,?);
+        `,
+        [
+          auction_inventory.auction_inventory_id,
+          auction_inventory.status,
+          `CURRENT MONITORING PRICE: ${formatNumberToCurrency(
+            auction_inventory.price
+          )}`,
+        ]
+      );
+    }
+
+    const computed_price =
+      auction_inventory.price +
+      (auction_inventory.price * auction_inventory.service_charge) / 100;
+
+    if (auction_inventory.status === AUCTION_STATUS.PAID) {
+      await query(
+        `
+          INSERT INTO inventory_histories(auction_inventory_id, auction_status, remarks)
+          VALUES (?,?,?);
+        `,
+        [
+          auction_inventory.auction_inventory_id,
+          AUCTION_STATUS.REFUNDED,
+          `UPDATED PRICE FROM ${formatNumberToCurrency(
+            computed_price
+          )} to ${formatNumberToCurrency(new_price)}`,
+        ]
+      );
+
+      await query(
+        `
+          INSERT INTO payments(auction_bidders_id, purpose, amount_paid, receipt_number, payment_type)
+          VALUES (?,?,?,?,?)
+        `,
+        [
+          auction_inventory.auction_bidders_id,
+          AUCTION_STATUS.REFUNDED,
+          computed_price * -1,
+          auction_inventory.receipt_number,
+          PAYMENT_TYPE.CASH,
+        ]
+      );
+    } else {
+      await query(
+        `
+          INSERT INTO inventory_histories(auction_inventory_id, auction_status, remarks)
+          VALUES (?,?,?);
+        `,
+        [
+          auction_inventory.auction_inventory_id,
+          AUCTION_STATUS.LESS,
+          `UPDATED PRICE FROM ${formatNumberToCurrency(
+            computed_price
+          )} to ${formatNumberToCurrency(new_price)}`,
+        ]
+      );
+    }
+
+    // update auction_inventories
+    await query(
+      `UPDATE auctions_inventories SET price = ? WHERE auction_inventory_id = ?`,
+      [new_price, auction_inventory.auction_inventory_id]
+    );
+
+    return auction_inventory;
+  } catch (error) {
+    console.error(error);
+    throw new DBErrorException("discountItem", error);
   }
 };

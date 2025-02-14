@@ -5,6 +5,7 @@ import auctions from "./auctions.js";
 import inventories from "./inventories.js";
 import bidders from "./bidders.js";
 import payments from "./payments.js";
+import users from "./users.js";
 
 export {
   auctions,
@@ -14,4 +15,5 @@ export {
   branches,
   inventories,
   payments,
+  users,
 };

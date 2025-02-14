@@ -13,6 +13,7 @@ import {
   inventories,
   bidders,
   payments,
+  users,
 } from "./Routes/index.js";
 import { FILE_UPLOAD_ERROR_EXCEPTION } from "./utils/index.js";
 import {
@@ -72,6 +73,7 @@ app.use("/containers", containers);
 app.use("/branches", branches);
 app.use("/auctions", auctions);
 app.use("/bidders", bidders);
+app.use("/users", users);
 
 app.get("/", (req, res) => {
   try {
@@ -82,18 +84,21 @@ app.get("/", (req, res) => {
   }
 });
 
-app.use((error, _, res) => {
-  if (error[FILE_UPLOAD_ERROR_EXCEPTION]) {
+app.use((req, res, next) => {
+  try {
+    next();
+  } catch (error) {
+    if (error[FILE_UPLOAD_ERROR_EXCEPTION]) {
+      return renderHttpError(res, {
+        log: error.message,
+        error: FILE_UPLOAD_401,
+      });
+    }
     return renderHttpError(res, {
       log: error.message,
-      error: FILE_UPLOAD_401,
+      error: SYSTEM_503,
     });
   }
-
-  return renderHttpError(res, {
-    log: error.message,
-    error: SYSTEM_503,
-  });
 });
 
 const port = 3001;

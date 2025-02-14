@@ -5,6 +5,9 @@ import { logger } from "../logger.js";
   - 401: Invalid request params | request body | invalid input
   - 402: Duplicate Entry
   - 403: Does not Exist | Does not belong to
+  
+  HTTP STATUS: 401
+  - AUTH_401: Unauthorized
 
   HTTP STATUS: 500
   - 501: DB Error
@@ -14,10 +17,13 @@ import { logger } from "../logger.js";
 
 export const renderHttpError = (res, { log, error }) => {
   let message = "";
-  const httpCode = error.includes("40") ? 400 : 500;
-  switch (httpCode) {
+  const httpStatus = error.includes("40") ? 400 : 500;
+  switch (httpStatus) {
     case 400:
       message = "Bad request";
+      break;
+    case 401:
+      message = "Unauthorized";
       break;
     case 500:
       message = "Internal Server Error";
@@ -26,7 +32,7 @@ export const renderHttpError = (res, { log, error }) => {
       message = "Unexpected Error";
   }
   logger.error(log);
-  return res.status(httpCode).json({ error, message });
+  return res.status(httpStatus).json({ error, message, httpStatus });
 };
 
 export const INVALID_ROW = "INVALID_ROW";
@@ -34,6 +40,7 @@ export const VALID_ROW = "VALID_ROW";
 
 export const FILE_UPLOAD_401 = "FILE_UPLOAD_401";
 export const SYSTEM_503 = "SYSTEM_503";
+export const AUTH_401 = "AUTH_401";
 
 export const SUPPLIERS_401 = "SUPPLIERS_401";
 export const SUPPLIERS_402 = "SUPPLIERS_402";
@@ -83,3 +90,8 @@ export const INVENTORIES_403 = "INVENTORIES_403";
 export const INVENTORIES_501 = "INVENTORIES_501";
 export const INVENTORIES_502 = "INVENTORIES_502";
 export const INVENTORIES_503 = "INVENTORIES_503";
+export const USERS_401 = "USERS_401";
+export const USERS_402 = "USERS_402";
+export const USERS_501 = "USERS_501";
+export const USERS_502 = "USERS_502";
+export const USERS_503 = "USERS_503";

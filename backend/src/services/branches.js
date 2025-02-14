@@ -21,7 +21,7 @@ export const getBranchByName = async (name) => {
 
 export const getBranch = async (branch_id) => {
   try {
-    return await query(
+    const [branch] = await query(
       `
       SELECT
         b.branch_id,
@@ -48,6 +48,7 @@ export const getBranch = async (branch_id) => {
     `,
       [branch_id]
     );
+    return branch;
   } catch (error) {
     throw new DBErrorException("getBranch", error);
   }

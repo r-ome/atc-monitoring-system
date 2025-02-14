@@ -156,7 +156,7 @@
             <column name="control_number" type="varchar(255)"/>
             <column name="url" type="varchar(255)"/>
             <column name="barcode" type="varchar(255)"/>
-            <column name="status" type="enum('SOLD', 'UNSOLD')" defaultValue="UNSOLD">
+            <column name="status" type="enum('SOLD', 'UNSOLD', 'REBID')" defaultValue="UNSOLD">
                 <constraints nullable="false"/>
             </column>
             <column name="v4_identifier" type="varchar(255)"/>
@@ -237,7 +237,7 @@
             <column name="auction_bidders_id" type="bigint">
                 <constraints nullable="false" />
             </column>
-            <column name="purpose" type="enum('REGISTRATION', 'PULL_OUT')" defaultValue="REGISTRATION">
+            <column name="purpose" type="enum('REGISTRATION', 'PULL_OUT', 'REFUNDED', 'LESS')" defaultValue="REGISTRATION">
                 <constraints nullable="false" />
             </column>
             <column name="amount_paid" type="bigint" defaultValue="0"/>
@@ -274,7 +274,7 @@
                 <constraints nullable="false" />
             </column>
             <column name="payment_id" type="bigint"/>
-            <column name="status" type="enum('PAID', 'UNPAID', 'CANCELLED', 'REFUNDED')" defaultValue="UNPAID">
+            <column name="status" type="enum('PAID', 'UNPAID', 'CANCELLED', 'REFUNDED', 'LESS', 'DISCREPANCY')" defaultValue="UNPAID">
                 <constraints nullable="false" />
             </column>
             <column name="price" type="bigint">
@@ -349,15 +349,10 @@
             <column name="inventory_history_id" type="bigint" autoIncrement="true">
                 <constraints primaryKey="true" nullable="false" />
             </column>
-            <column name="auction_id" type="bigint"/>
-            <column name="inventory_id" type="bigint">
-                <constraints nullable="false" />
+            <column name="auction_inventory_id" type="bigint">
+                <constraints nullable="false"/>
             </column>
-            <column name="uploaded_from" type="enum('INVENTORY', 'AUCTION')"/>
-            <column name="item_status" type="enum('PAID', 'UNPAID')">
-                <constraints nullable="false" />
-            </column>
-            <column name="auction_status" type="enum('SOLD', 'UNSOLD', 'CANCELLED', 'REFUNDED', 'CUT-PRICE')" defaultValue="SOLD">
+            <column name="auction_status" type="enum('PAID', 'UNPAID', 'CANCELLED', 'REFUNDED', 'LESS', 'DISCREPANCY')">
                 <constraints nullable="false" />
             </column>
             <column name="remarks" type="varchar(255)"/>
@@ -370,13 +365,41 @@
 
         <addForeignKeyConstraint
             baseTableName="inventory_histories"
-            baseColumnNames="inventory_id"
-            constraintName="fk_inventory_inventory_history"
-            referencedTableName="inventories"
-            referencedColumnNames="inventory_id"
+            baseColumnNames="auction_inventory_id"
+            constraintName="fk_auction_inventory_histories"
+            referencedTableName="auctions_inventories"
+            referencedColumnNames="auction_inventory_id"
             onUpdate="CASCADE"
             onDelete="CASCADE"
         />
+
+        <createTable tableName="users">
+            <column name="user_id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="username" type="varchar(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="password" type="varchar(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="role" type="enum('SUPER_ADMIN', 'ADMIN', 'CASHIER', 'ENCODER')">
+                <constraints nullable="false" />
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
+            <column name="deleted_at" type="datetime"/>
+        </createTable>
+
+        <sql>
+            INSERT INTO users(name, username, password, role)
+            VALUES ("SUPERADMIN", "SUPERADMIN", "SUPERADMIN", "SUPER_ADMIN");
+        </sql>
 
         <sql>
             INSERT INTO suppliers(name, supplier_code, japanese_name, num_of_containers, shipper)
@@ -431,7 +454,7 @@
 
         <sql>
             INSERT INTO bidders(first_name, middle_name, last_name, bidder_number)
-            VALUES ("John", "", "Agoncillo", "001");
+            VALUES ("JOHN", "", "AGONCILLO", "0001");
         </sql>
     </changeSet>
 

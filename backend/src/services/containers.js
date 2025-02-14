@@ -80,28 +80,13 @@ export const getContainersBySupplier = async (supplier_id) => {
     return await query(
       `
         SELECT
-          s.supplier_id,
-          s.name,
-          s.supplier_code,
-          s.num_of_containers,
-          IFNULL(
-            (
-              SELECT JSON_ARRAYAGG(JSON_OBJECT(
-                'container_id', c.container_id,
-                'barcode', c.barcode,
-                'container_num', c.container_num,
-                'num_of_items', c.num_of_items,
-                'branch', JSON_OBJECT('id', c.branch_id, 'name', b.name)
-              ))
-              FROM containers c
-              LEFT JOIN branches b ON b.branch_id = c.branch_id
-              WHERE c.supplier_id = s.supplier_id
-                AND c.deleted_at IS NULL
-            ),
-            JSON_ARRAY()
-          ) AS containers
-        FROM suppliers s
-        WHERE s.supplier_id = ?;
+          container_id,
+          barcode,
+          container_num,
+          num_of_items
+        FROM containers
+        WHERE supplier_id = ?
+        AND deleted_at IS NULL;
       `,
       [supplier_id]
     );

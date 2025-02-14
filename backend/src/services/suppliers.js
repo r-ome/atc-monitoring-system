@@ -21,7 +21,7 @@ export const getSupplierByNameCode = async (name, code) => {
 
 export const getSupplier = async (id) => {
   try {
-    return await query(
+    const [supplier] = await query(
       `
         SELECT
           supplier_id,
@@ -36,6 +36,7 @@ export const getSupplier = async (id) => {
         WHERE supplier_id = ?`,
       [id]
     );
+    return supplier;
   } catch (error) {
     throw new DBErrorException("getSupplier", error);
   }

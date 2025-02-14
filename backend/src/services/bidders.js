@@ -59,7 +59,7 @@ export const getMultipleBiddersByBidderNumber = async (
           b.bidder_number
         FROM auctions_bidders ab 
         LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
-        WHERE b.bidder_number = ?
+        WHERE b.bidder_number in (?)
         AND ab.auction_id = ?
       `,
       [bidder_numbers, auction_id]
@@ -67,6 +67,7 @@ export const getMultipleBiddersByBidderNumber = async (
 
     return result;
   } catch (error) {
+    console.error(error);
     throw new DBErrorException("getMultipleBiddersByBidderNumber", error);
   }
 };
@@ -104,10 +105,7 @@ export const createBidder = async (bidder) => {
       ]
     );
 
-    return {
-      bidder_id: result.insertId,
-      ...bidder,
-    };
+    return result;
   } catch (error) {
     throw new DBErrorException("createBidder", error);
   }

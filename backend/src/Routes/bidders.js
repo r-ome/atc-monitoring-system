@@ -15,7 +15,7 @@ import {
 } from "../services/bidders.js";
 
 import { logger } from "../logger.js";
-import { formatNumberToCurrency } from "../utils/index.js";
+import { formatNumberPadding, formatNumberToCurrency } from "../utils/index.js";
 import {
   renderHttpError,
   BIDDERS_501,
@@ -121,7 +121,9 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const bidder = await createBidder(body);
+    body.bidder_number = formatNumberPadding(body.bidder_number, 4);
+    const response = await createBidder(body);
+    const bidder = await getBidder(response.insertId);
     return res.status(200).json({ data: bidder });
   } catch (error) {
     return renderHttpError(res, {
@@ -211,7 +213,7 @@ router.post("/:bidder_id/requirements", async (req, res) => {
         .required()
         .messages({ "string.empty": "Bidder ID is required" }),
       name: Joi.string()
-        .pattern(/^[a-zA-Z0-9\- ]+$/)
+        .pattern(/^[a-zA-Z0-9\-'` ]+$/)
         .required()
         .messages({
           "string.pattern.base": "Invalid characters",

@@ -6,8 +6,6 @@ import {
   getBranchByName,
   getBranches,
   createBranch,
-  updateBranch,
-  deleteBranch,
 } from "../services/branches.js";
 import { DB_ERROR_EXCEPTION } from "../services/index.js";
 
@@ -25,7 +23,7 @@ const router = express.Router();
 router.get("/:branch_id", async (req, res) => {
   try {
     const { branch_id } = req.params;
-    const [branch] = await getBranch(branch_id);
+    const branch = await getBranch(branch_id);
     if (!branch) {
       return renderHttpError(res, {
         log: `Branch with ID: ${branch_id} does not exist`,
@@ -97,30 +95,6 @@ router.post("/", async (req, res) => {
     const response = await createBranch(req.body);
     const [branch] = await getBranch(response.insertId);
     return res.status(200).json({ data: branch });
-  } catch (error) {
-    return renderHttpError(res, {
-      log: error,
-      error: error[DB_ERROR_EXCEPTION] ? BRANCHES_501 : BRANCHES_503,
-    });
-  }
-});
-
-router.put("/:id", async (req, res) => {
-  try {
-    const branch = await updateBranch(req.params.id, req.body);
-    return es.status(200).send(branch);
-  } catch (error) {
-    return renderHttpError(res, {
-      log: error,
-      error: error[DB_ERROR_EXCEPTION] ? BRANCHES_501 : BRANCHES_503,
-    });
-  }
-});
-
-router.delete("/:id", async (req, res) => {
-  try {
-    const branch = await deleteBranch(req.params.id);
-    return res.status(200).send(branch);
   } catch (error) {
     return renderHttpError(res, {
       log: error,
