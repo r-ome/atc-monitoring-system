@@ -1,5 +1,3 @@
-import React from "react";
-
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   buttonType?: "primary" | "secondary";
 }

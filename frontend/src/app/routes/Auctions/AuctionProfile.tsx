@@ -6,15 +6,16 @@ import {
   useLocation,
   NavLink,
 } from "react-router-dom";
-import { Button } from "../../../components";
-import { useAuction } from "../../../context";
-import { AUCTIONS_403 } from "../errors";
+import { Button, ProfileDetails } from "@components";
+import { useAuction } from "@context";
 import { useSession } from "../../hooks";
+import RenderServerError from "../ServerCrashComponent";
 
 const AuctionProfile = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
+  const [sessionAuction, setSessionAuction] = useSession<any>("auction", null);
   const {
     auction,
     fetchAuctionDetails,
@@ -22,9 +23,8 @@ const AuctionProfile = () => {
     fetchMonitoring,
     fetchManifestRecords,
     isLoading: isFetchingAuctionDetails,
-    errors,
+    error,
   } = useAuction();
-  const [sessionAuction, setSessionAuction] = useSession<any>("auction", null);
 
   useEffect(() => {
     const { auction_id: auctionId } = params;
@@ -38,9 +38,11 @@ const AuctionProfile = () => {
       fetchInitialData();
     }
   }, [
-    params.auction_id,
+    params,
     fetchRegisteredBidders,
     fetchAuctionDetails,
+    fetchManifestRecords,
+    fetchMonitoring,
     location.key,
   ]);
 
@@ -54,39 +56,7 @@ const AuctionProfile = () => {
       }
       setSessionAuction(auction);
     }
-  }, [JSON.stringify(auction)]);
-
-  const renderProfileDetails = (auction: any) => {
-    let auctionDetails = auction;
-    let profileDetails = [];
-    for (let key in auctionDetails) {
-      let label = key;
-      if (label === "auction_date") label = "Auction Date";
-      label = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " ");
-      profileDetails.push({ label, value: auctionDetails[key] });
-    }
-
-    return (
-      <>
-        {profileDetails
-          .filter(
-            (item) =>
-              !["auction id", "auction date"].includes(item.label.toLowerCase())
-          )
-          .map((item, i) => {
-            return (
-              <div
-                key={i}
-                className="flex justify-between items-center p-2 w-1/5"
-              >
-                <div>{item.label}:</div>
-                <div className="text-lg font-bold">{item.value}</div>
-              </div>
-            );
-          })}
-      </>
-    );
-  };
+  }, [auction?.auction_id, sessionAuction?.auction_id]);
 
   const renderAuctionNavigation = (auction: any) => {
     const navigation = [
@@ -123,25 +93,12 @@ const AuctionProfile = () => {
     ));
   };
 
-  if (errors && errors.error === AUCTIONS_403) {
-    return (
-      <>
-        <div className="w-full">
-          <Button
-            buttonType="secondary"
-            onClick={() => navigate("/auctions")}
-            className="text-blue-500"
-          >
-            Go Back
-          </Button>
-        </div>
-        <div className="border p-2 rounded border-red-500 mb-10">
-          <h1 className="text-red-500 text-xl flex justify-center">
-            We're not able to find the what you're looking for...
-          </h1>
-        </div>
-      </>
-    );
+  if (error?.httpStatus === 500) {
+    return <RenderServerError {...error} />;
+  }
+
+  if (isFetchingAuctionDetails || !auction) {
+    return <div className="border p-2 flex justify-center">Loading...</div>;
   }
 
   return (
@@ -156,29 +113,26 @@ const AuctionProfile = () => {
         </Button>
       </div>
 
-      {!isFetchingAuctionDetails && auction ? (
-        <div className="h-full">
-          <div className="flex flex-col gap-2">
-            <div className="w-full border rounded shadow-md p-4 h-full">
-              <h1 className="text-3xl font-bold">{auction?.auction_date}</h1>
-              <div className="flex mt-4">
-                <div className="flex-col w-full gap-4">
-                  {renderProfileDetails(auction)}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                {renderAuctionNavigation(auction)}
-              </div>
+      <div className="h-full">
+        <div className="flex flex-col gap-2">
+          <div className="flex w-full justify-between border rounded shadow-md p-4 h-full">
+            <div className="w-2/6">
+              <ProfileDetails
+                title={auction?.auction_date}
+                profile={auction}
+                excludedProperties={["auction id", "auction date"]}
+              />
             </div>
-
-            <div className="">
-              <Outlet />
+            <div className="flex gap-2 border h-full text-3xl shadow">
+              {renderAuctionNavigation(auction)}
             </div>
           </div>
+
+          <div>
+            <Outlet />
+          </div>
         </div>
-      ) : (
-        <div className="border p-2 flex justify-center">Loading...</div>
-      )}
+      </div>
     </>
   );
 };

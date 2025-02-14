@@ -1,14 +1,20 @@
 import { useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
-import { Button, Input, Table } from "../../../components";
-import { useAuction } from "../../../context";
+import { Button, Input, Table } from "@components";
+import { useAuction } from "@context";
+import { UploadManifestPayload, APIError } from "@types";
 import { AUCTIONS_401 } from "../errors";
 
 const EncodePage = () => {
+  const methods = useForm<UploadManifestPayload>();
   const [fileName, setFileName] = useState<string | null>(null);
-  const { auction, manifestRecord, uploadManifest, errors, isLoading } =
-    useAuction();
-  const methods = useForm();
+  const {
+    auction,
+    manifestRecord: SuccessResponse,
+    uploadManifest,
+    error,
+    isLoading,
+  } = useAuction();
 
   const handleSubmitManifest = methods.handleSubmit(async (data) => {
     const [file] = data.file;
@@ -17,21 +23,34 @@ const EncodePage = () => {
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "application/vnd.ms-excel",
     ];
-    if (validFileTypes.includes(file.type)) {
-      const formData = new FormData();
-      formData.append("file", data.file[0]);
-      await uploadManifest(auction.auction_id, formData);
-    } else {
-      methods.setError("file", {
-        type: "string",
-        message: "Invalid file! Please use only excel files!",
-      });
+    if (auction) {
+      if (validFileTypes.includes(file.type)) {
+        const formData = new FormData();
+        formData.append("file", data.file[0]);
+        await uploadManifest(auction.auction_id, formData);
+      } else {
+        methods.setError("file", {
+          type: "string",
+          message: "Invalid file! Please use only excel files!",
+        });
+      }
     }
   });
 
   const handleChangeFileName = () => {
     const [file] = methods.getValues("file");
     setFileName(file?.name);
+  };
+
+  const ValidationError: React.FC<APIError> = ({ error }) => {
+    if (error === AUCTIONS_401) {
+      return (
+        <h1 className="text-red-500 border py-2 border-red-500 mb-4 text-xl flex flex-col items-center justify-center">
+          <div className="mb-2">Please double check the file!</div>
+        </h1>
+      );
+    }
+    return null;
   };
 
   return (
@@ -49,13 +68,10 @@ const EncodePage = () => {
                 (Download Manifest Here!)
               </a>
             </div>
+
             <div className="flex">
               <div className="w-2/6 p-2">
-                {errors?.error === AUCTIONS_401 ? (
-                  <div className="text-red-500 text-xl">
-                    Please double check the sheet that you encoded!
-                  </div>
-                ) : null}
+                {error && <ValidationError {...error} />}
                 <FormProvider {...methods}>
                   <form
                     id="create_bidder"
@@ -101,10 +117,10 @@ const EncodePage = () => {
               </div>
               <div className="w-4/6 p-2">
                 <div className="text-3xl text-center">
-                  {manifestRecord?.message}
+                  {SuccessResponse?.message}
                 </div>
                 <Table
-                  data={manifestRecord?.manifest || []}
+                  data={SuccessResponse?.manifest || []}
                   loading={isLoading}
                   hasCount
                   rowKeys={[

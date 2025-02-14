@@ -1,55 +1,46 @@
-import { createContext, useContext, useReducer } from "react";
-import axios from "axios";
-import { Container, ContainersBySupplier } from "../../types";
+import { createContext, useContext, useReducer, useCallback } from "react";
+import axios, { isAxiosError } from "axios";
+import {
+  APIError,
+  BaseContainer,
+  Container,
+  CreateContainerPayload,
+} from "@types";
 import * as ContainerActions from "./actions";
-import moment from "moment";
 
 interface ContainerState {
-  container: any;
-  containers: Container[];
-  containersBySupplier: ContainersBySupplier | any;
+  container: Container | null;
+  containersBySupplier: BaseContainer[];
   isLoading: boolean;
-  error: any;
+  error: APIError | null;
 }
 
 interface ContainerContextType extends ContainerState {
-  fetchContainer: (supplierId: string, containerId: string) => Promise<void>;
-  getContainers: () => Promise<void>;
-  fetchContainersBySupplier: (id: string) => Promise<void>;
-  createContainer: (supplierId: string | undefined, body: {}) => Promise<void>;
-  updateContainer: (supplierId: string, containerId: string, body: any) => void;
+  fetchContainer: (supplierId: number, containerId: number) => Promise<void>;
+  fetchContainersBySupplier: (supplierId: string) => Promise<void>;
+  createContainer: (
+    supplierId: number,
+    body: CreateContainerPayload
+  ) => Promise<void>;
 }
 
 export type ContainerAction =
-  | { type: "FETCH_CONTAINERS" }
   | { type: "FETCH_CONTAINER" }
+  | { type: "FETCH_CONTAINER_SUCCESS"; payload: { data: Container } }
+  | { type: "FETCH_CONTAINER_FAILED"; payload: APIError }
   | { type: "FETCH_CONTAINERS_BY_SUPPLIER" }
-  | { type: "CREATE_CONTAINER" }
-  | { type: "UPDATE_CONTAINER" }
-  | {
-      type: "FETCH_CONTAINERS_SUCCESS";
-      payload: { data: Container[] };
-    }
-  | {
-      type: "FETCH_CONTAINER_SUCCESS";
-      payload: { data: Container[] };
-    }
   | {
       type: "FETCH_CONTAINERS_BY_SUPPLIER_SUCCESS";
-      payload: { data: ContainersBySupplier };
+      payload: { data: BaseContainer[] };
     }
+  | { type: "FETCH_CONTAINERS_BY_SUPPLIER_FAILED"; payload: APIError }
+  | { type: "CREATE_CONTAINER" }
   | { type: "CREATE_CONTAINER_SUCCESS"; payload: { data: Container } }
-  | { type: "UPDATE_CONTAINER_SUCCESS"; payload: Container }
-  | { type: "FETCH_CONTAINER_FAILED"; payload: Error | null }
-  | { type: "FETCH_CONTAINERS_FAILED"; payload: Error | null }
-  | { type: "FETCH_CONTAINERS_BY_SUPPLIER_FAILED"; payload: Error | null }
-  | { type: "CREATE_CONTAINER_FAILED"; payload: Error | null }
-  | { type: "UPDATE_CONTAINER_FAILED"; payload: Error | null };
+  | { type: "CREATE_CONTAINER_FAILED"; payload: APIError };
 
 const initialState = {
   container: null,
-  containers: [],
-  containersBySupplier: {},
+  containersBySupplier: [],
   isLoading: false,
   error: null,
 };
@@ -57,23 +48,17 @@ const initialState = {
 const ContainerContext = createContext<ContainerContextType>({
   ...initialState,
   fetchContainer: async () => {},
-  getContainers: async () => {},
   fetchContainersBySupplier: async () => {},
   createContainer: async () => {},
-  updateContainer: () => {},
 });
 
 const containerReducer = (state: ContainerState, action: ContainerAction) => {
   switch (action.type) {
     case ContainerActions.FETCH_CONTAINER:
-    case ContainerActions.FETCH_CONTAINERS:
     case ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER:
     case ContainerActions.CREATE_CONTAINER:
-    case ContainerActions.UPDATE_CONTAINER:
       return { ...state, isLoading: true };
 
-    case ContainerActions.FETCH_CONTAINERS_SUCCESS:
-      return { ...state, isLoading: false, containers: action.payload.data };
     case ContainerActions.FETCH_CONTAINER_SUCCESS:
       return { ...state, isLoading: false, container: action.payload.data };
     case ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER_SUCCESS:
@@ -89,18 +74,9 @@ const containerReducer = (state: ContainerState, action: ContainerAction) => {
         container: action.payload.data,
         error: null,
       };
-    case ContainerActions.UPDATE_CONTAINER_SUCCESS:
-      return {
-        ...state,
-        isLoading: false,
-        container: action.payload,
-        error: null,
-      };
-    case ContainerActions.FETCH_CONTAINERS_FAILED:
     case ContainerActions.FETCH_CONTAINER_FAILED:
     case ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER_FAILED:
     case ContainerActions.CREATE_CONTAINER_FAILED:
-    case ContainerActions.UPDATE_CONTAINER_FAILED:
       return { ...state, isLoading: false, error: action.payload };
   }
 };
@@ -112,7 +88,7 @@ export const ContainerProvider = ({
 }) => {
   const [state, dispatch] = useReducer(containerReducer, initialState);
 
-  const fetchContainer = async (supplierId: string, containerId: string) => {
+  const fetchContainer = async (supplierId: number, containerId: number) => {
     dispatch({ type: ContainerActions.FETCH_CONTAINER });
     try {
       const response = await axios.get(
@@ -122,31 +98,17 @@ export const ContainerProvider = ({
         type: ContainerActions.FETCH_CONTAINER_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({
-        type: ContainerActions.FETCH_CONTAINER_FAILED,
-        payload: error,
-      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: ContainerActions.FETCH_CONTAINER_FAILED,
+          payload: error.response?.data,
+        });
+      }
     }
   };
 
-  const getContainers = async () => {
-    dispatch({ type: ContainerActions.FETCH_CONTAINERS });
-    try {
-      const response = await axios.get("/containers/all");
-      dispatch({
-        type: ContainerActions.FETCH_CONTAINERS_SUCCESS,
-        payload: response.data,
-      });
-    } catch (error: any) {
-      dispatch({
-        type: ContainerActions.FETCH_CONTAINERS_FAILED,
-        payload: error,
-      });
-    }
-  };
-
-  const fetchContainersBySupplier = async (supplierId: string) => {
+  const fetchContainersBySupplier = useCallback(async (supplierId: string) => {
     dispatch({ type: ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER });
     try {
       const response = await axios.get(`/suppliers/${supplierId}/containers`);
@@ -154,17 +116,19 @@ export const ContainerProvider = ({
         type: ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({
-        type: ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER_FAILED,
-        payload: error,
-      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER_FAILED,
+          payload: error.response?.data,
+        });
+      }
     }
-  };
+  }, []);
 
   const createContainer = async (
-    supplierId: string | null | undefined,
-    body: any
+    supplierId: number,
+    body: CreateContainerPayload
   ) => {
     dispatch({ type: ContainerActions.CREATE_CONTAINER });
     try {
@@ -177,53 +141,13 @@ export const ContainerProvider = ({
         type: ContainerActions.CREATE_CONTAINER_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({
-        type: ContainerActions.CREATE_CONTAINER_FAILED,
-        payload: error.response.data,
-      });
-    }
-  };
-
-  const updateContainer = async (
-    supplierId: string,
-    containerId: string,
-    body: any
-  ) => {
-    dispatch({ type: ContainerActions.UPDATE_CONTAINER });
-    try {
-      const response = await axios.put(
-        `/suppliers/${supplierId}/containers/${containerId}`,
-        {
-          ...body,
-          telegraphic_transferred: moment(body.telegraphic_transferred).format(
-            "YYYY-MM-DD HH:mm:ss"
-          ),
-          arrival_date_warehouse_ph: moment(
-            body.arrival_date_warehouse_ph
-          ).format("YYYY-MM-DD HH:mm:ss"),
-          departure_date_from_japan: moment(
-            body.departure_date_from_japan
-          ).format("YYYY-MM-DD HH:mm:ss"),
-          eta_to_ph: moment(body.eta_to_ph).format("YYYY-MM-DD HH:mm:ss"),
-          sorting_date: moment(body.sorting_date).format("YYYY-MM-DD HH:mm:ss"),
-          auction_date: moment(body.auction_date).format("YYYY-MM-DD HH:mm:ss"),
-          payment_date: moment(body.payment_date).format("YYYY-MM-DD HH:mm:ss"),
-          vanning_date: moment(body.vanning_date).format("YYYY-MM-DD HH:mm:ss"),
-          devanning_date: moment(body.devanning_date).format(
-            "YYYY-MM-DD HH:mm:ss"
-          ),
-        }
-      );
-      dispatch({
-        type: ContainerActions.UPDATE_CONTAINER_SUCCESS,
-        payload: response.data,
-      });
-    } catch (error: any) {
-      dispatch({
-        type: ContainerActions.UPDATE_CONTAINER_FAILED,
-        payload: error,
-      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: ContainerActions.CREATE_CONTAINER_FAILED,
+          payload: error.response?.data,
+        });
+      }
     }
   };
 
@@ -232,10 +156,8 @@ export const ContainerProvider = ({
       value={{
         ...state,
         fetchContainer,
-        getContainers,
         fetchContainersBySupplier,
         createContainer,
-        updateContainer,
       }}
     >
       {children}

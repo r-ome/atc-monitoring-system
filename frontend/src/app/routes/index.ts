@@ -5,7 +5,6 @@ import {
   BidderList,
   BidderProfile,
   CreateBidder,
-  BidderAuction,
   CreateBidderRequirement,
 } from "./Bidders";
 import {
@@ -17,7 +16,7 @@ import {
   AuctionBidders,
   EncodePage,
 } from "./Auctions";
-import { AuctionInventory, CreateInventory } from "./Inventories";
+import { CreateInventory } from "./Inventories";
 
 export {
   SupplierList,
@@ -29,7 +28,6 @@ export {
   CreateContainer,
   EncodePage,
   BranchProfile,
-  BidderAuction,
   RegisterBidder,
   CreateSupplier,
   AuctionProfile,
@@ -41,5 +39,4 @@ export {
   AuctionList,
   AuctionPayments,
   Monitoring,
-  AuctionInventory,
 };

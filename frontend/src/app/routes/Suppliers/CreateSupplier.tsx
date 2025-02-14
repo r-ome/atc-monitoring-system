@@ -1,44 +1,61 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
-import { Input, Button } from "../../../components";
-import { useSuppliers } from "../../../context/SupplierProvider/SupplierContext";
-import { SUPPLIERS_402, SUPPLIERS_501 } from "../errors";
+import { Input, Button } from "@components";
+import { useSuppliers } from "@context/SupplierProvider/SupplierContext";
+import { APIError, CreateSupplierPayload } from "@types";
+import { SUPPLIERS_402 } from "../errors";
+import RenderServerError from "../ServerCrashComponent";
 
 const CreateSupplier = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const methods = useForm();
-  const [hasError, setHasError] = useState<boolean>(false);
+  const methods = useForm<CreateSupplierPayload>();
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
-  const { createSupplier, isLoading, errors, supplier } = useSuppliers();
+  const {
+    createSupplier,
+    isLoading,
+    error: ErrorResponse,
+    supplier: SuccessResponse,
+  } = useSuppliers();
 
   const handleSubmitCreateSupplier = methods.handleSubmit(async (data) => {
     await createSupplier(data);
   });
 
   useEffect(() => {
-    if (!errors && !isLoading && supplier) {
-      methods.reset({
-        name: "",
-        japanese_name: "",
-        supplier_code: "",
-        shipper: "",
-      });
-      setHasError(false);
+    if (!ErrorResponse && SuccessResponse) {
+      methods.reset();
       setIsSuccess(true);
     }
 
-    if (errors) {
+    if (ErrorResponse) {
       setIsSuccess(false);
-      setHasError(true);
     }
-  }, [errors, isLoading]);
+  }, [ErrorResponse, SuccessResponse, methods]);
 
   useEffect(() => {
-    setHasError(false);
     setIsSuccess(false);
   }, [location.key]);
+
+  const DuplicateEntryError: React.FC<APIError> = ({ error }) => {
+    if (error === SUPPLIERS_402) {
+      return (
+        <h1 className="text-red-500 border py-2 border-red-500 mb-4 text-xl flex flex-col items-center justify-center">
+          <div className="mb-2">
+            Either Supplier Name or Supplier Code already exist!
+          </div>
+          <div>Please double check the list and try again.</div>
+        </h1>
+      );
+    }
+
+    return null;
+  };
+
+  if (ErrorResponse?.httpStatus === 500) {
+    return <RenderServerError {...ErrorResponse} />;
+  }
 
   return (
     <div>
@@ -60,16 +77,7 @@ const CreateSupplier = () => {
           <div className="text-3xl flex justify-center">Loading...</div>
         ) : (
           <FormProvider {...methods}>
-            {hasError ? (
-              <h1 className="text-red-500 text-xl flex justify-center">
-                {errors?.error === SUPPLIERS_501 ? (
-                  <>Please take a look back later...</>
-                ) : null}
-                {errors?.error === SUPPLIERS_402 ? (
-                  <>Supplier Name or Supplier Code already exist!</>
-                ) : null}
-              </h1>
-            ) : null}
+            {ErrorResponse && <DuplicateEntryError {...ErrorResponse} />}
 
             {isSuccess ? (
               <h1 className="text-green-500 text-xl flex justify-center">

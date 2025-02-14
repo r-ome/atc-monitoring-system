@@ -1,43 +1,51 @@
 import { createContext, useContext, useReducer } from "react";
-import axios from "axios";
-import { Inventory } from "../../types";
+import axios, { isAxiosError } from "axios";
+import {
+  Inventory,
+  AddInventoryResponse,
+  APIError,
+  CreateInventoryPayload,
+} from "@types";
 import * as InventoryActions from "./actions";
 
 interface InventoryState {
-  inventory: any;
-  inventoriesByContainer: any; //Inventory[];
+  inventory: AddInventoryResponse | null;
+  inventoriesByContainer: Inventory[];
   isLoading: boolean;
-  errors: any;
+  error: APIError | null;
 }
 
 interface InventoryContextType extends InventoryState {
   fetchInventoriesByContainer: (
-    supplierId: string,
-    containerId: string
+    supplierId: number,
+    containerId: number
   ) => Promise<void>;
   createInventory: (
-    supplierId: string,
-    containerId: string,
-    formData: any
+    supplierId: number,
+    containerId: number,
+    body: CreateInventoryPayload
   ) => Promise<void>;
 }
 
 export type InventoryAction =
-  | { type: "FETCH_INVENTORIES_BY_CONTAINER" }
   | { type: "ADD_INVENTORY_TO_CONTAINER" }
   | {
-      type: "FETCH_INVENTORIES_BY_CONTAINER_SUCCESS";
-      payload: { data: any };
+      type: "ADD_INVENTORY_TO_CONTAINER_SUCCESS";
+      payload: { data: AddInventoryResponse };
     }
-  | { type: "ADD_INVENTORY_TO_CONTAINER_SUCCESS"; payload: { data: Inventory } }
-  | { type: "FETCH_INVENTORIES_BY_CONTAINER_FAILED"; payload: null }
-  | { type: "ADD_INVENTORY_TO_CONTAINER_FAILED"; payload: null };
+  | { type: "ADD_INVENTORY_TO_CONTAINER_FAILED"; payload: APIError }
+  | { type: "FETCH_INVENTORIES_BY_CONTAINER" }
+  | {
+      type: "FETCH_INVENTORIES_BY_CONTAINER_SUCCESS";
+      payload: { data: Inventory[] };
+    }
+  | { type: "FETCH_INVENTORIES_BY_CONTAINER_FAILED"; payload: APIError };
 
 const initialState = {
   inventory: null,
-  inventoriesByContainer: {},
+  inventoriesByContainer: [],
   isLoading: false,
-  errors: null,
+  error: null,
 };
 
 const InventoryContext = createContext<InventoryContextType>({
@@ -59,20 +67,10 @@ const inventoryReducer = (state: InventoryState, action: InventoryAction) => {
         inventoriesByContainer: action.payload.data,
       };
     case InventoryActions.ADD_INVENTORY_TO_CONTAINER_SUCCESS:
-      const stateInventoriesByContainer = state.inventoriesByContainer;
-      if (stateInventoriesByContainer) {
-        stateInventoriesByContainer.inventories = [
-          ...stateInventoriesByContainer.inventories,
-          action.payload.data,
-        ];
-      } else {
-        stateInventoriesByContainer.inventories = [action.payload.data];
-      }
       return {
         ...state,
         isLoading: false,
         inventory: action.payload.data,
-        inventoriesByContainer: stateInventoriesByContainer,
         error: null,
       };
     case InventoryActions.FETCH_INVENTORIES_BY_CONTAINER_FAILED:
@@ -89,8 +87,8 @@ export const InventoryProvider = ({
   const [state, dispatch] = useReducer(inventoryReducer, initialState);
 
   const fetchInventoriesByContainer = async (
-    supplierId: string,
-    containerId: string
+    supplierId: number,
+    containerId: number
   ) => {
     dispatch({ type: InventoryActions.FETCH_INVENTORIES_BY_CONTAINER });
     try {
@@ -101,18 +99,20 @@ export const InventoryProvider = ({
         type: InventoryActions.FETCH_INVENTORIES_BY_CONTAINER_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({
-        type: InventoryActions.FETCH_INVENTORIES_BY_CONTAINER_FAILED,
-        payload: error,
-      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: InventoryActions.FETCH_INVENTORIES_BY_CONTAINER_FAILED,
+          payload: error.response?.data,
+        });
+      }
     }
   };
 
   const createInventory = async (
-    supplierId: string | null | undefined,
-    containerId: string | null | undefined,
-    body: any
+    supplierId: number,
+    containerId: number,
+    body: CreateInventoryPayload
   ) => {
     dispatch({ type: InventoryActions.ADD_INVENTORY_TO_CONTAINER });
     try {
@@ -120,7 +120,7 @@ export const InventoryProvider = ({
         `/suppliers/${supplierId}/containers/${containerId}/inventories`,
         {
           barcode: body.barcode,
-          description: body.description,
+          description: body.description.toUpperCase(),
           control_number: body.control_number,
           url: body.url,
         }
@@ -129,11 +129,13 @@ export const InventoryProvider = ({
         type: InventoryActions.ADD_INVENTORY_TO_CONTAINER_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({
-        type: InventoryActions.ADD_INVENTORY_TO_CONTAINER_FAILED,
-        payload: error,
-      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: InventoryActions.ADD_INVENTORY_TO_CONTAINER_FAILED,
+          payload: error.response?.data,
+        });
+      }
     }
   };
 

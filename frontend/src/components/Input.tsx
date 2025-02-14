@@ -1,6 +1,5 @@
-import React from "react";
 import { RegisterOptions, useFormContext } from "react-hook-form";
-import { findInputErrors, isFormInvalid } from "../lib/utils";
+import { findInputErrors, isFormInvalid } from "@lib/utils";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -32,7 +31,11 @@ const Input: React.FC<InputProps> = ({
         type={rest.type ? rest.type : "text"}
         {...rest}
         {...register(name, validations)}
-        className={`mt-2 p-4 placeholder-blueGray-300 text-blueGray-600 relative bg-white rounded text-lg border outline-none focus:outline-none focus:ring w-full ${rest.className}`}
+        className={`
+          mt-2 p-4 placeholder-blueGray-300 text-blueGray-600 relative bg-white
+          rounded text-lg border outline-none focus:outline-none focus:ring w-full
+          ${rest.className}
+        `}
       />
       {isInvalid && (
         <div className="text-red-500">{inputError?.error.message}</div>

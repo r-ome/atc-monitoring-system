@@ -1,28 +1,29 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Button, Table } from "../../../components";
-import { useContainers, useInventories } from "../../../context";
+import { Button, Table, ProfileDetails } from "@components";
+import { useContainers, useInventories } from "@context";
 import { useSession } from "../../hooks";
+import { Container, Supplier } from "@types";
+import RenderServerError from "../ServerCrashComponent";
 
 const ContainerProfile = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [supplier, setSupplier] = useState<{ supplier_id: string } | null>(
-    null
-  );
+  const [supplier, setSupplier] = useState<Supplier | null>(null);
   const {
     container,
     isLoading: isFetchingContainer,
     fetchContainer,
+    error: ContainerErrorResponse,
   } = useContainers();
   const {
     inventoriesByContainer,
     fetchInventoriesByContainer,
     isLoading: isFetchingInventories,
-    errors: inventoryErrors,
+    error: InventoryErrorResponse,
   } = useInventories();
-  const [sessionSupplier] = useSession("supplier", null);
-  const [sessionContainer, setSessionContainer] = useSession<any>(
+  const [sessionSupplier] = useSession<Supplier | null>("supplier", null);
+  const [sessionContainer, setSessionContainer] = useSession<Container | null>(
     "container",
     null
   );
@@ -34,15 +35,15 @@ const ContainerProfile = () => {
   }, [sessionSupplier]);
 
   useEffect(() => {
-    const { container_id: containerId } = location.state.container;
+    const { container_id: containerId }: Container = location.state.container;
     if (supplier) {
       const fetchInitialData = async () => {
-        await fetchContainer(supplier?.supplier_id!, containerId);
-        await fetchInventoriesByContainer(supplier?.supplier_id, containerId);
+        await fetchContainer(supplier.supplier_id, containerId);
+        await fetchInventoriesByContainer(supplier.supplier_id, containerId);
       };
       fetchInitialData();
     }
-  }, [JSON.stringify(container), JSON.stringify(supplier)]);
+  }, [supplier?.supplier_id, sessionSupplier, location.key]);
 
   useEffect(() => {
     if (container) {
@@ -54,38 +55,20 @@ const ContainerProfile = () => {
       }
       setSessionContainer(container);
     }
-  }, []);
+  }, [sessionContainer?.container_id, container?.container_id]);
 
-  const renderProfileDetails = (container: any) => {
-    let containerDetails = container;
-    let profileDetails = [];
-    for (let key in containerDetails) {
-      let label = key;
-      if (label === "created_at") label = "Date created";
-      if (label === "updated_at") label = "Last updated at";
-      label = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " ");
-      profileDetails.push({ label, value: containerDetails[key] });
-    }
+  const httpErrors = [
+    InventoryErrorResponse?.httpStatus,
+    ContainerErrorResponse?.httpStatus,
+  ];
+  if (httpErrors.includes(500)) {
+    const ErrorResponse = InventoryErrorResponse || ContainerErrorResponse;
+    if (ErrorResponse) return <RenderServerError {...ErrorResponse} />;
+  }
 
-    return (
-      <>
-        {profileDetails.map((item, i) => {
-          if (
-            ["container id", "barcode", "supplier", "branch"].includes(
-              item.label.toLowerCase()
-            )
-          )
-            return;
-          return (
-            <div key={i} className="flex justify-between items-center p-2">
-              <div>{item.label}:</div>
-              <div className="text-lg font-bold">{item.value}</div>
-            </div>
-          );
-        })}
-      </>
-    );
-  };
+  if (isFetchingContainer || !container) {
+    return <div className="border p-2 flex justify-center">Loading...</div>;
+  }
 
   return (
     <>
@@ -99,60 +82,55 @@ const ContainerProfile = () => {
         </Button>
       </div>
 
-      {!isFetchingContainer && container ? (
-        <div className="h-full">
-          <div className="flex flex-grow gap-2">
-            <div className="w-2/6 border rounded shadow-md p-4 h-full">
-              <h1 className="text-3xl font-bold">
-                {container?.barcode
+      <div className="h-full">
+        <div className="flex flex-grow gap-2">
+          <div className="w-2/6 border rounded shadow-md p-4 h-full">
+            <ProfileDetails
+              title={
+                container?.barcode
                   ? container?.barcode
-                  : `${container.supplier.code}-${container.container_num}`}
-              </h1>
-              <div className="flex mt-4">
-                <div className="flex-col w-full gap-4">
-                  {renderProfileDetails(container)}
-                </div>
-              </div>
-            </div>
+                  : `${container.supplier.code}-${container.container_num}`
+              }
+              profile={container}
+              excludedProperties={[
+                "container_id",
+                "barcode",
+                "supplier",
+                "branch",
+                "updated_at",
+              ]}
+              renamedProperties={{ created_at: "Date added" }}
+            />
+          </div>
 
-            <div className="w-4/6 border p-4 h-full">
-              <div className="flex justify-between items-center w-full p-2">
-                <h1 className="text-3xl font-bold">Inventories</h1>
-                <Button
-                  buttonType="primary"
-                  onClick={() =>
-                    navigate("/inventory/create", { state: { container } })
-                  }
-                >
-                  Add Inventory
-                </Button>
-              </div>
-              {!isFetchingInventories && inventoriesByContainer && (
-                <Table
-                  data={inventoriesByContainer.inventories || []}
-                  loading={isFetchingInventories}
-                  rowKeys={[
-                    "barcode",
-                    "description",
-                    "control_number",
-                    "status",
-                    // "created_at",
-                  ]}
-                  columnHeaders={[
-                    "Barcode",
-                    "Description",
-                    "Control #",
-                    "Status",
-                    // "Created at",
-                  ]}
-                />
-              )}
+          <div className="w-4/6 border p-4 h-full">
+            <div className="flex justify-between items-center w-full p-2">
+              <h1 className="text-3xl font-bold">Inventories</h1>
+              <Button
+                buttonType="primary"
+                onClick={() =>
+                  navigate("/inventory/create", { state: { container } })
+                }
+              >
+                Add Inventory
+              </Button>
             </div>
+            {!isFetchingInventories && inventoriesByContainer && (
+              <Table
+                data={inventoriesByContainer}
+                loading={isFetchingInventories}
+                rowKeys={["barcode", "description", "control_number", "status"]}
+                columnHeaders={[
+                  "Barcode",
+                  "Description",
+                  "Control #",
+                  "Status",
+                ]}
+              />
+            )}
           </div>
         </div>
-      ) : (
-        <div className="border p-2 flex justify-center">Loading...</div>
-      )}
+      </div>
     </>
   );
 };

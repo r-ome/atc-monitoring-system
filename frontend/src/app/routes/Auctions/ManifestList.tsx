@@ -1,5 +1,5 @@
-import { Table } from "../../../components";
-import { useAuction } from "../../../context";
+import { Table } from "@components";
+import { useAuction } from "@context";
 
 const Monitoring = () => {
   const { manifestRecords, isLoading: isFetchingManifestRecords } =

@@ -1,20 +1,24 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Supplier } from "../../../types";
-import { Button, Table } from "../../../components";
-import { useSuppliers } from "../../../context/SupplierProvider/SupplierContext";
-import { SUPPLIERS_501 } from "../errors";
+import { Button, Table } from "@components";
+import { useSuppliers } from "@context/SupplierProvider/SupplierContext";
+import RenderServerError from "../ServerCrashComponent";
 
 const Suppliers = () => {
   const navigate = useNavigate();
-  const { errors, suppliers, isLoading, fetchSuppliers } = useSuppliers();
+  const { error, suppliers, isLoading, fetchSuppliers } = useSuppliers();
 
   useEffect(() => {
     const fetchInitialData = async () => {
       await fetchSuppliers();
     };
     fetchInitialData();
-  }, []);
+  }, [fetchSuppliers]);
+
+  if (error?.httpStatus === 500) {
+    return <RenderServerError {...error} />;
+  }
 
   return (
     <div>
@@ -30,16 +34,8 @@ const Suppliers = () => {
         </div>
       </div>
 
-      {errors?.error === SUPPLIERS_501 ? (
-        <div className="border p-2 rounded border-red-500 mb-10">
-          <h1 className="text-red-500 text-xl flex justify-center">
-            Please take a look back later...
-          </h1>
-        </div>
-      ) : null}
-
       <Table
-        data={suppliers || []}
+        data={suppliers}
         loading={isLoading}
         onRowClick={(supplier: Supplier) =>
           navigate(`/suppliers/${supplier.supplier_id}`, {

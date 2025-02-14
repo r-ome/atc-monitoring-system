@@ -19,6 +19,17 @@ export const formatNumberToCurrency = (num: string | number) => {
   }).format(Number(num));
 };
 
+export const convertToNumber = (amount: string): number => {
+  return parseInt(
+    amount
+      .replace(/,/g, "")
+      .replace("₱", "")
+      .replace(".00", "")
+      .replace("%", ""),
+    10
+  );
+};
+
 export const findInputErrors = (errors: FieldErrors, name: string): any => {
   const filtered = Object.keys(errors)
     .filter((key) => key.includes(name))

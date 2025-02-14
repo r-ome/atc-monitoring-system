@@ -1,44 +1,44 @@
 import { createContext, useContext, useReducer } from "react";
-import { Branch } from "../../types";
-import axios from "axios";
+import axios, { isAxiosError } from "axios";
+import { BaseBranch, Branch, CreateBranchPayload, APIError } from "@types";
 import * as BranchActions from "./actions";
 
 interface BranchState {
   branch: Branch | null;
-  branches: Branch[];
+  branches: BaseBranch[];
   isLoading: boolean;
-  error: any;
+  error?: APIError;
 }
 
 interface BranchStateContextType extends BranchState {
-  fetchBranch: (id: string) => Promise<void>;
+  fetchBranch: (id: number) => Promise<void>;
   fetchBranches: () => Promise<void>;
-  createBranch: (body: any) => Promise<void>;
+  createBranch: (body: CreateBranchPayload) => Promise<void>;
 }
 
 export type BranchAction =
   | { type: "FETCH_BRANCHES" }
-  | { type: "FETCH_BRANCHES_SUCCESS"; payload: { data: Branch[] } }
-  | { type: "FETCH_BRANCHES_FAILED"; payload: Error | null }
+  | { type: "FETCH_BRANCHES_SUCCESS"; payload: { data: BaseBranch[] } }
+  | { type: "FETCH_BRANCHES_FAILED"; payload: APIError }
   | { type: "CREATE_BRANCH" }
   | { type: "CREATE_BRANCH_SUCCESS"; payload: { data: Branch } }
-  | { type: "CREATE_BRANCH_FAILED"; payload: Error | null }
+  | { type: "CREATE_BRANCH_FAILED"; payload: APIError }
   | { type: "FETCH_BRANCH" }
-  | { type: "FETCH_BRANCH_SUCCESS"; payload: { data: any } }
-  | { type: "FETCH_BRANCH_FAILED"; payload: Error | null };
+  | { type: "FETCH_BRANCH_SUCCESS"; payload: { data: Branch } }
+  | { type: "FETCH_BRANCH_FAILED"; payload: APIError };
 
 const initialState = {
   branch: null,
   branches: [],
   isLoading: false,
-  error: null,
+  error: undefined,
 };
 
 const BranchContext = createContext<BranchStateContextType>({
   ...initialState,
-  fetchBranch: async (id) => {},
+  fetchBranch: async () => {},
   fetchBranches: async () => {},
-  createBranch: async ({ name }: { name: string }) => {},
+  createBranch: async () => {},
 });
 
 const branchReducer = (
@@ -60,7 +60,7 @@ const branchReducer = (
         ...state,
         isLoading: false,
         branch: action.payload.data,
-        error: null,
+        error: undefined,
       };
 
     case BranchActions.CREATE_BRANCH_FAILED:
@@ -73,7 +73,7 @@ const branchReducer = (
 export const BranchProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, dispatch] = useReducer(branchReducer, initialState);
 
-  const fetchBranch = async (branchId: string) => {
+  const fetchBranch = async (branchId: number) => {
     dispatch({ type: BranchActions.FETCH_BRANCH });
     try {
       const response = await axios.get(`/branches/${branchId}`);
@@ -81,8 +81,13 @@ export const BranchProvider = ({ children }: { children: React.ReactNode }) => {
         type: BranchActions.FETCH_BRANCH_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({ type: BranchActions.FETCH_BRANCH_FAILED, payload: error });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: BranchActions.FETCH_BRANCH_FAILED,
+          payload: error.response?.data,
+        });
+      }
     }
   };
 
@@ -94,25 +99,31 @@ export const BranchProvider = ({ children }: { children: React.ReactNode }) => {
         type: BranchActions.FETCH_BRANCHES_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({ type: BranchActions.FETCH_BRANCHES_FAILED, payload: error });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: BranchActions.FETCH_BRANCHES_FAILED,
+          payload: error.response?.data,
+        });
+      }
     }
   };
 
-  const createBranch = async (branch: any) => {
+  const createBranch = async (branch: CreateBranchPayload) => {
     dispatch({ type: BranchActions.CREATE_BRANCH });
-
     try {
       const response = await axios.post("/branches", { name: branch.name });
       dispatch({
         type: BranchActions.CREATE_BRANCH_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({
-        type: BranchActions.CREATE_BRANCH_FAILED,
-        payload: error.response.data,
-      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: BranchActions.CREATE_BRANCH_FAILED,
+          payload: error.response?.data,
+        });
+      }
     }
   };
 

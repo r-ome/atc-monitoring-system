@@ -1,8 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { Button, Table } from "../../../components";
-import { useAuction } from "../../../context";
+import { Button, Table } from "@components";
+import { useAuction } from "@context";
 import { useSession } from "../../hooks";
-import { AUCTIONS_501 } from "../errors";
+import RenderServerError from "../ServerCrashComponent";
 
 const AuctionBidders = () => {
   const navigate = useNavigate();
@@ -10,21 +10,11 @@ const AuctionBidders = () => {
   const {
     registeredBidders,
     isLoading: isFetchingRegisteredBidders,
-    errors,
+    error,
   } = useAuction();
 
-  if (errors) {
-    return (
-      <div className="mt-8">
-        {errors?.error === AUCTIONS_501 ? (
-          <div className="border p-2 rounded border-red-500 mb-10">
-            <h1 className="text-red-500 text-xl flex justify-center">
-              Please take a look back later...
-            </h1>
-          </div>
-        ) : null}
-      </div>
-    );
+  if (error?.httpStatus === 500) {
+    return <RenderServerError {...error} />;
   }
 
   return (

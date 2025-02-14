@@ -11,7 +11,7 @@ interface TableInteface {
 
 const Table: React.FC<TableInteface> = ({
   columnHeaders,
-  data,
+  data = [],
   loading,
   rowKeys,
   onRowClick,
@@ -44,7 +44,9 @@ const Table: React.FC<TableInteface> = ({
             return (
               <tr
                 key={i}
-                className={`${onRowClick ? "cursor-pointer" : null} ${
+                className={`hover:bg-gray-200 ${
+                  onRowClick ? "cursor-pointer" : null
+                } ${
                   data?.remarks === "INVALID_ROW"
                     ? "bg-red-400 text-white"
                     : "bg-white"

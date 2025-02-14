@@ -47,6 +47,7 @@ const Select: React.FC<SelectProps> = ({
           </option>
         ))}
       </select>
+
       {isInvalid && (
         <div className="text-red-500">{inputError?.error.message}</div>
       )}

@@ -1,42 +1,53 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
-import { Input, Button } from "../../../components";
-import { SUPPLIERS_402, SUPPLIERS_501 } from "../errors";
-import { useInventories } from "../../../context";
+import { Input, Button } from "@components";
+import { useInventories } from "@context";
 import { useSession } from "../../hooks";
+import { Container, CreateInventoryPayload, Supplier } from "@types";
 
 const CreateInventory = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const methods = useForm();
-  const [hasError, setHasError] = useState<boolean>(false);
+  const methods = useForm<CreateInventoryPayload>();
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
-  const { createInventory, inventory, isLoading, errors } = useInventories();
-  const [supplier] = useSession<any>("supplier", null);
-  const [container] = useSession<any>("container", null);
+  const [supplier] = useSession<Supplier | null>("supplier", null);
+  const [container] = useSession<Container | null>("container", null);
+  const {
+    createInventory,
+    inventory: SuccessResponse,
+    isLoading,
+    error: ErrorResponse,
+  } = useInventories();
 
   const handleSubmitCreateInventory = methods.handleSubmit(async (data) => {
-    await createInventory(supplier?.supplier_id, container?.container_id, data);
+    if (supplier && container) {
+      await createInventory(
+        supplier?.supplier_id,
+        container?.container_id,
+        data
+      );
+    }
   });
 
   useEffect(() => {
-    if (!errors && !isLoading && inventory) {
+    if (!ErrorResponse && SuccessResponse) {
       methods.reset();
-      setHasError(false);
       setIsSuccess(true);
     }
 
-    if (errors) {
+    if (ErrorResponse) {
       setIsSuccess(false);
-      setHasError(true);
     }
-  }, [errors, isLoading]);
+  }, [ErrorResponse, SuccessResponse, methods]);
 
   useEffect(() => {
-    setHasError(false);
     setIsSuccess(false);
   }, [location.key]);
+
+  if (isLoading) {
+    return <div className="text-3xl flex justify-center">Loading...</div>;
+  }
 
   return (
     <div>
@@ -54,95 +65,79 @@ const CreateInventory = () => {
       </div>
 
       <div className="block p-10 border rounded-lg shadow-lg">
-        {isLoading ? (
-          <div className="text-3xl flex justify-center">Loading...</div>
-        ) : (
-          <FormProvider {...methods}>
-            {hasError ? (
-              <h1 className="text-red-500 text-xl flex justify-center">
-                {errors?.error === SUPPLIERS_501 ? (
-                  <>Please take a look back later...</>
-                ) : null}
-                {errors?.error === SUPPLIERS_402 ? (
-                  <>Supplier Name or Supplier Code already exist!</>
-                ) : null}
-              </h1>
-            ) : null}
+        <FormProvider {...methods}>
+          {isSuccess && (
+            <h1 className="text-green-500 text-xl flex justify-center">
+              Successfully Added Inventory!
+            </h1>
+          )}
+          <form
+            id="create_inventory"
+            onSubmit={(e) => e.preventDefault()}
+            noValidate
+            autoComplete="off"
+          >
+            <Input
+              id="barcode"
+              name="barcode"
+              placeholder="Barcode"
+              label="Barcode:"
+              validations={{
+                required: {
+                  value: true,
+                  message: "Barcode is required",
+                },
+                pattern: {
+                  value: /^[0-9\- ]+$/,
+                  message: "Invalid characters",
+                },
+              }}
+            />
+            <Input
+              id="description"
+              name="description"
+              placeholder="Description"
+              label="Description: "
+              validations={{
+                required: {
+                  value: true,
+                  message: "Barcode is required",
+                },
+                pattern: {
+                  value: /^[a-zA-Z0-9\- ]+$/,
+                  message: "Invalid characters",
+                },
+              }}
+            />
+            <Input
+              id="control_number"
+              name="control_number"
+              placeholder="Control Number"
+              label="Control Number:"
+              validations={{
+                required: {
+                  value: true,
+                  message: "Barcode is required",
+                },
+                pattern: {
+                  value: /^[0-9\- ]+$/,
+                  message: "Invalid characters",
+                },
+              }}
+            />
 
-            {isSuccess ? (
-              <h1 className="text-green-500 text-xl flex justify-center">
-                Successfully Added Inventory!
-              </h1>
-            ) : null}
-            <form
-              id="create_inventory"
-              onSubmit={(e) => e.preventDefault()}
-              noValidate
-              autoComplete="off"
-            >
-              <Input
-                id="barcode"
-                name="barcode"
-                placeholder="Barcode"
-                label="Barcode:"
-                validations={{
-                  required: {
-                    value: true,
-                    message: "Barcode is required",
-                  },
-                  pattern: {
-                    value: /^[a-zA-Z0-9\- ]+$/,
-                    message: "Invalid characters",
-                  },
-                }}
-              />
-              <Input
-                id="description"
-                name="description"
-                placeholder="Description"
-                label="Description: "
-                className="uppercase"
-                validations={{
-                  required: {
-                    value: true,
-                    message: "Barcode is required",
-                  },
-                  pattern: {
-                    value: /^[a-zA-Z0-9\- ]+$/,
-                    message: "Invalid characters",
-                  },
-                }}
-              />
-              <Input
-                id="control_number"
-                name="control_number"
-                placeholder="Control Number"
-                label="Control Number:"
-                validations={{
-                  required: {
-                    value: true,
-                    message: "Barcode is required",
-                  },
-                  pattern: {
-                    value: /^[a-zA-Z0-9\- ]+$/,
-                    message: "Invalid characters",
-                  },
-                }}
-              />
-
-              <div className="flex">
-                <Button
-                  onClick={handleSubmitCreateInventory}
-                  buttonType="primary"
-                  type="submit"
-                  className="w-full h-12"
-                >
-                  Save
-                </Button>
-              </div>
-            </form>
-          </FormProvider>
-        )}
+            <div className="flex">
+              <Button
+                onClick={handleSubmitCreateInventory}
+                buttonType="primary"
+                type="submit"
+                className="w-full h-12"
+              >
+                Save
+              </Button>
+            </div>
+          </form>
+        </FormProvider>
       </div>
     </div>
   );

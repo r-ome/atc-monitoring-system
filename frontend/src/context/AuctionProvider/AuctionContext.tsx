@@ -1,27 +1,32 @@
 import { createContext, useCallback, useContext, useReducer } from "react";
-import {
-  Auction,
-  Monitoring,
-  InventoryDetails,
-  RegisteredBidders,
-} from "../../types";
 import axios from "axios";
+import {
+  BaseAuction,
+  AuctionDetails,
+  Monitoring,
+  ManifestRecord,
+  ManifestRecordResponse,
+  RegisteredBidders,
+  RegisterBidderPayload,
+  RegisterBidderResponse,
+  BidderAuctionProfile,
+  CancelItemResponse,
+  APIError,
+} from "@types";
 import * as AuctionActions from "./actions";
 
 interface AuctionState {
-  auction: any;
-  auctions: Auction[];
+  auction: AuctionDetails | null;
+  auctions: BaseAuction[];
   monitoring: Monitoring[];
-  manifestRecords: any[];
-  manifestRecord?: { message: string; manifest: any[] };
-  registeredBidders?: RegisteredBidders;
-  registeredBidder: any;
-  inventory: InventoryDetails | null;
-  bidder?: any;
-  payment: any;
+  manifestRecords: ManifestRecord[];
+  manifestRecord: ManifestRecordResponse | null;
+  registeredBidders: RegisteredBidders | null;
+  registeredBidder: RegisterBidderResponse | null;
+  cancelItemResponse: CancelItemResponse | null;
+  bidder: BidderAuctionProfile | null;
   isLoading: boolean;
-  sheetErrors: any;
-  errors: any;
+  error: APIError | null;
 }
 
 interface AuctionStateContextType extends AuctionState {
@@ -32,69 +37,71 @@ interface AuctionStateContextType extends AuctionState {
   fetchBidderAuctionProfile: (a: string, b: string) => Promise<void>;
   fetchManifestRecords: (id: string) => Promise<void>;
   fetchRegisteredBidders: (id: string) => Promise<void>;
-  uploadManifest: (id: string, file: any) => Promise<void>;
+  uploadManifest: (id: number, file: any) => Promise<void>;
   registerBidderAtAuction: (id: number, bidder: any) => Promise<void>;
-  payBidderItems: (
-    auctionId: number,
-    bidderId: number,
-    amount: number,
-    inventoryIds: number[]
-  ) => Promise<void>;
   cancelItem: (auctionId: number, inventoryId: number) => Promise<void>;
 }
 
 export type MonitoringAction =
-  | { type: "FETCH_MONITORING" }
-  | { type: "FETCH_MANIFEST_RECORDS" }
-  | { type: "FETCH_AUCTIONS" }
-  | { type: "FETCH_AUCTION_BIDDERS" }
   | { type: "CREATE_AUCTION" }
-  | { type: "FETCH_BIDDER_AUCTION_PROFILE" }
-  | { type: "UPLOAD_MANIFEST" }
-  | { type: "REGISTER_BIDDER_AT_AUCTION" }
+  | { type: "CREATE_AUCTION_SUCCESS"; payload: { data: BaseAuction } }
+  | { type: "CREATE_AUCTION_FAILED"; payload: APIError }
+  | { type: "FETCH_AUCTIONS" }
+  | { type: "FETCH_AUCTIONS_SUCCESS"; payload: { data: BaseAuction[] } }
+  | { type: "FETCH_AUCTIONS_FAILED"; payload: APIError }
   | { type: "FETCH_AUCTION_DETAILS" }
-  | { type: "BIDDER_PAYMENT" }
-  | { type: "CANCEL_ITEM" }
-  | { type: "FETCH_MANIFEST_RECORDS_SUCCESS"; payload: { data: any[] } }
+  | { type: "FETCH_AUCTION_DETAILS_SUCCESS"; payload: { data: AuctionDetails } }
+  | { type: "FETCH_AUCTION_DETAILS_FAILED"; payload: APIError }
+  | { type: "FETCH_MONITORING" }
   | { type: "FETCH_MONITORING_SUCCESS"; payload: { data: Monitoring[] } }
-  | { type: "FETCH_AUCTIONS_SUCCESS"; payload: { data: Auction[] } }
+  | { type: "FETCH_MONITORING_FAILED"; payload: APIError }
+  | { type: "CANCEL_ITEM" }
+  | { type: "CANCEL_ITEM_SUCCESS"; payload: { data: CancelItemResponse } }
+  | { type: "CANCEL_ITEM_FAILED"; payload: APIError }
+  | { type: "REGISTER_BIDDER_AT_AUCTION" }
   | {
-      type: "FETCH_AUCTION_BIDDERS_SUCCESS";
+      type: "REGISTER_BIDDER_AT_AUCTION_SUCCESS";
+      payload: { data: RegisterBidderResponse };
+    }
+  | { type: "REGISTER_BIDDER_AT_AUCTION_FAILED"; payload: APIError }
+  | { type: "FETCH_BIDDER_AUCTION_PROFILE" }
+  | {
+      type: "FETCH_BIDDER_AUCTION_PROFILE_SUCCESS";
+      payload: { data: BidderAuctionProfile };
+    }
+  | { type: "FETCH_BIDDER_AUCTION_PROFILE_FAILED"; payload: APIError }
+  | { type: "FETCH_MANIFEST_RECORDS" }
+  | {
+      type: "FETCH_MANIFEST_RECORDS_SUCCESS";
+      payload: { data: ManifestRecord[] };
+    }
+  | { type: "FETCH_MANIFEST_RECORDS_FAILED"; payload: APIError }
+  | { type: "UPLOAD_MANIFEST" }
+  | {
+      type: "UPLOAD_MANIFEST_SUCCESS";
+      payload: { data: ManifestRecordResponse };
+    }
+  | { type: "UPLOAD_MANIFEST_FAILED"; payload: APIError }
+  | { type: "FETCH_REGISTERED_BIDDERS" }
+  | {
+      type: "FETCH_REGISTERED_BIDDERS_SUCCESS";
       payload: { data: RegisteredBidders };
     }
-  | { type: "FETCH_BIDDER_AUCTION_PROFILE_SUCCESS"; payload: { data: any } }
-  | { type: "CREATE_AUCTION_SUCCESS"; payload: { data: Auction } }
-  | { type: "UPLOAD_MANIFEST_SUCCESS"; payload: { data: any } }
-  | { type: "REGISTER_BIDDER_AT_AUCTION_SUCCESS"; payload: { data: any } }
-  | { type: "FETCH_AUCTION_DETAILS_SUCCESS"; payload: { data: any } }
-  | { type: "BIDDER_PAYMENT_SUCCESS"; payload: { data: any } }
-  | { type: "CANCEL_ITEM_SUCCESS"; payload: { data: InventoryDetails } }
-  | { type: "FETCH_BIDDER_AUCTION_PROFILE_FAILED"; payload: { errors: null } }
-  | { type: "FETCH_MANIFEST_RECORDS_FAILED"; payload: { errors: null } }
-  | { type: "FETCH_AUCTIONS_FAILED"; payload: { errors: null } }
-  | { type: "FETCH_MONITORING_FAILED"; payload: { errors: null } }
-  | { type: "FETCH_AUCTION_BIDDERS_FAILED"; payload: { errors: null } }
-  | { type: "CREATE_AUCTION_FAILED"; payload: { errors: null } }
-  | { type: "UPLOAD_MANIFEST_FAILED"; payload: { errors: null } }
-  | { type: "REGISTER_BIDDER_AT_AUCTION_FAILED"; payload: { errors: null } }
-  | { type: "FETCH_AUCTION_DETAILS_FAILED"; payload: { errors: null } }
-  | { type: "BIDDER_PAYMENT_FAILED"; payload: { errors: null } }
-  | { type: "CANCEL_ITEM_FAILED"; payload: { errors: null } };
+  | { type: "FETCH_REGISTERED_BIDDERS_FAILED"; payload: APIError };
 
 const initialState = {
-  auction: {},
+  auction: null,
   auctions: [],
   manifestRecords: [],
+  manifestRecord: null,
   monitoring: [],
-  registeredBidders: undefined,
-  registeredBidder: undefined,
+  registeredBidders: null,
+  registeredBidder: null,
   auctionBidders: [],
-  inventory: null,
-  bidder: undefined,
-  payment: {},
+  cancelItemResponse: null,
+  bidder: null,
   isLoading: false,
-  sheetErrors: [],
-  errors: null,
+  error: null,
 };
 
 const AuctionContext = createContext<AuctionStateContextType>({
@@ -108,7 +115,6 @@ const AuctionContext = createContext<AuctionStateContextType>({
   uploadManifest: async () => {},
   registerBidderAtAuction: async () => {},
   fetchAuctionDetails: async () => {},
-  payBidderItems: async () => {},
   cancelItem: async () => {},
 });
 
@@ -120,12 +126,11 @@ const monitoringReducer = (
     case AuctionActions.CREATE_AUCTION:
     case AuctionActions.FETCH_AUCTIONS:
     case AuctionActions.FETCH_MANIFEST_RECORDS:
-    case AuctionActions.FETCH_AUCTION_BIDDERS:
+    case AuctionActions.FETCH_REGISTERED_BIDDERS:
     case AuctionActions.FETCH_MONITORING:
     case AuctionActions.UPLOAD_MANIFEST:
     case AuctionActions.REGISTER_BIDDER_AT_AUCTION:
     case AuctionActions.FETCH_AUCTION_DETAILS:
-    case AuctionActions.BIDDER_PAYMENT:
     case AuctionActions.CANCEL_ITEM:
     case AuctionActions.FETCH_BIDDER_AUCTION_PROFILE:
       return { ...state, isLoading: true };
@@ -138,7 +143,7 @@ const monitoringReducer = (
         ...state,
         isLoading: false,
         auctions: [...state.auctions, action.payload.data],
-        errors: null,
+        error: null,
       };
 
     case AuctionActions.FETCH_MANIFEST_RECORDS_SUCCESS:
@@ -151,7 +156,7 @@ const monitoringReducer = (
       return { ...state, isLoading: false, monitoring: action.payload.data };
     case AuctionActions.FETCH_AUCTIONS_SUCCESS:
       return { ...state, isLoading: false, auctions: action.payload.data };
-    case AuctionActions.FETCH_AUCTION_BIDDERS_SUCCESS:
+    case AuctionActions.FETCH_REGISTERED_BIDDERS_SUCCESS:
       return {
         ...state,
         isLoading: false,
@@ -163,15 +168,21 @@ const monitoringReducer = (
         ...state,
         manifestRecord: action.payload.data,
         isLoading: false,
-        errors: null,
+        error: null,
       };
 
     case AuctionActions.REGISTER_BIDDER_AT_AUCTION_SUCCESS:
+      let registeredBidders = Object.assign({}, state.registeredBidders);
+      registeredBidders.bidders = [
+        ...registeredBidders.bidders,
+        action.payload.data,
+      ];
       return {
         ...state,
         isLoading: false,
         registeredBidder: action.payload.data,
-        errors: null,
+        registeredBidders: registeredBidders,
+        error: null,
       };
 
     case AuctionActions.FETCH_AUCTION_DETAILS_SUCCESS:
@@ -179,21 +190,14 @@ const monitoringReducer = (
         ...state,
         isLoading: false,
         auction: action.payload.data,
-        errors: null,
+        error: null,
       };
 
-    case AuctionActions.BIDDER_PAYMENT_SUCCESS:
-      return {
-        ...state,
-        isLoading: false,
-        payment: action.payload.data,
-        errors: null,
-      };
     case AuctionActions.CANCEL_ITEM_SUCCESS:
       return {
         ...state,
-        inventory: action.payload.data,
-        errors: null,
+        cancelItemResponse: action.payload.data,
+        error: null,
       };
 
     case AuctionActions.FETCH_BIDDER_AUCTION_PROFILE_FAILED:
@@ -202,12 +206,16 @@ const monitoringReducer = (
     case AuctionActions.CREATE_AUCTION_FAILED:
     case AuctionActions.FETCH_AUCTIONS_FAILED:
     case AuctionActions.FETCH_MONITORING_FAILED:
-    case AuctionActions.FETCH_AUCTION_BIDDERS_FAILED:
+    case AuctionActions.FETCH_REGISTERED_BIDDERS_FAILED:
     case AuctionActions.REGISTER_BIDDER_AT_AUCTION_FAILED:
     case AuctionActions.FETCH_AUCTION_DETAILS_FAILED:
-    case AuctionActions.BIDDER_PAYMENT_FAILED:
     case AuctionActions.CANCEL_ITEM_FAILED:
-      return { ...state, isLoading: false, errors: action.payload };
+      return {
+        ...state,
+        isLoading: false,
+        error: action.payload,
+        manifestRecord: null,
+      };
   }
 };
 
@@ -290,16 +298,16 @@ export const AuctionProvider = ({
   };
 
   const fetchRegisteredBidders = useCallback(async (auctionId: string) => {
-    dispatch({ type: AuctionActions.FETCH_AUCTION_BIDDERS });
+    dispatch({ type: AuctionActions.FETCH_REGISTERED_BIDDERS });
     try {
       const response = await axios.get(`/auctions/${auctionId}/bidders`);
       dispatch({
-        type: AuctionActions.FETCH_AUCTION_BIDDERS_SUCCESS,
+        type: AuctionActions.FETCH_REGISTERED_BIDDERS_SUCCESS,
         payload: response.data,
       });
     } catch (error: any) {
       dispatch({
-        type: AuctionActions.FETCH_AUCTION_BIDDERS_FAILED,
+        type: AuctionActions.FETCH_REGISTERED_BIDDERS_FAILED,
         payload: error.response.data,
       });
     }
@@ -321,7 +329,7 @@ export const AuctionProvider = ({
     }
   };
 
-  const uploadManifest = async (auctionId: string, file: any) => {
+  const uploadManifest = async (auctionId: number, file: any) => {
     dispatch({ type: AuctionActions.UPLOAD_MANIFEST });
     try {
       const response = await axios.post(`/auctions/${auctionId}/encode`, file);
@@ -337,12 +345,15 @@ export const AuctionProvider = ({
     }
   };
 
-  const registerBidderAtAuction = async (auctionId: number, bidder: any) => {
+  const registerBidderAtAuction = async (
+    auctionId: number,
+    body: RegisterBidderPayload
+  ) => {
     dispatch({ type: AuctionActions.REGISTER_BIDDER_AT_AUCTION });
     try {
       const response = await axios.post(
         `/auctions/${auctionId}/register-bidder`,
-        bidder
+        body
       );
       dispatch({
         type: AuctionActions.REGISTER_BIDDER_AT_AUCTION_SUCCESS,
@@ -371,31 +382,6 @@ export const AuctionProvider = ({
       });
     }
   }, []);
-
-  const payBidderItems = async (
-    auctionId: number,
-    bidderId: number,
-    amount: number,
-    inventoryIds: number[]
-  ) => {
-    dispatch({ type: AuctionActions.BIDDER_PAYMENT });
-    try {
-      const response = await axios.post(`/auctions/${auctionId}/payment`, {
-        bidder_id: bidderId,
-        inventory_ids: inventoryIds,
-        amount,
-      });
-      dispatch({
-        type: AuctionActions.BIDDER_PAYMENT_SUCCESS,
-        payload: response.data,
-      });
-    } catch (error: any) {
-      dispatch({
-        type: AuctionActions.BIDDER_PAYMENT_FAILED,
-        payload: error.payload,
-      });
-    }
-  };
 
   const cancelItem = async (auctionId: number, inventoryId: number) => {
     dispatch({ type: AuctionActions.CANCEL_ITEM });
@@ -428,7 +414,6 @@ export const AuctionProvider = ({
         uploadManifest,
         registerBidderAtAuction,
         fetchAuctionDetails,
-        payBidderItems,
         cancelItem,
       }}
     >

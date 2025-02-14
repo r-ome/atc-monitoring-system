@@ -1,67 +1,61 @@
 import { createContext, useContext, useReducer } from "react";
-import axios from "axios";
-import { BidderRequirement } from "../../types";
-import * as BidderRequirementActions from "./actions";
+import axios, { isAxiosError } from "axios";
 import moment from "moment";
+import {
+  APIError,
+  AddBidderRequirementResponse,
+  BidderRequirementPayload,
+} from "@types";
+import * as BidderRequirementActions from "./actions";
 
 interface BidderRequirementState {
-  requirements: BidderRequirement[];
+  requirement: AddBidderRequirementResponse | null;
   isLoading: boolean;
-  error: any;
+  error?: APIError;
 }
 
 interface BidderRequirementContextType extends BidderRequirementState {
-  getBidderRequirements: (bidderId: number) => Promise<void>;
-  createBidderRequirement: (bidderId: string, body: any) => Promise<void>;
+  createBidderRequirement: (
+    bidderId: number,
+    body: BidderRequirementPayload
+  ) => Promise<void>;
 }
 
 export type BidderRequirementAction =
-  | { type: "FETCH_REQUIREMENTS" }
   | { type: "ADD_REQUIREMENT" }
   | {
-      type: "FETCH_REQUIREMENTS_SUCCESS";
-      payload: { data: BidderRequirement[] };
+      type: "ADD_REQUIREMENT_SUCCESS";
+      payload: { data: AddBidderRequirementResponse };
     }
-  | { type: "ADD_REQUIREMENT_SUCCESS"; payload: { data: BidderRequirement } }
-  | { type: "FETCH_REQUIREMENTS_FAILED"; payload: null }
-  | { type: "ADD_REQUIREMENT_FAILED"; payload: null };
+  | { type: "ADD_REQUIREMENT_FAILED"; payload: APIError };
 
 const initialState = {
-  requirements: [],
+  requirement: null,
   isLoading: false,
-  error: null,
+  error: undefined,
 };
 
 const BidderRequirementContext = createContext<BidderRequirementContextType>({
   ...initialState,
-  getBidderRequirements: async (a) => {},
-  createBidderRequirement: async (a, b) => {},
+  createBidderRequirement: async () => {},
 });
 
 const bidderRequirementReducer = (
   state: BidderRequirementState,
   action: BidderRequirementAction
-) => {
+): BidderRequirementState => {
   switch (action.type) {
-    case BidderRequirementActions.FETCH_REQUIREMENTS:
     case BidderRequirementActions.ADD_REQUIREMENT:
       return { ...state, isLoading: true };
 
-    case BidderRequirementActions.FETCH_REQUIREMENTS_SUCCESS:
-      return {
-        ...state,
-        isLoading: false,
-        requirements: action.payload.data,
-      };
     case BidderRequirementActions.ADD_REQUIREMENT_SUCCESS:
       return {
         ...state,
         isLoading: false,
-        requirements: [...state.requirements, action.payload.data],
-        error: null,
+        requirement: action.payload.data,
+        error: undefined,
       };
 
-    case BidderRequirementActions.FETCH_REQUIREMENTS_FAILED:
     case BidderRequirementActions.ADD_REQUIREMENT_FAILED:
       return { ...state, isLoading: false, error: action.payload };
   }
@@ -74,28 +68,15 @@ export const BidderRequirementProvider = ({
 }) => {
   const [state, dispatch] = useReducer(bidderRequirementReducer, initialState);
 
-  const getBidderRequirements = async (bidderId: number) => {
-    dispatch({ type: BidderRequirementActions.FETCH_REQUIREMENTS });
-    try {
-      const response = await axios.get(`/bidders/${bidderId}/requirements`);
-      dispatch({
-        type: BidderRequirementActions.FETCH_REQUIREMENTS_SUCCESS,
-        payload: response.data,
-      });
-    } catch (error: any) {
-      dispatch({
-        type: BidderRequirementActions.FETCH_REQUIREMENTS_FAILED,
-        payload: error,
-      });
-    }
-  };
-
-  const createBidderRequirement = async (bidderId: string, body: any) => {
+  const createBidderRequirement = async (
+    bidderId: number,
+    body: BidderRequirementPayload
+  ) => {
     dispatch({ type: BidderRequirementActions.ADD_REQUIREMENT });
     try {
       const data = {
-        name: body.name,
-        url: "https://www.google.com", //formData.get("url"),
+        name: body.name.toUpperCase(),
+        url: "https://www.google.com",
         validity_date: moment(body.validity_date?.toString()).format(
           "YYYY-MM-DD HH:mm:ss"
         ),
@@ -109,11 +90,13 @@ export const BidderRequirementProvider = ({
         type: BidderRequirementActions.ADD_REQUIREMENT_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({
-        type: BidderRequirementActions.ADD_REQUIREMENT_FAILED,
-        payload: error.response.data,
-      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: BidderRequirementActions.ADD_REQUIREMENT_FAILED,
+          payload: error.response?.data,
+        });
+      }
     }
   };
 
@@ -121,7 +104,6 @@ export const BidderRequirementProvider = ({
     <BidderRequirementContext.Provider
       value={{
         ...state,
-        getBidderRequirements,
         createBidderRequirement,
       }}
     >
@@ -134,7 +116,7 @@ export const useBidderRequirement = () => {
   const context = useContext(BidderRequirementContext);
   if (!context) {
     throw new Error(
-      "useBidderRequirement must be used within a SupplierProvider"
+      "useBidderRequirement must be used within a BidderRequirementProvider"
     );
   }
   return context;

@@ -1,34 +1,41 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Table } from "../../../components";
-import { usePayments } from "../../../context";
+import { Table } from "@components";
+import { usePayments } from "@context";
 import { useSession } from "../../hooks";
+import { AuctionDetails } from "@types";
 
 const AuctionPayments = () => {
-  // const navigate = useNavigate();
   const params = useParams();
-  const [auction, setAuction] = useState<any>(null);
-  const [sessionAuction] = useSession<any>("auction", null);
+  const [auction, setAuction] = useState<AuctionDetails | null>(null);
+  const [sessionAuction] = useSession<AuctionDetails | null>("auction", null);
   const {
-    payments,
-    fetchAuctionPayments,
+    auctionTransactions,
+    fetchAuctionTransactions,
     isLoading: isFetchingAuctionPayments,
   } = usePayments();
 
   useEffect(() => {
+    if (sessionAuction) {
+      setAuction(sessionAuction);
+    }
+  }, [sessionAuction]);
+
+  useEffect(() => {
     const { auction_id: auctionId } = params;
     if (auctionId) {
-      if (!auction || auction.auction_id !== auctionId) {
+      if (!auction || auction.auction_id !== parseInt(auctionId, 10)) {
         const fetchInitialData = async () => {
-          await fetchAuctionPayments(auctionId);
+          await fetchAuctionTransactions(auctionId);
         };
         fetchInitialData();
       }
     }
-    if (sessionAuction) {
-      setAuction(sessionAuction);
-    }
-  }, [params.auction_id, fetchAuctionPayments]);
+  }, [params.auction_id, auction?.auction_id, fetchAuctionTransactions]);
+
+  if (isFetchingAuctionPayments || !auctionTransactions) {
+    return <div className="border p-2 flex justify-center">Loading...</div>;
+  }
 
   return (
     <>
@@ -38,30 +45,24 @@ const AuctionPayments = () => {
             <div className="flex justify-between items-center w-full p-2">
               <h1 className="text-3xl font-bold">Payments</h1>
             </div>
-            {!isFetchingAuctionPayments && payments ? (
-              <Table
-                data={payments?.payments || []}
-                loading={isFetchingAuctionPayments}
-                rowKeys={[
-                  "created_at",
-                  "bidder_number",
-                  // "full_name",
-                  "purpose",
-                  "amount_paid",
-                  "payment_type",
-                ]}
-                columnHeaders={[
-                  "date",
-                  "Bidder Number",
-                  // "Bidder Name",
-                  "Purpose",
-                  "Amount Paid",
-                  "Payment Type",
-                ]}
-              />
-            ) : (
-              <div className="border p-2 flex justify-center">Loading...</div>
-            )}
+            <Table
+              data={auctionTransactions?.payments || []}
+              loading={isFetchingAuctionPayments}
+              rowKeys={[
+                "created_at",
+                "bidder_number",
+                "purpose",
+                "amount_paid",
+                "payment_type",
+              ]}
+              columnHeaders={[
+                "date",
+                "Bidder Number",
+                "Purpose",
+                "Amount Paid",
+                "Payment Type",
+              ]}
+            />
           </div>
         </div>
       </div>

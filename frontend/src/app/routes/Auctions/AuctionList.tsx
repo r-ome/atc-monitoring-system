@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-
-import { Auction } from "../../../types";
-import { Modal, Button, Table } from "../../../components";
-import { useAuction } from "../../../context";
-import { AUCTIONS_501 } from "../errors";
+import { BaseAuction } from "@types";
+import { Modal, Button, Table } from "@components";
+import { useAuction } from "@context";
+import AuctionError from "../ServerCrashComponent";
 
 const AuctionList = () => {
   const navigate = useNavigate();
-  const { auctions, isLoading, getAuctions, createAuction, errors } =
+  const { auctions, isLoading, getAuctions, createAuction, error } =
     useAuction();
   const [showConfirmationModal, setConfirmationModal] =
     useState<boolean>(false);
@@ -21,18 +20,8 @@ const AuctionList = () => {
     fetchInitialData();
   }, []);
 
-  if (errors) {
-    return (
-      <div className="mt-8">
-        {errors?.error === AUCTIONS_501 ? (
-          <div className="border p-2 rounded border-red-500 mb-10">
-            <h1 className="text-red-500 text-xl flex justify-center">
-              Please take a look back later...
-            </h1>
-          </div>
-        ) : null}
-      </div>
-    );
+  if (error?.httpStatus) {
+    return <AuctionError {...error} />;
   }
 
   return (
@@ -50,14 +39,14 @@ const AuctionList = () => {
       </div>
 
       <Table
-        data={auctions || []}
+        data={auctions}
         loading={isLoading}
-        onRowClick={(auction: Auction) =>
+        onRowClick={(auction: BaseAuction) =>
           navigate(`/auctions/${auction.auction_id}`, {
             state: { auction },
           })
         }
-        rowKeys={["created_at", "number_of_bidders"]}
+        rowKeys={["auction_date", "number_of_bidders"]}
         columnHeaders={["Auction Date", "Number of Bidders"]}
       />
 

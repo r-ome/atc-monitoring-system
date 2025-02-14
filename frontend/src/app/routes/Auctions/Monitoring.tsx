@@ -1,10 +1,14 @@
 import { useNavigate } from "react-router-dom";
-import { Button, Table } from "../../../components";
-import { useAuction } from "../../../context";
+import { Button, Table } from "@components";
+import { useAuction } from "@context";
 
 const Monitoring = () => {
   const navigate = useNavigate();
   const { monitoring, isLoading: isFetchingMonitoring } = useAuction();
+
+  if (isFetchingMonitoring || !monitoring) {
+    return <div className="border p-2 flex justify-center">Loading...</div>;
+  }
 
   return (
     <>
@@ -20,33 +24,29 @@ const Monitoring = () => {
                 ENCODE
               </Button>
             </div>
-            {!isFetchingMonitoring && monitoring ? (
-              <Table
-                data={monitoring || []}
-                loading={isFetchingMonitoring}
-                hasCount
-                rowKeys={[
-                  "barcode",
-                  "control_number",
-                  "description",
-                  "bidder.bidder_number",
-                  "qty",
-                  "price",
-                  "manifest_number",
-                ]}
-                columnHeaders={[
-                  "barcode",
-                  "control",
-                  "description",
-                  "bidder",
-                  "qty",
-                  "price",
-                  "manifest",
-                ]}
-              />
-            ) : (
-              <div className="border p-2 flex justify-center">Loading...</div>
-            )}
+            <Table
+              data={monitoring}
+              loading={isFetchingMonitoring}
+              hasCount
+              rowKeys={[
+                "barcode",
+                "control_number",
+                "description",
+                "bidder.bidder_number",
+                "qty",
+                "price",
+                "manifest_number",
+              ]}
+              columnHeaders={[
+                "barcode",
+                "control",
+                "description",
+                "bidder",
+                "qty",
+                "price",
+                "manifest",
+              ]}
+            />
           </div>
         </div>
       </div>

@@ -1,19 +1,29 @@
 import { useNavigate } from "react-router-dom";
-import { Button, Table } from "../../../components";
-import { Branch } from "../../../types";
-import { useBranches } from "../../../context";
+import { Button, Table } from "@components";
+import { Branch } from "@types";
+import { useBranches } from "@context";
 import { useEffect } from "react";
+import RenderServerError from "../ServerCrashComponent";
 
 const BranchList = () => {
   const navigate = useNavigate();
-  const { fetchBranches, branches, isLoading } = useBranches();
+  const {
+    fetchBranches,
+    branches,
+    isLoading,
+    error: ErrorResponse,
+  } = useBranches();
 
   useEffect(() => {
     const fetchInitialData = async () => {
       await fetchBranches();
     };
     fetchInitialData();
-  }, []);
+  }, [fetchBranches]);
+
+  if (ErrorResponse?.httpStatus === 500) {
+    return <RenderServerError {...ErrorResponse} />;
+  }
 
   return (
     <div>
@@ -30,7 +40,7 @@ const BranchList = () => {
       </div>
 
       <Table
-        data={branches || []}
+        data={branches}
         loading={isLoading}
         onRowClick={(branch: Branch) =>
           navigate(`/branches/${branch.branch_id}`, { state: { branch } })

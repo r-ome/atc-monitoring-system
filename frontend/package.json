@@ -4,7 +4,6 @@
   "private": true,
   "dependencies": {
     "@types/node": "^16.18.102",
-    "@types/react": "^18.3.3",
     "@types/react-datepicker": "^7.0.0",
     "@types/react-dom": "^18.3.0",
     "axios": "^1.7.3",
@@ -25,10 +24,10 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start": "react-app-rewired start",
+    "build": "react-app-rewired build",
+    "test": "react-app-rewired test",
+    "eject": "react-app-rewired eject"
   },
   "eslintConfig": {
     "extends": [
@@ -50,8 +49,11 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "@types/react": "^18.2.25",
     "autoprefixer": "^10.4.19",
+    "customize-cra": "^1.0.0",
     "postcss": "^8.4.39",
+    "react-app-rewired": "^2.2.1",
     "tailwindcss": "^3.4.6"
   }
 }

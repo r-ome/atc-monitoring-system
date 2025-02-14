@@ -10,7 +10,7 @@ const Modal = ({
   isOpen: boolean;
   title?: string;
   setShowModal: (a: boolean) => void;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   footer?: boolean | React.ReactNode;
 }) => {
   return isOpen ? (
@@ -33,7 +33,10 @@ const Modal = ({
               </button>
             </div>
             {/*body*/}
-            <div className="relative p-6 flex-auto">{children}</div>
+            {children && (
+              <div className="relative p-6 flex-auto">{children}</div>
+            )}
+
             {/*footer*/}
             {footer ? (
               <div className="flex items-center justify-end p-6 border-t border-solid border-blueGray-200 rounded-b">
