@@ -1,28 +1,39 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { FormProvider, useForm } from "react-hook-form";
-import { Input, Button } from "@components";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { RHFInput } from "@components";
 import { useBidders } from "@context/BidderProvider/BidderContext";
 import { CreateBidderPayload } from "@types";
 import { BIDDERS_402 } from "../errors";
+import { Button, Card, Typography } from "antd";
+import { usePageLayoutProps } from "@layouts";
 import RenderServerError from "../ServerCrashComponent";
 
 const CreateSupplier = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const methods = useForm<CreateBidderPayload>();
-  const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const {
     createBidder,
     isLoading,
     error: ErrorResponse,
     bidder: SuccessResponse,
+    resetCreateBidderResponse,
   } = useBidders();
+  const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
 
   useEffect(() => {
-    if (!ErrorResponse && SuccessResponse) {
+    setPageBreadCrumbs([
+      { title: "Bidders List", path: "/bidders" },
+      { title: "Create Bidder" },
+    ]);
+  }, [setPageBreadCrumbs]);
+
+  useEffect(() => {
+    if (!ErrorResponse && SuccessResponse && !isLoading) {
       methods.reset();
-      setIsSuccess(true);
+      openNotification("Successfully Added Bidder!");
+      navigate("/bidders");
+      resetCreateBidderResponse();
     }
 
     if (ErrorResponse) {
@@ -34,141 +45,129 @@ const CreateSupplier = () => {
           )} already taken!`,
         });
       }
-      setIsSuccess(false);
     }
-  }, [ErrorResponse, SuccessResponse, methods]);
-
-  useEffect(() => {
-    setIsSuccess(false);
-  }, [location.key]);
+  }, [
+    ErrorResponse,
+    SuccessResponse,
+    methods,
+    isLoading,
+    resetCreateBidderResponse,
+    openNotification,
+    navigate,
+  ]);
 
   const handleSubmitCreateBidder = methods.handleSubmit(async (data) => {
-    methods.setValue("first_name", data.first_name.toUpperCase());
-    methods.setValue("last_name", data.last_name.toUpperCase());
-    if (data.middle_name) {
-      methods.setValue("middle_name", data.middle_name.toUpperCase());
-    }
-
-    await createBidder(methods.getValues());
+    await createBidder(data);
   });
+
+  const handleFieldUpperCase = (
+    fieldName: "first_name" | "middle_name" | "last_name",
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    methods.setValue(fieldName, e.target.value.toUpperCase());
+  };
 
   if (ErrorResponse?.httpStatus === 500) {
     return <RenderServerError {...ErrorResponse} />;
   }
 
-  if (isLoading) {
-    return <div className="text-3xl flex justify-center">Loading...</div>;
-  }
-
   return (
-    <div>
-      <div className="w-full">
-        <Button
-          buttonType="secondary"
-          onClick={() => navigate("/bidders")}
-          className="text-blue-500"
-        >
-          Go Back
-        </Button>
-      </div>
-      <div className="flex justify-between my-2">
-        <h1 className="text-3xl">Create Bidder</h1>
-      </div>
+    <Card className="py-4" title={<h1 className="text-3xl">Create Bidder</h1>}>
+      <form id="create_bidder" className="flex flex-col gap-4 w-2/4">
+        <div>
+          <Typography.Title level={5}>Bidder Number:</Typography.Title>
+          <RHFInput
+            control={methods.control}
+            name="bidder_number"
+            disabled={isLoading}
+            placeholder="Bidder Number"
+            rules={{
+              required: "Bidder Number is required!",
+              pattern: {
+                value: /^[0-9]+$/,
+                message: "Invalid characters!",
+              },
+            }}
+          />
+        </div>
 
-      <div className="block p-10 border rounded-lg shadow-lg">
-        <FormProvider {...methods}>
-          {isSuccess ? (
-            <h1 className="text-green-500 text-xl flex justify-center">
-              Successfully Added Bidder!
-            </h1>
-          ) : null}
-          <form
-            id="create_bidder"
-            onSubmit={(e) => e.preventDefault()}
-            noValidate
-            autoComplete="off"
+        <div>
+          <Typography.Title level={5}>First Name:</Typography.Title>
+          <RHFInput
+            control={methods.control}
+            name="first_name"
+            disabled={isLoading}
+            placeholder="First Name"
+            onChange={(e) => handleFieldUpperCase("first_name", e)}
+            rules={{
+              required: "First Name is required!",
+              minLength: { value: 2, message: "Minimum of 2 characters!" },
+              maxLength: {
+                value: 255,
+                message: "Maximum of 255 characters!",
+              },
+              pattern: {
+                value: /^[a-zA-Z0-9Ññ\- ]+$/,
+                message: "Invalid characters!",
+              },
+            }}
+          />
+        </div>
+
+        <div>
+          <Typography.Title level={5}>Middle Name:</Typography.Title>
+          <RHFInput
+            control={methods.control}
+            name="middle_name"
+            disabled={isLoading}
+            placeholder="Middle Name"
+            onChange={(e) => handleFieldUpperCase("middle_name", e)}
+            rules={{
+              pattern: {
+                value: /^[a-zA-Z0-9Ññ\- ]+$/,
+                message: "Invalid characters!",
+              },
+            }}
+          />
+        </div>
+
+        <div>
+          <Typography.Title level={5}>Last Name:</Typography.Title>
+          <RHFInput
+            control={methods.control}
+            name="last_name"
+            disabled={isLoading}
+            placeholder="Last Name"
+            onChange={(e) => handleFieldUpperCase("last_name", e)}
+            rules={{
+              required: "Last Name is required!",
+              minLength: { value: 2, message: "Minimum of 2 characters!" },
+              maxLength: {
+                value: 255,
+                message: "Maximum of 255 characters!",
+              },
+              pattern: {
+                value: /^[a-zA-Z0-9Ññ\- ]+$/,
+                message: "Invalid characters!",
+              },
+            }}
+          />
+        </div>
+
+        <div className="flex gap-2 w-full justify-end">
+          <Button onClick={() => navigate("/bidders")} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmitCreateBidder}
+            type="primary"
+            loading={isLoading}
           >
-            <Input
-              id="bidder_number"
-              name="bidder_number"
-              placeholder="Bidder Number"
-              label="Bidder Number: "
-              type="number"
-              validations={{
-                required: {
-                  value: true,
-                  message: "Bidder Number is required!",
-                },
-              }}
-            />
-            <Input
-              id="first_name"
-              name="first_name"
-              placeholder="First Name"
-              label="First Name:"
-              validations={{
-                required: {
-                  value: true,
-                  message: "First Name is required",
-                },
-                minLength: { value: 3, message: "Minimum of 3 characters" },
-                maxLength: {
-                  value: 255,
-                  message: "Maximum of 255 characters",
-                },
-                pattern: {
-                  value: /^[a-zA-Z\- ]+$/,
-                  message: "Invalid characters",
-                },
-              }}
-            />
-            <Input
-              id="middle_name"
-              name="middle_name"
-              placeholder="Middle Name"
-              label="Middle Name: "
-              validations={{
-                pattern: {
-                  value: /^[a-zA-Z\- ]+$/,
-                  message: "Invalid characters",
-                },
-              }}
-            />
-            <Input
-              id="last_name"
-              name="last_name"
-              placeholder="Last Name"
-              label="Last Name:"
-              validations={{
-                required: {
-                  value: true,
-                  message: "First Name is required",
-                },
-                minLength: { value: 3, message: "Minimum of 3 characters" },
-                maxLength: {
-                  value: 255,
-                  message: "Maximum of 255 characters",
-                },
-                pattern: {
-                  value: /^[a-zA-Z\- ]+$/,
-                  message: "Invalid characters",
-                },
-              }}
-            />
-            <div className="flex">
-              <Button
-                onClick={handleSubmitCreateBidder}
-                buttonType="primary"
-                type="submit"
-                className="w-full h-12"
-              >
-                Save
-              </Button>
-            </div>
-          </form>
-        </FormProvider>
-      </div>
-    </div>
+            Save
+          </Button>
+        </div>
+      </form>
+    </Card>
   );
 };
 

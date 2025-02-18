@@ -11,12 +11,14 @@ interface BidderState {
 }
 
 interface BidderStateContextType extends BidderState {
-  fetchBidder: (id: string) => Promise<void>;
+  fetchBidder: (id: string | number) => Promise<void>;
   fetchBidders: () => Promise<void>;
   createBidder: (body: CreateBidderPayload) => Promise<void>;
+  resetCreateBidderResponse: () => void;
 }
 
 export type BidderAction =
+  | { type: "RESET_CREATE_BIDDER_RESPONSE" }
   | { type: "FETCH_BIDDER" }
   | { type: "FETCH_BIDDER_SUCCESS"; payload: { data: Bidder } }
   | { type: "FETCH_BIDDER_FAILED"; payload: APIError }
@@ -42,6 +44,7 @@ const BidderContext = createContext<BidderStateContextType>({
   fetchBidder: async () => {},
   fetchBidders: async () => {},
   createBidder: async () => {},
+  resetCreateBidderResponse: () => {},
 });
 
 const bidderReducer = (
@@ -80,13 +83,16 @@ const bidderReducer = (
     case BidderActions.FETCH_BIDDERS_FAILED:
     case BidderActions.CREATE_BIDDER_FAILED:
       return { ...state, isLoading: false, error: action.payload };
+
+    case BidderActions.RESET_CREATE_BIDDER_RESPONSE:
+      return { ...state, isLoading: false, bidder: null };
   }
 };
 
 export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, dispatch] = useReducer(bidderReducer, initialState);
 
-  const fetchBidder = useCallback(async (bidderId: string) => {
+  const fetchBidder = useCallback(async (bidderId: string | number) => {
     dispatch({ type: BidderActions.FETCH_BIDDER });
     try {
       const response = await axios.get(`/bidders/${bidderId}`);
@@ -140,6 +146,10 @@ export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const resetCreateBidderResponse = useCallback(() => {
+    dispatch({ type: BidderActions.RESET_CREATE_BIDDER_RESPONSE });
+  }, []);
+
   return (
     <BidderContext.Provider
       value={{
@@ -147,6 +157,7 @@ export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
         fetchBidder,
         fetchBidders,
         createBidder,
+        resetCreateBidderResponse,
       }}
     >
       {children}

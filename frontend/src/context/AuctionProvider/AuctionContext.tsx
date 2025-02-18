@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useReducer } from "react";
-import axios from "axios";
+import axios, { isAxiosError } from "axios";
 import {
   BaseAuction,
   AuctionDetails,
@@ -393,11 +393,13 @@ export const AuctionProvider = ({
         type: AuctionActions.CANCEL_ITEM_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({
-        type: AuctionActions.CANCEL_ITEM_FAILED,
-        payload: error.payload,
-      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: AuctionActions.CANCEL_ITEM_FAILED,
+          payload: error.response?.data,
+        });
+      }
     }
   };
 

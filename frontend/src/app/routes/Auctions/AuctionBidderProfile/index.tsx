@@ -27,7 +27,6 @@ const AuctionBidderProfile = () => {
         const fetchInitialData = async () => {
           await fetchBidderAuctionProfile(auctionId, bidderId);
         };
-        console.log("what");
         fetchInitialData();
       }
     }
@@ -42,7 +41,6 @@ const AuctionBidderProfile = () => {
           bidder.auction_bidders_id
         );
       };
-      console.log("here");
       fetchInitialData();
     }
   }, []);
@@ -82,6 +80,7 @@ const AuctionBidderProfile = () => {
               {!isTransactionsView ? "View Transactions" : "View Items"}
             </span>
           </div>
+
           <div className="flex mt-4">
             <div className="flex-col w-full gap-4">
               <ProfileDetails

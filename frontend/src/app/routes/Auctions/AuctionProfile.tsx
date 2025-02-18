@@ -6,9 +6,10 @@ import {
   useLocation,
   NavLink,
 } from "react-router-dom";
-import { Button, ProfileDetails } from "@components";
+import { ProfileDetails } from "@components";
 import { useAuction } from "@context";
 import { useSession } from "../../hooks";
+import { Card, Button } from "antd";
 import RenderServerError from "../ServerCrashComponent";
 
 const AuctionProfile = () => {
@@ -103,9 +104,9 @@ const AuctionProfile = () => {
 
   return (
     <>
-      <div className="w-full">
+      <div className="w-full mb-2">
         <Button
-          buttonType="secondary"
+          type="dashed"
           onClick={() => navigate("/auctions")}
           className="text-blue-500"
         >
@@ -115,17 +116,18 @@ const AuctionProfile = () => {
 
       <div className="h-full">
         <div className="flex flex-col gap-2">
-          <div className="flex w-full justify-between border rounded shadow-md p-4 h-full">
+          <div className="flex w-full justify-between h-full">
             <div className="w-2/6">
-              <ProfileDetails
-                title={auction?.auction_date}
-                profile={auction}
-                excludedProperties={["auction id", "auction date"]}
-              />
+              <Card title={auction?.auction_date}>
+                <ProfileDetails
+                  profile={auction}
+                  excludedProperties={["auction_id", "auction_date"]}
+                />
+              </Card>
             </div>
-            <div className="flex gap-2 border h-full text-3xl shadow">
+            <Card className="flex gap-2 border h-full text-3xl shadow">
               {renderAuctionNavigation(auction)}
-            </div>
+            </Card>
           </div>
 
           <div>

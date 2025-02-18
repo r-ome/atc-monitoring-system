@@ -1,7 +1,10 @@
 import { Table } from "@components";
+import { useNavigate } from "react-router-dom";
 import { usePayments } from "@context";
+import { BidderAuctionTransaction } from "@types";
 
 const TransactionsTable: React.FC = () => {
+  const navigate = useNavigate();
   const { bidderTransactions, isLoading } = usePayments();
   return (
     <>
@@ -12,6 +15,13 @@ const TransactionsTable: React.FC = () => {
       <Table
         data={bidderTransactions}
         loading={isLoading}
+        onRowClick={(payment: BidderAuctionTransaction) => {
+          if (payment.purpose === "REGISTRATION") {
+            alert("NOTHING TO SEE HERE");
+          } else {
+            navigate(`../payments/${payment.payment_id}`);
+          }
+        }}
         rowKeys={[
           "created_at",
           "amount_paid",

@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Button, Table } from "@components";
 import { convertToNumber, formatNumberToCurrency } from "@lib/utils";
 import { usePayments, useAuction } from "@context";
+import { BidderAuctionItem } from "@types";
 
 const BidderItems: React.FC = () => {
   const params = useParams();
+  const navigate = useNavigate();
   const [isPullOut, setIsPullOut] = useState<boolean>(false);
   const { isLoading: isPayingBidderItems, payBidderItems } = usePayments();
   const { bidder, isLoading } = useAuction();
@@ -114,6 +116,10 @@ const BidderItems: React.FC = () => {
               return +new Date(b.updated_at) - +new Date(a.updated_at);
             }) || []
           }
+          onRowClick={(item: BidderAuctionItem) => {
+            console.log(item);
+            // navigate()
+          }}
           loading={isLoading}
           hasCount
           rowKeys={[

@@ -15,6 +15,7 @@ import {
   RegisterBidder,
   AuctionBidders,
   EncodePage,
+  ReceiptView,
 } from "./Auctions";
 import { CreateInventory } from "./Inventories";
 
@@ -35,6 +36,7 @@ export {
   CreateBidder,
   ContainerProfile,
   BidderList,
+  ReceiptView,
   BidderProfile,
   AuctionList,
   AuctionPayments,

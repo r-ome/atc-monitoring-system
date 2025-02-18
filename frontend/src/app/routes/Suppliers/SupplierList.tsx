@@ -1,13 +1,21 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Supplier } from "../../../types";
-import { Button, Table } from "@components";
+import { BaseSupplier } from "../../../types";
 import { useSuppliers } from "@context/SupplierProvider/SupplierContext";
+import { usePageLayoutProps } from "@layouts";
 import RenderServerError from "../ServerCrashComponent";
+import { Button, Space, Table, Tooltip } from "antd";
+import { EyeOutlined } from "@ant-design/icons";
 
 const Suppliers = () => {
   const navigate = useNavigate();
-  const { error, suppliers, isLoading, fetchSuppliers } = useSuppliers();
+  const { setPageBreadCrumbs } = usePageLayoutProps();
+  const { error, suppliers, fetchSuppliers, resetSupplier } = useSuppliers();
+
+  useEffect(() => {
+    resetSupplier();
+    setPageBreadCrumbs([{ title: "Suppliers List", path: "/suppliers" }]);
+  }, [setPageBreadCrumbs, resetSupplier]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -22,32 +30,57 @@ const Suppliers = () => {
 
   return (
     <div>
-      <div className="flex justify-between my-2 items-center">
-        <h1 className="text-3xl">Suppliers</h1>
-        <div>
-          <Button
-            buttonType="primary"
-            onClick={() => navigate(`/suppliers/create`)}
-          >
-            Create Supplier
-          </Button>
-        </div>
+      <div className="flex my-2">
+        <Button
+          type="primary"
+          size="large"
+          onClick={() => navigate(`/suppliers/create`)}
+        >
+          Create Supplier
+        </Button>
       </div>
 
       <Table
-        data={suppliers}
-        loading={isLoading}
-        onRowClick={(supplier: Supplier) =>
-          navigate(`/suppliers/${supplier.supplier_id}`, {
-            state: { supplier },
-          })
-        }
-        rowKeys={["name", "supplier_code", "created_at", "updated_at"]}
-        columnHeaders={[
-          "Name",
-          "Supplier Code",
-          "Date Created",
-          "Last Date Updated",
+        rowKey={(record) => record.supplier_id}
+        dataSource={suppliers}
+        columns={[
+          {
+            title: "Name",
+            dataIndex: "name",
+          },
+          {
+            title: "Supplier Code",
+            dataIndex: "supplier_code",
+          },
+          {
+            title: "Date Created",
+            dataIndex: "created_at",
+          },
+          {
+            title: "Last Date Updated",
+            dataIndex: "updated_at",
+          },
+          {
+            title: "Action",
+            key: "action",
+            render: (_, supplier: BaseSupplier) => {
+              return (
+                <Space size="middle">
+                  <Tooltip placement="top" title="View Supplier">
+                    <Button
+                      onClick={() =>
+                        navigate(`/suppliers/${supplier.supplier_id}`, {
+                          state: { supplier },
+                        })
+                      }
+                    >
+                      <EyeOutlined />
+                    </Button>
+                  </Tooltip>
+                </Space>
+              );
+            },
+          },
         ]}
       />
     </div>

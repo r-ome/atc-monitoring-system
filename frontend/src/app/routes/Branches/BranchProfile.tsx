@@ -1,13 +1,13 @@
 import { useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Button, Table, ProfileDetails } from "@components";
+import { useParams } from "react-router-dom";
 import { useBranches } from "@context";
-import { Branch } from "@types";
 import RenderServerError from "../ServerCrashComponent";
+import { usePageLayoutProps } from "@layouts";
+import { Button, Card, Descriptions, Skeleton, Table } from "antd";
 
 const BranchProfile = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const params = useParams();
+  const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
   const {
     branch,
     isLoading: isFetchingBranch,
@@ -16,59 +16,93 @@ const BranchProfile = () => {
   } = useBranches();
 
   useEffect(() => {
-    const { branch_id: branchId }: Branch = location.state.branch;
-    if (!branch || branch.branch_id !== branchId) {
+    if (branch) {
+      setPageBreadCrumbs([
+        { title: "Branches List", path: "branches" },
+        { title: `${branch.name} Branch` },
+      ]);
+    }
+  }, [branch, setPageBreadCrumbs]);
+
+  useEffect(() => {
+    const { branch_id: branchId } = params;
+    if (branchId) {
       const fetchInitialData = async () => {
         await fetchBranch(branchId);
       };
       fetchInitialData();
     }
-  }, [location.state.branch, branch, fetchBranch]);
+  }, [params, fetchBranch]);
 
   if (ErrorResponse?.httpStatus === 500) {
     return <RenderServerError {...ErrorResponse} />;
   }
 
-  if (isFetchingBranch || !branch) {
-    return <div className="border p-2 flex justify-center">Loading...</div>;
+  if (!branch) {
+    return <Skeleton />;
   }
 
   return (
     <>
-      <div className="w-full">
-        <Button
-          buttonType="secondary"
-          onClick={() => navigate(-1)}
-          className="text-blue-500"
-        >
-          Go Back
-        </Button>
-      </div>
-
       <div className="h-full">
         <div className="flex flex-grow gap-2">
-          <div className="w-2/6 border rounded shadow-md p-4 h-full">
-            <div className="flex-col w-full gap-4">
-              <ProfileDetails
+          <div className="w-2/6 h-full">
+            <Card loading={isFetchingBranch}>
+              <Descriptions
+                size="small"
+                layout="vertical"
+                bordered
+                extra={
+                  <Button
+                    type="primary"
+                    onClick={() => {
+                      openNotification("TO DO: EDIT Branch");
+                    }}
+                  >
+                    Edit
+                  </Button>
+                }
                 title={`${branch.name} Branch`}
-                profile={branch}
-                excludedProperties={["updated_at"]}
-                renamedProperties={{
-                  created_at: "Date created",
-                  containers: "Total Containers",
-                }}
-              />
-            </div>
+                items={[
+                  {
+                    key: "1",
+                    label: "Total Containers",
+                    children: branch.containers.length,
+                  },
+                  {
+                    key: "2",
+                    label: "Date Created",
+                    children: branch.created_at,
+                  },
+                ]}
+              ></Descriptions>
+            </Card>
           </div>
 
-          <div className="w-5/6 border p-4 h-full">
+          <Card
+            className="w-4/6 py-4 h-full"
+            title={
+              <div className="flex justify-between items-center w-full p-2">
+                <h1 className="text-3xl font-bold">Containers</h1>
+              </div>
+            }
+          >
             <Table
-              data={branch.containers}
+              bordered
               loading={isFetchingBranch}
-              rowKeys={["barcode", "container_num", "supplier.name"]}
-              columnHeaders={["Barcode", "Container Number", "Supplier"]}
+              rowKey={(row) => row.container_id}
+              dataSource={branch.containers}
+              pagination={false}
+              columns={[
+                {
+                  title: "Supplier Name",
+                  render: (row) => row.supplier.name,
+                },
+                { title: "Barcode", dataIndex: "barcode" },
+                { title: "Container Number", dataIndex: "container_num" },
+              ]}
             />
-          </div>
+          </Card>
         </div>
       </div>
     </>

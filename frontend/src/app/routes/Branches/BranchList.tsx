@@ -1,9 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { Button, Table } from "@components";
-import { Branch } from "@types";
+import { BaseBranch } from "@types";
 import { useBranches } from "@context";
+import { Tooltip, Space, Button, Table, Spin } from "antd";
+import { EyeOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
 import RenderServerError from "../ServerCrashComponent";
+import { usePageLayoutProps } from "@layouts";
 
 const BranchList = () => {
   const navigate = useNavigate();
@@ -12,7 +14,14 @@ const BranchList = () => {
     branches,
     isLoading,
     error: ErrorResponse,
+    resetCreateBranchResponse,
   } = useBranches();
+  const { setPageBreadCrumbs } = usePageLayoutProps();
+
+  useEffect(() => {
+    resetCreateBranchResponse();
+    setPageBreadCrumbs([{ title: "Branches List", path: "/branches" }]);
+  }, [setPageBreadCrumbs, resetCreateBranchResponse]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -25,28 +34,60 @@ const BranchList = () => {
     return <RenderServerError {...ErrorResponse} />;
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   return (
     <div>
-      <div className="flex justify-between my-2 items-center">
-        <h1 className="text-3xl">Branches</h1>
-        <div>
-          <Button
-            buttonType="primary"
-            onClick={() => navigate(`/branches/create`)}
-          >
-            Create Branch
-          </Button>
-        </div>
+      <div className="flex my-2">
+        <Button
+          type="primary"
+          size="large"
+          onClick={() => navigate(`/branches/create`)}
+        >
+          Create Branch
+        </Button>
       </div>
 
       <Table
-        data={branches}
-        loading={isLoading}
-        onRowClick={(branch: Branch) =>
-          navigate(`/branches/${branch.branch_id}`, { state: { branch } })
-        }
-        rowKeys={["name", "created_at", "updated_at"]}
-        columnHeaders={["Name", "Date Created", "Last Date Updated"]}
+        rowKey={(record) => record.branch_id}
+        dataSource={branches}
+        columns={[
+          {
+            title: "Branch Name",
+            dataIndex: "name",
+          },
+          {
+            title: "Date Created",
+            dataIndex: "created_at",
+          },
+          {
+            title: "Last Date Updated",
+            dataIndex: "updated_at",
+          },
+          {
+            title: "Action",
+            key: "action",
+            render: (_, branch: BaseBranch) => {
+              return (
+                <Space size="middle">
+                  <Tooltip placement="top" title="View Branch">
+                    <Button
+                      onClick={() => navigate(`/branches/${branch.branch_id}`)}
+                    >
+                      <EyeOutlined />
+                    </Button>
+                  </Tooltip>
+                </Space>
+              );
+            },
+          },
+        ]}
       />
     </div>
   );

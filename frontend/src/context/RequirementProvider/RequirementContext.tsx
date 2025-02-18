@@ -19,9 +19,11 @@ interface BidderRequirementContextType extends BidderRequirementState {
     bidderId: number,
     body: BidderRequirementPayload
   ) => Promise<void>;
+  resetCreateRequirementResponse: () => void;
 }
 
 export type BidderRequirementAction =
+  | { type: "RESET_SUCCESS_RESPONSE" }
   | { type: "ADD_REQUIREMENT" }
   | {
       type: "ADD_REQUIREMENT_SUCCESS";
@@ -38,6 +40,7 @@ const initialState = {
 const BidderRequirementContext = createContext<BidderRequirementContextType>({
   ...initialState,
   createBidderRequirement: async () => {},
+  resetCreateRequirementResponse: () => {},
 });
 
 const bidderRequirementReducer = (
@@ -58,6 +61,9 @@ const bidderRequirementReducer = (
 
     case BidderRequirementActions.ADD_REQUIREMENT_FAILED:
       return { ...state, isLoading: false, error: action.payload };
+
+    case BidderRequirementActions.RESET_SUCCESS_RESPONSE:
+      return { ...state, isLoading: false, requirement: null };
   }
 };
 
@@ -67,6 +73,10 @@ export const BidderRequirementProvider = ({
   children: React.ReactNode;
 }) => {
   const [state, dispatch] = useReducer(bidderRequirementReducer, initialState);
+
+  const resetCreateRequirementResponse = () => {
+    dispatch({ type: BidderRequirementActions.RESET_SUCCESS_RESPONSE });
+  };
 
   const createBidderRequirement = async (
     bidderId: number,
@@ -86,16 +96,20 @@ export const BidderRequirementProvider = ({
         `/bidders/${bidderId}/requirements`,
         data
       );
-      dispatch({
-        type: BidderRequirementActions.ADD_REQUIREMENT_SUCCESS,
-        payload: response.data,
-      });
-    } catch (error) {
-      if (isAxiosError(error) && error.response?.data) {
+      setTimeout(() => {
         dispatch({
-          type: BidderRequirementActions.ADD_REQUIREMENT_FAILED,
-          payload: error.response?.data,
+          type: BidderRequirementActions.ADD_REQUIREMENT_SUCCESS,
+          payload: response.data,
         });
+      }, 3000);
+    } catch (error: any) {
+      if (isAxiosError(error) && error.response?.data) {
+        setTimeout(() => {
+          dispatch({
+            type: BidderRequirementActions.ADD_REQUIREMENT_FAILED,
+            payload: error.response?.data,
+          });
+        }, 3000);
       }
     }
   };
@@ -104,6 +118,7 @@ export const BidderRequirementProvider = ({
     <BidderRequirementContext.Provider
       value={{
         ...state,
+        resetCreateRequirementResponse,
         createBidderRequirement,
       }}
     >

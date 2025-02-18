@@ -1,58 +1,91 @@
 import { useEffect } from "react";
-import { Bidder } from "@types";
-import { Button, Table } from "@components";
+import { BaseBidder } from "@types";
 import { useBidders } from "@context";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Button, Space, Spin, Table, Tooltip } from "antd";
 import RenderServerError from "../ServerCrashComponent";
+import { EyeOutlined } from "@ant-design/icons";
+import { usePageLayoutProps } from "@layouts";
 
 const BidderList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     bidders,
     fetchBidders,
     error: ErrorResponse,
     isLoading,
+    resetCreateBidderResponse,
   } = useBidders();
+  const { setPageBreadCrumbs } = usePageLayoutProps();
+
+  useEffect(() => {
+    resetCreateBidderResponse();
+    setPageBreadCrumbs([{ title: "Bidders List", path: "/bidders" }]);
+  }, [setPageBreadCrumbs, resetCreateBidderResponse]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
       await fetchBidders();
     };
     fetchInitialData();
-  }, [fetchBidders]);
+  }, [fetchBidders, location.key]);
 
   if (ErrorResponse?.httpStatus === 500) {
     return <RenderServerError {...ErrorResponse} />;
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   return (
     <div>
-      <div className="flex justify-between my-2 items-center">
-        <h1 className="text-3xl">Bidders</h1>
-        <div>
-          <Button
-            buttonType="primary"
-            onClick={() => navigate("/bidders/create")}
-          >
-            Create Bidder
-          </Button>
-        </div>
+      <div className="flex my-2">
+        <Button type="primary" size="large" onClick={() => navigate("create")}>
+          Create Bidder
+        </Button>
       </div>
 
       <Table
-        data={bidders}
-        loading={isLoading}
-        onRowClick={(bidder: Bidder) =>
-          navigate(`/bidders/${bidder.bidder_id}`, {
-            state: { bidder },
-          })
-        }
-        rowKeys={["bidder_number", "full_name", "created_at", "updated_at"]}
-        columnHeaders={[
-          "bidder number",
-          "name",
-          "Date Created",
-          "Last Date Updated",
+        rowKey={(record) => record.bidder_id}
+        dataSource={bidders}
+        columns={[
+          {
+            title: "Bidder Number",
+            dataIndex: "bidder_number",
+          },
+          {
+            title: "Full Name",
+            dataIndex: "full_name",
+          },
+          {
+            title: "Date Joined",
+            dataIndex: "created_at",
+          },
+          {
+            title: "Action",
+            key: "action",
+            render: (_, bidder: BaseBidder) => {
+              return (
+                <Space size="middle">
+                  <Tooltip placement="top" title="View Bidder">
+                    <Button
+                      onClick={() =>
+                        navigate(`/bidders/${bidder.bidder_id}/profile`)
+                      }
+                    >
+                      <EyeOutlined />
+                    </Button>
+                  </Tooltip>
+                </Space>
+              );
+            },
+          },
         ]}
       />
     </div>

@@ -1,145 +1,164 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { FormProvider, useForm } from "react-hook-form";
-import { Input, Button } from "@components";
+import { useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { RHFInput } from "@components";
 import { useInventories } from "@context";
-import { useSession } from "../../hooks";
-import { Container, CreateInventoryPayload, Supplier } from "@types";
+import { CreateInventoryPayload } from "@types";
+import { Button, Card, Typography } from "antd";
+import { usePageLayoutProps, BreadcrumbsType } from "@layouts";
+import { useSession } from "app/hooks";
 
 const CreateInventory = () => {
   const navigate = useNavigate();
-  const location = useLocation();
+  const params = useParams();
   const methods = useForm<CreateInventoryPayload>();
-  const [isSuccess, setIsSuccess] = useState<boolean>(false);
-  const [supplier] = useSession<Supplier | null>("supplier", null);
-  const [container] = useSession<Container | null>("container", null);
   const {
     createInventory,
     inventory: SuccessResponse,
     isLoading,
     error: ErrorResponse,
   } = useInventories();
+  const { pageBreadcrumbs, openNotification, setPageBreadCrumbs } =
+    usePageLayoutProps();
+  const [breadcrumbsSession, setBreadcrumbsSession] = useSession<
+    BreadcrumbsType[]
+  >("breadcrumbs", pageBreadcrumbs);
+
+  useEffect(() => {
+    if (!breadcrumbsSession) return;
+    if (breadcrumbsSession) {
+      setPageBreadCrumbs(breadcrumbsSession);
+    }
+  }, [setPageBreadCrumbs, breadcrumbsSession]);
+
+  useEffect(() => {
+    setPageBreadCrumbs((prevBreadcrumbs) => {
+      const newBreadcrumb = {
+        title: "Add Inventory",
+        path: "inventory/create",
+      };
+
+      const doesExist = prevBreadcrumbs.find(
+        (item) => item.title === newBreadcrumb.title
+      );
+      if (doesExist) {
+        return prevBreadcrumbs;
+      }
+
+      const updatedBreadcrumbs = [...prevBreadcrumbs, newBreadcrumb];
+      setBreadcrumbsSession(updatedBreadcrumbs);
+      return updatedBreadcrumbs;
+    });
+  }, [pageBreadcrumbs, setPageBreadCrumbs, setBreadcrumbsSession]);
 
   const handleSubmitCreateInventory = methods.handleSubmit(async (data) => {
-    if (supplier && container) {
-      await createInventory(
-        supplier?.supplier_id,
-        container?.container_id,
-        data
-      );
+    const { supplier_id: supplierId, container_id: containerId } = params;
+    if (supplierId && containerId) {
+      await createInventory(supplierId, containerId, data);
     }
   });
 
   useEffect(() => {
-    if (!ErrorResponse && SuccessResponse) {
+    if (!ErrorResponse && !isLoading && SuccessResponse) {
       methods.reset();
-      setIsSuccess(true);
+      // navigate to Inventory Profile
+      navigate(-1);
+      openNotification("Successfully added Inventory");
     }
 
     if (ErrorResponse) {
-      setIsSuccess(false);
+      openNotification("Please check your inputs!", "error", "Error");
     }
-  }, [ErrorResponse, SuccessResponse, methods]);
-
-  useEffect(() => {
-    setIsSuccess(false);
-  }, [location.key]);
-
-  if (isLoading) {
-    return <div className="text-3xl flex justify-center">Loading...</div>;
-  }
+  }, [
+    ErrorResponse,
+    SuccessResponse,
+    methods,
+    openNotification,
+    isLoading,
+    navigate,
+  ]);
 
   return (
-    <div>
-      <div className="w-full">
-        <Button
-          buttonType="secondary"
-          onClick={() => navigate(-1)}
-          className="text-blue-500"
-        >
-          Go Back
-        </Button>
-      </div>
-      <div className="flex justify-between my-2">
-        <h1 className="text-3xl">Create Inventory</h1>
-      </div>
-
-      <div className="block p-10 border rounded-lg shadow-lg">
-        <FormProvider {...methods}>
-          {isSuccess && (
-            <h1 className="text-green-500 text-xl flex justify-center">
-              Successfully Added Inventory!
-            </h1>
-          )}
-          <form
-            id="create_inventory"
-            onSubmit={(e) => e.preventDefault()}
-            noValidate
-            autoComplete="off"
-          >
-            <Input
-              id="barcode"
+    <>
+      <Card
+        className="py-4"
+        title={<h1 className="text-3xl">Create Branch</h1>}
+      >
+        <form id="create_branch" className="flex flex-col gap-4 w-2/4">
+          <div>
+            <Typography.Title level={5}>Barcode:</Typography.Title>
+            <RHFInput
+              control={methods.control}
               name="barcode"
+              disabled={isLoading}
               placeholder="Barcode"
-              label="Barcode:"
-              validations={{
-                required: {
-                  value: true,
-                  message: "Barcode is required",
-                },
+              onChange={(e) =>
+                methods.setValue("barcode", e.target.value.toUpperCase())
+              }
+              rules={{
+                required: "This field is required!",
                 pattern: {
                   value: /^[0-9\- ]+$/,
-                  message: "Invalid characters",
+                  message: "Invalid characters!",
                 },
               }}
             />
-            <Input
-              id="description"
-              name="description"
-              placeholder="Description"
-              label="Description: "
-              validations={{
-                required: {
-                  value: true,
-                  message: "Barcode is required",
-                },
-                pattern: {
-                  value: /^[a-zA-Z0-9\- ]+$/,
-                  message: "Invalid characters",
-                },
-              }}
-            />
-            <Input
-              id="control_number"
-              name="control_number"
-              placeholder="Control Number"
-              label="Control Number:"
-              validations={{
-                required: {
-                  value: true,
-                  message: "Barcode is required",
-                },
-                pattern: {
-                  value: /^[0-9\- ]+$/,
-                  message: "Invalid characters",
-                },
-              }}
-            />
+          </div>
 
-            <div className="flex">
-              <Button
-                onClick={handleSubmitCreateInventory}
-                buttonType="primary"
-                type="submit"
-                className="w-full h-12"
-              >
-                Save
-              </Button>
-            </div>
-          </form>
-        </FormProvider>
-      </div>
-    </div>
+          <div>
+            <Typography.Title level={5}>Description:</Typography.Title>
+            <RHFInput
+              control={methods.control}
+              name="description"
+              disabled={isLoading}
+              placeholder="Description"
+              onChange={(e) =>
+                methods.setValue("description", e.target.value.toUpperCase())
+              }
+              rules={{
+                required: "This field is required!",
+                pattern: {
+                  value: /^[a-zA-Z0-9\-. ]+$/,
+                  message: "Invalid characters!",
+                },
+              }}
+            />
+          </div>
+
+          <div>
+            <Typography.Title level={5}>Control Number:</Typography.Title>
+            <RHFInput
+              control={methods.control}
+              name="control_number"
+              disabled={isLoading}
+              placeholder="Control Number"
+              onChange={(e) =>
+                methods.setValue("control_number", e.target.value.toUpperCase())
+              }
+              rules={{
+                pattern: {
+                  value: /^[0-9]+$/,
+                  message: "Invalid characters!",
+                },
+              }}
+            />
+          </div>
+
+          <div className="flex gap-2 w-full justify-end">
+            <Button onClick={() => navigate("/branches")} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitCreateInventory}
+              type="primary"
+              loading={isLoading}
+            >
+              Save
+            </Button>
+          </div>
+        </form>
+      </Card>
+    </>
   );
 };
 

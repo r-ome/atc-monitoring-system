@@ -14,7 +14,6 @@ import {
   CreateBidder,
   BidderList,
   BidderProfile,
-  CreateBidderRequirement,
   AuctionList,
   AuctionProfile,
   AuctionBidders,
@@ -23,7 +22,12 @@ import {
   Monitoring,
   EncodePage,
 } from "./app/routes";
-import { AuctionBidderProfile, ManifestList } from "./app/routes/Auctions";
+import { PageLayout } from "./layouts";
+import {
+  AuctionBidderProfile,
+  ManifestList,
+  ReceiptView,
+} from "./app/routes/Auctions";
 
 const routes: RouteObject[] = [
   {
@@ -33,56 +37,85 @@ const routes: RouteObject[] = [
     children: [
       {
         path: "suppliers",
-        element: <SupplierList />,
-      },
-      {
-        path: "containers/create",
-        element: <CreateContainer />,
-      },
-      {
-        path: "suppliers/:id",
-        element: <SupplierProfile />,
-        children: [],
-      },
-      {
-        path: "suppliers/create",
-        element: <CreateSupplier />,
-      },
-      {
-        path: "containers/:id",
-        element: <ContainerProfile />,
-      },
-      {
-        path: "inventory/create",
-        element: <CreateInventory />,
+        element: (
+          <PageLayout
+            title="Suppliers"
+            breadcrumbs={[{ title: "Suppliers List", path: "suppliers" }]}
+          />
+        ),
+        children: [
+          {
+            index: true,
+            element: <SupplierList />,
+          },
+          {
+            path: ":supplier_id",
+            element: <SupplierProfile />,
+            children: [],
+          },
+          {
+            path: "create",
+            element: <CreateSupplier />,
+          },
+          {
+            path: ":supplier_id/containers/:container_id",
+            element: <ContainerProfile />,
+          },
+          {
+            path: ":supplier_id/containers/create",
+            element: <CreateContainer />,
+          },
+          {
+            path: ":supplier_id/containers/:container_id/inventory/create",
+            element: <CreateInventory />,
+          },
+        ],
       },
       {
         path: "branches",
-        element: <BranchList />,
-      },
-      {
-        path: "branches/:id",
-        element: <BranchProfile />,
-      },
-      {
-        path: "branches/create",
-        element: <CreateBranch />,
+        element: (
+          <PageLayout
+            title="Branches"
+            breadcrumbs={[{ title: "Branches List", path: "branches" }]}
+          />
+        ),
+        children: [
+          {
+            index: true,
+            element: <BranchList />,
+          },
+          {
+            path: ":branch_id",
+            element: <BranchProfile />,
+          },
+          {
+            path: "create",
+            element: <CreateBranch />,
+          },
+        ],
       },
       {
         path: "bidders",
-        element: <BidderList />,
-      },
-      {
-        path: "bidders/:bidder_id",
-        element: <BidderProfile />,
-      },
-      {
-        path: "bidders/requirement",
-        element: <CreateBidderRequirement />,
-      },
-      {
-        path: "bidders/create",
-        element: <CreateBidder />,
+        element: (
+          <PageLayout
+            title="Bidders"
+            breadcrumbs={[{ title: "Bidders List", path: "bidders" }]}
+          />
+        ),
+        children: [
+          {
+            index: true,
+            element: <BidderList />,
+          },
+          {
+            path: ":bidder_id/profile",
+            element: <BidderProfile />,
+          },
+          {
+            path: "create",
+            element: <CreateBidder />,
+          },
+        ],
       },
       {
         path: "auctions",
@@ -111,6 +144,10 @@ const routes: RouteObject[] = [
           {
             path: "bidders/:bidder_id",
             element: <AuctionBidderProfile />,
+          },
+          {
+            path: "payments/:payment_id",
+            element: <ReceiptView />,
           },
           {
             path: "monitoring",

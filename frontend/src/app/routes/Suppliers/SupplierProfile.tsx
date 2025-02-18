@@ -1,19 +1,25 @@
 import { useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Button, Table, ProfileDetails } from "@components";
+import { useNavigate, useParams } from "react-router-dom";
 import { useSuppliers } from "@context/SupplierProvider/SupplierContext";
 import { useContainers } from "@context/ContainerProvider/ContainerContext";
-import { useSession } from "../../hooks";
-import { BaseContainer, Supplier } from "@types";
+import { BaseContainer } from "@types";
 import RenderServerError from "../ServerCrashComponent";
+import { usePageLayoutProps, BreadcrumbsType } from "@layouts/PageLayout";
+import {
+  Button,
+  Card,
+  Descriptions,
+  Skeleton,
+  Space,
+  Table,
+  Tooltip,
+} from "antd";
+import { EyeOutlined } from "@ant-design/icons";
+import { useSession } from "app/hooks";
 
 const SupplierProfile = () => {
-  const [sessionSupplier, setSupplierSession] = useSession<Supplier | null>(
-    "supplier",
-    null
-  );
+  const params = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const {
     supplier,
     fetchSupplier,
@@ -25,33 +31,40 @@ const SupplierProfile = () => {
     fetchContainersBySupplier,
     isLoading: isFetchingContainers,
     error: ContainerErrorResponse,
+    resetContainer,
   } = useContainers();
+  const { openNotification, pageBreadcrumbs, setPageBreadCrumbs } =
+    usePageLayoutProps();
+  const [, setBreadcrumbsSession] = useSession<BreadcrumbsType[]>(
+    "breadcrumbs",
+    pageBreadcrumbs
+  );
 
   useEffect(() => {
-    const { supplier_id: supplierId } = location.state.supplier;
-    const fetchInitialData = async () => {
-      await fetchSupplier(supplierId);
-      await fetchContainersBySupplier(supplierId);
-    };
-    fetchInitialData();
-  }, [
-    supplier?.supplier_id,
-    fetchSupplier,
-    fetchContainersBySupplier,
-    location.state.supplier,
-  ]);
-
-  useEffect(() => {
+    resetContainer();
     if (supplier) {
-      if (sessionSupplier) {
-        if (sessionSupplier.supplier_id !== supplier.supplier_id) {
-          setSupplierSession(supplier);
-          return;
-        }
-      }
-      setSupplierSession(supplier);
+      const profileBreadcrumbs = [
+        { title: "Suppliers List", path: "/suppliers" },
+        {
+          title: `${supplier.name}'s Profile`,
+          path: `/${supplier.supplier_id}`,
+        },
+      ];
+      setBreadcrumbsSession(profileBreadcrumbs);
+      setPageBreadCrumbs(profileBreadcrumbs);
     }
-  }, [sessionSupplier?.supplier_id, supplier?.supplier_id]);
+  }, [supplier, setPageBreadCrumbs, setBreadcrumbsSession, resetContainer]);
+
+  useEffect(() => {
+    const { supplier_id: supplierId } = params;
+    if (supplierId) {
+      const fetchInitialData = async () => {
+        await fetchSupplier(supplierId);
+        await fetchContainersBySupplier(supplierId);
+      };
+      fetchInitialData();
+    }
+  }, [supplier?.supplier_id, fetchSupplier, fetchContainersBySupplier, params]);
 
   const httpErrors = [
     SupplierErrorResponse?.httpStatus,
@@ -62,55 +75,113 @@ const SupplierProfile = () => {
     if (ErrorResponse) return <RenderServerError {...ErrorResponse} />;
   }
 
-  if (isFetchingContainers || isFetchingSupplier || !supplier) {
-    return <div className="border p-2 flex justify-center">Loading...</div>;
+  if (!supplier) {
+    return <Skeleton />;
   }
 
   return (
     <>
-      <div className="w-full">
-        <Button
-          buttonType="secondary"
-          onClick={() => navigate("/suppliers", { state: null })}
-          className="text-blue-500"
-        >
-          Go Back
-        </Button>
-      </div>
-
       <div className="h-full">
         <div className="flex flex-grow gap-2">
-          <div className="w-2/6 border rounded shadow-md p-4 h-full">
-            <ProfileDetails
-              title={supplier.name}
-              profile={supplier}
-              excludedProperties={["supplier_id", "updated_at"]}
-              renamedProperties={{ created_at: "Date added" }}
-            />
+          <div className="w-2/6 h-full">
+            <Card loading={isFetchingSupplier}>
+              <Descriptions
+                size="small"
+                layout="vertical"
+                bordered
+                extra={
+                  <Button
+                    type="primary"
+                    onClick={() => {
+                      openNotification("TO DO: EDIT Supplier");
+                    }}
+                  >
+                    Edit
+                  </Button>
+                }
+                title={supplier.name}
+                items={[
+                  {
+                    key: "1",
+                    label: "Code",
+                    span: 1,
+                    children: supplier.supplier_code,
+                  },
+                  {
+                    key: "2",
+                    label: "Containers",
+                    span: 1,
+                    children: supplier.num_of_containers,
+                  },
+                  {
+                    key: "3",
+                    label: "Shipper",
+                    span: 1,
+                    children: supplier.shipper,
+                  },
+                  {
+                    key: "4",
+                    label: "Date Added",
+                    span: 3,
+                    children: supplier.created_at,
+                  },
+                ]}
+              ></Descriptions>
+            </Card>
           </div>
 
-          <div className="w-5/6 border p-4 h-full">
-            <div className="flex justify-between items-center w-full p-2">
-              <h1 className="text-3xl font-bold">Container List</h1>
-              <Button
-                buttonType="primary"
-                onClick={() => navigate("/containers/create")}
-              >
-                Add Container
-              </Button>
-            </div>
+          <Card
+            className="w-4/6 py-4 h-full"
+            title={
+              <div className="flex justify-between items-center w-full p-2">
+                <h1 className="text-3xl font-bold">Containers</h1>
+                <Button
+                  type="primary"
+                  onClick={() => navigate("containers/create")}
+                >
+                  Add Container
+                </Button>
+              </div>
+            }
+          >
             <Table
-              data={containersBySupplier}
+              bordered
               loading={isFetchingContainers}
-              onRowClick={(container: BaseContainer) =>
-                navigate(`/containers/${container.container_id}`, {
-                  state: { container },
-                })
-              }
-              rowKeys={["barcode", "container_num", "num_of_items"]}
-              columnHeaders={["Barcode", "Container Number", "Number of Items"]}
+              rowKey={(row) => row.container_id}
+              dataSource={containersBySupplier}
+              pagination={false}
+              columns={[
+                {
+                  title: "Barcode",
+                  dataIndex: "barcode",
+                },
+                { title: "Container Number", dataIndex: "container_num" },
+                { title: "Number of Items", dataIndex: "num_of_items" },
+
+                {
+                  title: "Action",
+                  key: "action",
+                  render: (_, container: BaseContainer) => {
+                    return (
+                      <Space size="middle">
+                        <Tooltip placement="top" title="View Container">
+                          <Button
+                            onClick={() =>
+                              navigate(`containers/${container.container_id}`, {
+                                state: { container },
+                              })
+                            }
+                          >
+                            <EyeOutlined />
+                          </Button>
+                        </Tooltip>
+                      </Space>
+                    );
+                  },
+                },
+              ]}
             />
-          </div>
+          </Card>
         </div>
       </div>
     </>

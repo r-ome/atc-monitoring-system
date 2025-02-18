@@ -1,5 +1,11 @@
 import { InventoryStatus } from "./Inventories";
 
+export type AuctionItemStatus = "PAID" | "UNPAID" | "CANCELLED";
+export type ItemHistoryStatus =
+  | (AuctionItemStatus & "REFUNDED")
+  | "LESS"
+  | "DISCREPANCY";
+
 export type BaseAuction = {
   auction_id: number;
   auction_date: string;
@@ -62,12 +68,17 @@ export type RegisteredBidders = {
   bidders: RegisterBidderResponse[];
 };
 
-type AuctionItemStatus = "PAID" | "UNPAID" | "CANCELLED";
-
-type ItemHistoryStatus =
-  | (AuctionItemStatus & "REFUNDED")
-  | "LESS"
-  | "DISCREPANCY";
+export type BidderAuctionItem = {
+  auction_inventory_id: number;
+  qty: string;
+  price: string;
+  status: AuctionItemStatus;
+  barcode: string;
+  control: string;
+  updated_at: string;
+  description: string;
+  manifest_number: string;
+};
 
 export type BidderAuctionProfile = {
   auction_bidders_id: number;
@@ -82,17 +93,7 @@ export type BidderAuctionProfile = {
   total_unpaid_items: string; // supposed to be number
   total_unpaid_items_price: string;
   balance: string;
-  items: {
-    auction_inventory_id: number;
-    qty: string;
-    price: string;
-    status: AuctionItemStatus;
-    barcode: string;
-    control: string;
-    updated_at: string;
-    description: string;
-    manifest_number: string;
-  }[];
+  items: BidderAuctionItem[];
 };
 
 export type RegisterBidderPayload = {

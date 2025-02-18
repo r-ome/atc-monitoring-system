@@ -7,6 +7,7 @@ import AuctionBidders from "./AuctionBidders";
 import ManifestList from "./ManifestList";
 import AuctionBidderProfile from "./AuctionBidderProfile";
 import EncodePage from "./EncodePage";
+import ReceiptView from "./AuctionBidderProfile/ReceiptView";
 
 export {
   AuctionList,
@@ -18,4 +19,5 @@ export {
   ManifestList,
   AuctionBidderProfile,
   EncodePage,
+  ReceiptView,
 };

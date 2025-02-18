@@ -1,115 +1,91 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { FormProvider, useForm } from "react-hook-form";
-import { Input, Button, DatePicker } from "@components";
+import { useCallback, useEffect } from "react";
+import moment from "moment";
+import { useForm } from "react-hook-form";
 import { useBidderRequirement } from "@context";
 import { Bidder, BidderRequirementPayload } from "@types";
-import { useSession } from "../../hooks";
+import { Modal, Typography } from "antd";
+import { RHFDatePicker, RHFInput } from "@components";
 
-const CreateBidderRequirement = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+interface CreateBidderRequirementProps {
+  open: boolean;
+  onCancel: () => void;
+  bidder: Bidder;
+}
+
+const CreateBidderRequirement: React.FC<CreateBidderRequirementProps> = ({
+  open,
+  onCancel,
+  bidder,
+}) => {
   const methods = useForm<BidderRequirementPayload>();
-  const [isSuccess, setIsSuccess] = useState<boolean>(false);
-  const [bidder, setBidder] = useState<Bidder | null>(null);
-  const [sessionBidder] = useSession<Bidder | null>("bidder", null);
-  const { createBidderRequirement, requirement, isLoading, error } =
-    useBidderRequirement();
+  const {
+    createBidderRequirement,
+    requirement,
+    isLoading,
+    error: ErrorResponse,
+  } = useBidderRequirement();
+
+  const handleCancel = useCallback(() => {
+    methods.reset({ name: "", validity_date: "" });
+    onCancel();
+  }, [methods, onCancel]);
+
+  const handleSubmit = methods.handleSubmit(async (data) => {
+    data.validity_date = moment(new Date(data.validity_date)).format(
+      "YYYY-MM-DD HH:mm:ss"
+    );
+    await createBidderRequirement(bidder.bidder_id, data);
+  });
 
   useEffect(() => {
-    if (sessionBidder && sessionBidder.bidder_id !== bidder?.bidder_id) {
-      setBidder(sessionBidder);
-    }
-  }, [sessionBidder, bidder]);
-
-  useEffect(() => {
-    if (error) {
-      setIsSuccess(false);
+    if (ErrorResponse) {
       methods.setError("name", {
         type: "string",
         message: "Invalid Requirement Type!",
       });
     }
 
-    if (!error && !isLoading && bidder && requirement) {
-      methods.reset();
-      setIsSuccess(true);
+    if (!ErrorResponse && !isLoading && requirement) {
+      handleCancel();
     }
-  }, [error, isLoading, methods, bidder, requirement]);
-
-  useEffect(() => {
-    setIsSuccess(false);
-  }, [location.key]);
-
-  const handleSubmitCreateBidderRequirement = methods.handleSubmit(
-    async (data) => {
-      if (bidder) {
-        await createBidderRequirement(bidder.bidder_id, data);
-      }
-    }
-  );
-
-  if (isLoading) {
-    return <div className="text-3xl flex justify-center">Loading...</div>;
-  }
+  }, [ErrorResponse, isLoading, methods, requirement, handleCancel]);
 
   return (
-    <div>
-      <div className="w-full">
-        <Button
-          buttonType="secondary"
-          onClick={() => navigate(-1)}
-          className="text-blue-500"
-        >
-          Go Back
-        </Button>
-      </div>
-      <div className="flex justify-between my-2">
-        <h1 className="text-3xl">Add Bidder Requirement</h1>
-      </div>
-
-      <div className="block p-10 border rounded-lg shadow-lg">
-        <FormProvider {...methods}>
-          {isSuccess ? (
-            <h1 className="text-green-500 text-xl flex justify-center">
-              Successfully Added Bidder Requirement!
-            </h1>
-          ) : null}
-          <form
-            id="create_bidder_requirement"
-            onSubmit={(e) => e.preventDefault()}
-            noValidate
-            autoComplete="off"
-          >
-            <Input
-              id="name"
+    <Modal
+      open={open}
+      onCancel={handleCancel}
+      onOk={handleSubmit}
+      confirmLoading={isLoading}
+      okText="Save Requirement"
+      title="Add Bidder Requirement"
+    >
+      <form id="create_bidder_requirement">
+        <div className="flex flex-col gap-4">
+          <div>
+            <Typography.Title level={4}>Requirement Type</Typography.Title>
+            <RHFInput
+              control={methods.control}
               name="name"
-              placeholder="Requirement Type"
-              label="Requirement Type: "
-            />
-            <DatePicker
-              id="validity_date"
-              name="validity_date"
-              label="Validit Until:"
-              validations={{
-                required: { value: true, message: "required" },
+              disabled={isLoading}
+              rules={{ required: "This field is required!" }}
+              placeholder="Requirement Name"
+              onChange={(e) => {
+                methods.setValue("name", e.target.value.toUpperCase());
               }}
             />
-
-            <div className="flex">
-              <Button
-                onClick={handleSubmitCreateBidderRequirement}
-                buttonType="primary"
-                type="submit"
-                className="w-full h-12"
-              >
-                Save
-              </Button>
-            </div>
-          </form>
-        </FormProvider>
-      </div>
-    </div>
+          </div>
+          <div>
+            <Typography.Title level={4}>Valid Until</Typography.Title>
+            <RHFDatePicker
+              control={methods.control}
+              name="validity_date"
+              disabled={isLoading}
+              rules={{ required: "This field is required" }}
+            />
+          </div>
+        </div>
+      </form>
+    </Modal>
   );
 };
 

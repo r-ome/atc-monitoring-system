@@ -3,12 +3,12 @@ import Navigation from "./Navigation";
 
 const Layout = () => {
   return (
-    <div className="flex w-full overflow-hidden">
+    <div className="flex w-full overflow-hidden bg-gray-100">
       <Navigation />
       <div className="flex flex-col h-full w-full mr-4 overflow-scroll">
-        <div className="h-36 border flex justify-center items-center">
+        {/* <div className="h-36 border flex justify-center items-center">
           header here
-        </div>
+        </div> */}
         <div className="p-4">
           <Outlet />
         </div>

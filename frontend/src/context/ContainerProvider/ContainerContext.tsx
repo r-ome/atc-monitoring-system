@@ -16,15 +16,20 @@ interface ContainerState {
 }
 
 interface ContainerContextType extends ContainerState {
-  fetchContainer: (supplierId: number, containerId: number) => Promise<void>;
-  fetchContainersBySupplier: (supplierId: string) => Promise<void>;
+  fetchContainer: (
+    supplierId: number | string,
+    containerId: number | string
+  ) => Promise<void>;
+  fetchContainersBySupplier: (supplierId: string | number) => Promise<void>;
   createContainer: (
-    supplierId: number,
+    supplierId: number | string,
     body: CreateContainerPayload
   ) => Promise<void>;
+  resetContainer: () => void;
 }
 
 export type ContainerAction =
+  | { type: "RESET_CONTAINER" }
   | { type: "FETCH_CONTAINER" }
   | { type: "FETCH_CONTAINER_SUCCESS"; payload: { data: Container } }
   | { type: "FETCH_CONTAINER_FAILED"; payload: APIError }
@@ -50,6 +55,7 @@ const ContainerContext = createContext<ContainerContextType>({
   fetchContainer: async () => {},
   fetchContainersBySupplier: async () => {},
   createContainer: async () => {},
+  resetContainer: () => {},
 });
 
 const containerReducer = (state: ContainerState, action: ContainerAction) => {
@@ -78,6 +84,9 @@ const containerReducer = (state: ContainerState, action: ContainerAction) => {
     case ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER_FAILED:
     case ContainerActions.CREATE_CONTAINER_FAILED:
       return { ...state, isLoading: false, error: action.payload };
+
+    case ContainerActions.RESET_CONTAINER:
+      return { ...state, isLoading: false, container: null, error: null };
   }
 };
 
@@ -88,46 +97,54 @@ export const ContainerProvider = ({
 }) => {
   const [state, dispatch] = useReducer(containerReducer, initialState);
 
-  const fetchContainer = async (supplierId: number, containerId: number) => {
-    dispatch({ type: ContainerActions.FETCH_CONTAINER });
-    try {
-      const response = await axios.get(
-        `/suppliers/${supplierId}/containers/${containerId}`
-      );
-      dispatch({
-        type: ContainerActions.FETCH_CONTAINER_SUCCESS,
-        payload: response.data,
-      });
-    } catch (error) {
-      if (isAxiosError(error) && error.response?.data) {
+  const fetchContainer = useCallback(
+    async (supplierId: number | string, containerId: number | string) => {
+      dispatch({ type: ContainerActions.FETCH_CONTAINER });
+      try {
+        const response = await axios.get(
+          `/suppliers/${supplierId}/containers/${containerId}`
+        );
         dispatch({
-          type: ContainerActions.FETCH_CONTAINER_FAILED,
-          payload: error.response?.data,
+          type: ContainerActions.FETCH_CONTAINER_SUCCESS,
+          payload: response.data,
         });
+      } catch (error) {
+        if (isAxiosError(error) && error.response?.data) {
+          dispatch({
+            type: ContainerActions.FETCH_CONTAINER_FAILED,
+            payload: error.response?.data,
+          });
+        }
       }
-    }
-  };
+    },
+    []
+  );
 
-  const fetchContainersBySupplier = useCallback(async (supplierId: string) => {
-    dispatch({ type: ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER });
-    try {
-      const response = await axios.get(`/suppliers/${supplierId}/containers`);
-      dispatch({
-        type: ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER_SUCCESS,
-        payload: response.data,
-      });
-    } catch (error) {
-      if (isAxiosError(error) && error.response?.data) {
-        dispatch({
-          type: ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER_FAILED,
-          payload: error.response?.data,
-        });
+  const fetchContainersBySupplier = useCallback(
+    async (supplierId: string | number) => {
+      dispatch({ type: ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER });
+      try {
+        const response = await axios.get(`/suppliers/${supplierId}/containers`);
+        setTimeout(() => {
+          dispatch({
+            type: ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER_SUCCESS,
+            payload: response.data,
+          });
+        }, 1000);
+      } catch (error) {
+        if (isAxiosError(error) && error.response?.data) {
+          dispatch({
+            type: ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER_FAILED,
+            payload: error.response?.data,
+          });
+        }
       }
-    }
-  }, []);
+    },
+    []
+  );
 
   const createContainer = async (
-    supplierId: number,
+    supplierId: number | string,
     body: CreateContainerPayload
   ) => {
     dispatch({ type: ContainerActions.CREATE_CONTAINER });
@@ -137,19 +154,28 @@ export const ContainerProvider = ({
         body
       );
 
-      dispatch({
-        type: ContainerActions.CREATE_CONTAINER_SUCCESS,
-        payload: response.data,
-      });
-    } catch (error) {
-      if (isAxiosError(error) && error.response?.data) {
+      setTimeout(() => {
         dispatch({
-          type: ContainerActions.CREATE_CONTAINER_FAILED,
-          payload: error.response?.data,
+          type: ContainerActions.CREATE_CONTAINER_SUCCESS,
+          payload: response.data,
         });
-      }
+      }, 1000);
+    } catch (error) {
+      setTimeout(() => {
+        if (isAxiosError(error) && error.response?.data) {
+          dispatch({
+            type: ContainerActions.CREATE_CONTAINER_FAILED,
+            payload: error.response?.data,
+          });
+        }
+      }, 1000);
     }
   };
+
+  const resetContainer = useCallback(
+    () => dispatch({ type: ContainerActions.RESET_CONTAINER }),
+    []
+  );
 
   return (
     <ContainerContext.Provider
@@ -158,6 +184,7 @@ export const ContainerProvider = ({
         fetchContainer,
         fetchContainersBySupplier,
         createContainer,
+        resetContainer,
       }}
     >
       {children}

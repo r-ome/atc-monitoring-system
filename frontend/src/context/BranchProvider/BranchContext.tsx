@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer } from "react";
+import { createContext, useCallback, useContext, useReducer } from "react";
 import axios, { isAxiosError } from "axios";
 import { BaseBranch, Branch, CreateBranchPayload, APIError } from "@types";
 import * as BranchActions from "./actions";
@@ -11,12 +11,14 @@ interface BranchState {
 }
 
 interface BranchStateContextType extends BranchState {
-  fetchBranch: (id: number) => Promise<void>;
+  fetchBranch: (id: number | string) => Promise<void>;
   fetchBranches: () => Promise<void>;
   createBranch: (body: CreateBranchPayload) => Promise<void>;
+  resetCreateBranchResponse: () => void;
 }
 
 export type BranchAction =
+  | { type: "RESET_CREATE_BRANCH_RESPONSE" }
   | { type: "FETCH_BRANCHES" }
   | { type: "FETCH_BRANCHES_SUCCESS"; payload: { data: BaseBranch[] } }
   | { type: "FETCH_BRANCHES_FAILED"; payload: APIError }
@@ -39,6 +41,7 @@ const BranchContext = createContext<BranchStateContextType>({
   fetchBranch: async () => {},
   fetchBranches: async () => {},
   createBranch: async () => {},
+  resetCreateBranchResponse: () => {},
 });
 
 const branchReducer = (
@@ -67,13 +70,16 @@ const branchReducer = (
     case BranchActions.FETCH_BRANCH_FAILED:
     case BranchActions.FETCH_BRANCHES_FAILED:
       return { ...state, isLoading: false, error: action.payload };
+
+    case BranchActions.RESET_CREATE_BRANCH_RESPONSE:
+      return { ...state, isLoading: false, branch: null };
   }
 };
 
 export const BranchProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, dispatch] = useReducer(branchReducer, initialState);
 
-  const fetchBranch = async (branchId: number) => {
+  const fetchBranch = useCallback(async (branchId: number | string) => {
     dispatch({ type: BranchActions.FETCH_BRANCH });
     try {
       const response = await axios.get(`/branches/${branchId}`);
@@ -89,9 +95,9 @@ export const BranchProvider = ({ children }: { children: React.ReactNode }) => {
         });
       }
     }
-  };
+  }, []);
 
-  const fetchBranches = async () => {
+  const fetchBranches = useCallback(async () => {
     dispatch({ type: BranchActions.FETCH_BRANCHES });
     try {
       const response = await axios.get("/branches");
@@ -107,7 +113,7 @@ export const BranchProvider = ({ children }: { children: React.ReactNode }) => {
         });
       }
     }
-  };
+  }, []);
 
   const createBranch = async (branch: CreateBranchPayload) => {
     dispatch({ type: BranchActions.CREATE_BRANCH });
@@ -127,9 +133,20 @@ export const BranchProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const resetCreateBranchResponse = useCallback(
+    () => dispatch({ type: BranchActions.RESET_CREATE_BRANCH_RESPONSE }),
+    []
+  );
+
   return (
     <BranchContext.Provider
-      value={{ ...state, fetchBranch, fetchBranches, createBranch }}
+      value={{
+        ...state,
+        fetchBranch,
+        fetchBranches,
+        createBranch,
+        resetCreateBranchResponse,
+      }}
     >
       {children}
     </BranchContext.Provider>

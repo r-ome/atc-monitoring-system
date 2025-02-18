@@ -5,17 +5,21 @@ import {
   Branch,
   Container,
   Supplier,
+  PaymentDetails,
+  AuctionInventory,
 } from "@types";
 
 interface ProfileDetailsProps {
-  title: string;
+  title?: string;
   profile:
     | Bidder
     | Branch
     | Supplier
     | Container
     | AuctionDetails
-    | BidderAuctionProfile;
+    | BidderAuctionProfile
+    | PaymentDetails
+    | AuctionInventory;
   excludedProperties?: string[];
   renamedProperties?: { [key: string]: string };
 }

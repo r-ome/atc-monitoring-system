@@ -1,17 +1,18 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { FormProvider, useForm } from "react-hook-form";
-import { Input, Button } from "@components";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { RHFInput } from "@components";
 import { useSuppliers } from "@context/SupplierProvider/SupplierContext";
-import { APIError, CreateSupplierPayload } from "@types";
+import { CreateSupplierPayload } from "@types";
 import { SUPPLIERS_402 } from "../errors";
 import RenderServerError from "../ServerCrashComponent";
+import { usePageLayoutProps } from "@layouts";
+import { Button, Card, Typography } from "antd";
 
 const CreateSupplier = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const methods = useForm<CreateSupplierPayload>();
-  const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
   const {
     createSupplier,
     isLoading,
@@ -19,152 +20,160 @@ const CreateSupplier = () => {
     supplier: SuccessResponse,
   } = useSuppliers();
 
+  useEffect(() => {
+    setPageBreadCrumbs([
+      { title: "Suppliers List", path: "/suppliers" },
+      {
+        title: `Create Supplier`,
+        path: `/suppliers/create`,
+      },
+    ]);
+  }, [setPageBreadCrumbs]);
+
+  const handleFieldUpperCase = (
+    fieldName: "name" | "japanese_name" | "shipper",
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    methods.setValue(fieldName, e.target.value.toUpperCase());
+  };
+
   const handleSubmitCreateSupplier = methods.handleSubmit(async (data) => {
     await createSupplier(data);
   });
 
   useEffect(() => {
-    if (!ErrorResponse && SuccessResponse) {
+    if (!ErrorResponse && !isLoading && SuccessResponse) {
       methods.reset();
-      setIsSuccess(true);
+      openNotification("Successfully Added Supplier!");
+      navigate(`/suppliers/${SuccessResponse.supplier_id}`);
     }
 
     if (ErrorResponse) {
-      setIsSuccess(false);
+      if (ErrorResponse.error === SUPPLIERS_402) {
+        openNotification(
+          "Either Supplier Name or Supplier Code already exist!",
+          "error",
+          "Error"
+        );
+      }
     }
-  }, [ErrorResponse, SuccessResponse, methods]);
-
-  useEffect(() => {
-    setIsSuccess(false);
-  }, [location.key]);
-
-  const DuplicateEntryError: React.FC<APIError> = ({ error }) => {
-    if (error === SUPPLIERS_402) {
-      return (
-        <h1 className="text-red-500 border py-2 border-red-500 mb-4 text-xl flex flex-col items-center justify-center">
-          <div className="mb-2">
-            Either Supplier Name or Supplier Code already exist!
-          </div>
-          <div>Please double check the list and try again.</div>
-        </h1>
-      );
-    }
-
-    return null;
-  };
+  }, [
+    ErrorResponse,
+    SuccessResponse,
+    methods,
+    isLoading,
+    openNotification,
+    navigate,
+  ]);
 
   if (ErrorResponse?.httpStatus === 500) {
     return <RenderServerError {...ErrorResponse} />;
   }
 
   return (
-    <div>
-      <div className="w-full">
-        <Button
-          buttonType="secondary"
-          onClick={() => navigate(-1)}
-          className="text-blue-500"
-        >
-          Go Back
-        </Button>
-      </div>
-      <div className="flex justify-between my-2">
-        <h1 className="text-3xl">Create Supplier</h1>
-      </div>
+    <Card
+      className="py-4"
+      title={<h1 className="text-3xl">Create Supplier</h1>}
+    >
+      {/* NOTE: CHECK WHETHER YOU NEED TO ADD NUM_OF_CONTAINERS */}
+      <form id="create_bidder" className="flex flex-col gap-4 w-2/4">
+        <div>
+          <Typography.Title level={5}>Supplier Name:</Typography.Title>
+          <RHFInput
+            control={methods.control}
+            name="name"
+            disabled={isLoading}
+            placeholder="Supplier Name"
+            rules={{
+              required: "This field is required!",
+              pattern: {
+                value: /^[a-zA-Z0-9Ññ\- ]+$/,
+                message: "Invalid characters!",
+              },
+              minLength: { value: 3, message: "Minimum of 3 characters" },
+              maxLength: {
+                value: 255,
+                message: "Maximum of 255 characters",
+              },
+            }}
+          />
+        </div>
 
-      <div className="block p-10 border rounded-lg shadow-lg">
-        {isLoading ? (
-          <div className="text-3xl flex justify-center">Loading...</div>
-        ) : (
-          <FormProvider {...methods}>
-            {ErrorResponse && <DuplicateEntryError {...ErrorResponse} />}
+        <div>
+          <Typography.Title level={5}>Japanese Name:</Typography.Title>
+          <RHFInput
+            control={methods.control}
+            name="japanese_name"
+            disabled={isLoading}
+            placeholder="Japanese Name"
+            onChange={(e) => handleFieldUpperCase("japanese_name", e)}
+            rules={{
+              minLength: { value: 2, message: "Minimum of 2 characters!" },
+              maxLength: {
+                value: 255,
+                message: "Maximum of 255 characters!",
+              },
+              pattern: {
+                value: /^[a-zA-Z0-9Ññ\- ]+$/,
+                message: "Invalid characters!",
+              },
+            }}
+          />
+        </div>
 
-            {isSuccess ? (
-              <h1 className="text-green-500 text-xl flex justify-center">
-                Successfully Added Supplier!
-              </h1>
-            ) : null}
-            <form
-              id="create_supplier"
-              onSubmit={(e) => e.preventDefault()}
-              noValidate
-              autoComplete="off"
-            >
-              <Input
-                id="name"
-                name="name"
-                placeholder="Supplier Name"
-                label="Supplier Name:"
-                validations={{
-                  required: {
-                    value: true,
-                    message: "Supplier Name is required",
-                  },
-                  minLength: { value: 3, message: "Minimum of 3 characters" },
-                  maxLength: {
-                    value: 255,
-                    message: "Maximum of 255 characters",
-                  },
-                  pattern: {
-                    value: /^[a-zA-Z0-9\- ]+$/,
-                    message: "Invalid characters",
-                  },
-                }}
-              />
-              <Input
-                id="japanese_name"
-                name="japanese_name"
-                placeholder="Japanese Name"
-                label="Japanese Name: "
-              />
-              <Input
-                id="supplier_code"
-                name="supplier_code"
-                placeholder="Code"
-                label="Supplier Code:"
-                validations={{
-                  required: {
-                    value: true,
-                    message: "Supplier Code is required",
-                  },
-                }}
-              />
-              {/* NOTE: CHECK WHETHER YOU NEED TO ADD NUM_OF_CONTAINERS */}
-              {/* <Input
-              id="num_of_containers"
-              name="num_of_containers"
-              type="number"
-              placeholder="Number of Containers"
-              label="Number of Containers:"
-            /> */}
-              <Input
-                id="shipper"
-                name="shipper"
-                placeholder="Shipper"
-                label="Shipper:"
-                validations={{
-                  minLength: { value: 1, message: "Minimum of 1 character" },
-                  required: {
-                    value: true,
-                    message: "Supplier Code is required",
-                  },
-                }}
-              />
-              <div className="flex">
-                <Button
-                  onClick={handleSubmitCreateSupplier}
-                  buttonType="primary"
-                  type="submit"
-                  className="w-full h-12"
-                >
-                  Save
-                </Button>
-              </div>
-            </form>
-          </FormProvider>
-        )}
-      </div>
-    </div>
+        <div>
+          <Typography.Title level={5}>Supplier Code:</Typography.Title>
+          <RHFInput
+            control={methods.control}
+            name="supplier_code"
+            disabled={isLoading}
+            placeholder="Supplier Code"
+            rules={{
+              pattern: {
+                value: /^[a-zA-Z0-9Ññ\- ]+$/,
+                message: "Invalid characters!",
+              },
+            }}
+          />
+        </div>
+
+        <div>
+          <Typography.Title level={5}>Shipper:</Typography.Title>
+          <RHFInput
+            control={methods.control}
+            name="shipper"
+            disabled={isLoading}
+            placeholder="Shipper"
+            onChange={(e) => handleFieldUpperCase("shipper", e)}
+            rules={{
+              required: "Shipper is required!",
+              minLength: { value: 2, message: "Minimum of 2 characters!" },
+              maxLength: {
+                value: 255,
+                message: "Maximum of 255 characters!",
+              },
+              pattern: {
+                value: /^[a-zA-Z0-9Ññ\- ]+$/,
+                message: "Invalid characters!",
+              },
+            }}
+          />
+        </div>
+
+        <div className="flex gap-2 w-full justify-end">
+          <Button onClick={() => navigate("/suppliers")} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmitCreateSupplier}
+            type="primary"
+            loading={isLoading}
+          >
+            Save
+          </Button>
+        </div>
+      </form>
+    </Card>
   );
 };
 

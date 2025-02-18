@@ -1,19 +1,24 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { FormProvider, useForm } from "react-hook-form";
-import { Input, Button, Select, DatePicker } from "@components";
+import { useEffect } from "react";
+import moment from "moment";
+import { useNavigate, useParams } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { RHFInput, RHFSelect, RHFDatePicker, RHFRadioGroup } from "@components";
 import { useBranches, useContainers } from "@context";
-import { Supplier, CreateContainerPayload } from "@types";
-import { useSession } from "../../hooks";
+import { CreateContainerPayload } from "@types";
 import RenderServerError from "../ServerCrashComponent";
+import { Button, Card, Spin, Typography } from "antd";
+import { usePageLayoutProps, BreadcrumbsType } from "@layouts/PageLayout";
+import { useSession } from "app/hooks";
 
 const CreateContainer = () => {
   const navigate = useNavigate();
-  const location = useLocation();
+  const params = useParams();
   const methods = useForm<CreateContainerPayload>();
-  const [isSuccess, setIsSuccess] = useState<boolean>(false);
-  const [supplier, setSupplier] = useState<Supplier | null>(null);
-  const [sessionSupplier] = useSession<Supplier | null>("supplier", null);
+  const { pageBreadcrumbs, setPageBreadCrumbs, openNotification } =
+    usePageLayoutProps();
+  const [breadcrumbsSession, setBreadcrumbsSession] = useSession<
+    BreadcrumbsType[]
+  >("breadcrumbs", pageBreadcrumbs);
   const {
     container: SuccessResponse,
     isLoading,
@@ -27,10 +32,31 @@ const CreateContainer = () => {
   } = useBranches();
 
   useEffect(() => {
-    if (sessionSupplier) {
-      setSupplier(sessionSupplier);
+    if (!breadcrumbsSession) return;
+    if (breadcrumbsSession) {
+      setPageBreadCrumbs(breadcrumbsSession);
     }
-  }, [sessionSupplier]);
+  }, [breadcrumbsSession, setPageBreadCrumbs]);
+
+  useEffect(() => {
+    setPageBreadCrumbs((prevBreadcrumbs) => {
+      const newBreadcrumb = {
+        title: "Create Container",
+        path: `containers/create`,
+      };
+
+      const doesExist = prevBreadcrumbs.find(
+        (item) => item.title === newBreadcrumb.title
+      );
+      if (doesExist) {
+        return prevBreadcrumbs;
+      }
+
+      const updatedBreadcrumbs = [...prevBreadcrumbs, newBreadcrumb];
+      setBreadcrumbsSession(updatedBreadcrumbs);
+      return updatedBreadcrumbs;
+    });
+  }, [pageBreadcrumbs, setPageBreadCrumbs, setBreadcrumbsSession]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -40,23 +66,45 @@ const CreateContainer = () => {
   }, [fetchBranches]);
 
   useEffect(() => {
-    if (!ContainerErrorResponse && SuccessResponse) {
-      methods.reset();
-      setIsSuccess(true);
-    }
-
     if (ContainerErrorResponse) {
-      setIsSuccess(false);
+      openNotification("Please double check your inputs", "error", "Error");
     }
-  }, [ContainerErrorResponse, SuccessResponse, isLoading, methods]);
 
-  useEffect(() => {
-    setIsSuccess(false);
-  }, [location.key]);
+    if (!ContainerErrorResponse && !isLoading && SuccessResponse) {
+      methods.reset();
+      openNotification("Successfully Added Container");
+      navigate(
+        `/suppliers/${SuccessResponse.supplier.id}/containers/${SuccessResponse.container_id}`
+      );
+    }
+  }, [
+    ContainerErrorResponse,
+    isLoading,
+    methods,
+    SuccessResponse,
+    navigate,
+    openNotification,
+  ]);
+
+  const formatDate = (date: string) =>
+    moment(new Date(date)).format("YYYY-MM-DD HH:mm:ss");
 
   const handleSubmitCreateContainer = methods.handleSubmit(async (data) => {
-    if (supplier) {
-      await createContainer(supplier.supplier_id, data);
+    const { supplier_id: supplierId } = params;
+    if (supplierId) {
+      const body = Object.assign({}, data);
+      for (let [key, value] of Object.entries(data)) {
+        if (
+          key.includes("date") ||
+          key.includes("telegraphic") ||
+          key.includes("eta_to_ph")
+        ) {
+          /* @ts-ignore */
+          body[key] = formatDate(value);
+        }
+      }
+
+      await createContainer(supplierId, body);
     }
   });
 
@@ -64,248 +112,274 @@ const CreateContainer = () => {
     return <RenderServerError {...ContainerErrorResponse} />;
   }
 
-  if (isFetchingBranches || !branches) {
-    return <div className="text-3xl flex justify-center">Loading...</div>;
-  }
-
   return (
-    <div>
-      <div className="w-full">
-        <Button
-          buttonType="secondary"
-          onClick={() => navigate(-1)}
-          className="text-blue-500"
-        >
-          Go Back
-        </Button>
-      </div>
-      <div className="flex justify-between my-2">
-        <h1 className="text-3xl">Create Container</h1>
-      </div>
+    <>
+      <Card
+        className="py-4"
+        title={<h1 className="text-3xl">Create Container</h1>}
+      >
+        <form id="create_container" className="flex flex-col gap-4 w-full">
+          <div className="flex">
+            <div className="flex gap-4 w-full">
+              <div className="w-1/2 flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <div className="w-4/6">
+                    <Typography.Title level={5}>Branches:</Typography.Title>
+                    <Spin spinning={isFetchingBranches}>
+                      <RHFSelect
+                        showSearch
+                        control={methods.control}
+                        name="branch_id"
+                        placeholder="Select a Branch"
+                        filterOption={(input: string, option: any) =>
+                          (option?.label ?? "")
+                            .toLowerCase()
+                            .includes(input.toLowerCase())
+                        }
+                        options={branches.map((branch) => ({
+                          label: branch.name,
+                          value: branch.branch_id,
+                        }))}
+                        rules={{ required: "This field is required!" }}
+                      />
+                    </Spin>
+                  </div>
 
-      <div className="block p-10 border rounded-lg shadow-lg">
-        <FormProvider {...methods}>
-          {isSuccess && (
-            <h1 className="text-green-500 text-xl flex justify-center">
-              Successfully Added Container!
-            </h1>
-          )}
-          <form
-            id="create_container"
-            onSubmit={(e) => e.preventDefault()}
-            noValidate
-            autoComplete="off"
-          >
-            <Select
-              id="branch_id"
-              label="Branch:"
-              name="branch_id"
-              options={branches.map((branch) => ({
-                value: branch.branch_id.toString(),
-                label: `${branch.name}`,
-              }))}
-              validations={{
-                required: { value: true, message: "Branch is required" },
-              }}
-            />
+                  <div className="w-2/6">
+                    <Typography.Title level={5}>
+                      Container Number:
+                    </Typography.Title>
+                    <RHFInput
+                      control={methods.control}
+                      name="container_num"
+                      disabled={isLoading}
+                      placeholder="Container Number:"
+                      type="number"
+                      rules={{
+                        required: "Container Number is required!",
+                        pattern: {
+                          value: /^[0-9]+$/,
+                          message: "Invalid characters!",
+                        },
+                      }}
+                    />
+                  </div>
+                </div>
 
-            <Input
-              id="container_num"
-              name="container_num"
-              placeholder="Container Number"
-              label="Container Number:"
-              type="number"
-              validations={{
-                pattern: {
-                  value: /^[0-9]+$/,
-                  message: "Invalid characters",
-                },
-                required: {
-                  value: true,
-                  message: "Container Number is required",
-                },
-              }}
-            />
+                <div>
+                  <Typography.Title level={5}>
+                    Bill of Lading Number:
+                  </Typography.Title>
+                  <RHFInput
+                    control={methods.control}
+                    name="bill_of_lading_number"
+                    disabled={isLoading}
+                    placeholder="Bill of Lading Number:"
+                    rules={{ required: "This field is required!" }}
+                  />
+                </div>
 
-            <Input
-              id="bill_of_lading_number"
-              name="bill_of_lading_number"
-              placeholder="Bill of lading number"
-              label="Bill of lading number:"
-            />
+                <div>
+                  <Typography.Title level={5}>
+                    Port of Landing:
+                  </Typography.Title>
+                  <RHFInput
+                    control={methods.control}
+                    name="port_of_landing"
+                    disabled={isLoading}
+                    placeholder="Port of Landing:"
+                    rules={{ required: "This field is required!" }}
+                  />
+                </div>
 
-            <Input
-              id="port_of_landing"
-              name="port_of_landing"
-              placeholder="Port of landing"
-              label="Port of landing:"
-            />
+                <div>
+                  <Typography.Title level={5}>Carrier:</Typography.Title>
+                  <RHFInput
+                    control={methods.control}
+                    name="carrier"
+                    disabled={isLoading}
+                    placeholder="Carrier:"
+                    rules={{ required: "This field is required!" }}
+                  />
+                </div>
 
-            <Input
-              id="carrier"
-              name="carrier"
-              placeholder="Carrier"
-              label="Carrier:"
-            />
+                <div>
+                  <Typography.Title level={5}>Vessel:</Typography.Title>
+                  <RHFInput
+                    control={methods.control}
+                    name="vessel"
+                    disabled={isLoading}
+                    placeholder="Vessel:"
+                    rules={{ required: "This field is required!" }}
+                  />
+                </div>
 
-            <Input
-              id="vessel"
-              name="vessel"
-              placeholder="Vessel"
-              label="Vessel:"
-            />
+                <div>
+                  <Typography.Title level={5}>Invoice Number:</Typography.Title>
+                  <RHFInput
+                    control={methods.control}
+                    name="invoice_num"
+                    disabled={isLoading}
+                    placeholder="Invoice Number:"
+                    rules={{ required: "This field is required!" }}
+                  />
+                </div>
 
-            <Input
-              id="invoice_num"
-              name="invoice_num"
-              placeholder="Invoice Num"
-              label="Invoice Number:"
-            />
+                <div>
+                  <Typography.Title level={5}>Gross Weight:</Typography.Title>
+                  <RHFInput
+                    control={methods.control}
+                    name="gross_weight"
+                    disabled={isLoading}
+                    placeholder="Gross Weight:"
+                    rules={{ required: "This field is required!" }}
+                  />
+                </div>
 
-            <Input
-              id="gross_weight"
-              name="gross_weight"
-              placeholder="Gross Weight"
-              label="Gross Weight:"
-            />
-
-            <div className="flex w-full gap-10">
-              <div className="w-1/2">
-                <DatePicker
-                  id="departure_date_from_japan"
-                  name="departure_date_from_japan"
-                  label="Departure Date from Japan:"
-                  className="w-1/2"
-                  validations={{
-                    required: { value: true, message: "required" },
-                  }}
-                />
+                <div>
+                  <Typography.Title level={5}>
+                    Auction Or Sell:
+                  </Typography.Title>
+                  <RHFRadioGroup
+                    control={methods.control}
+                    name="auction_or_sell"
+                    disabled={isLoading}
+                    options={[
+                      { value: "SELL", label: "SELL" },
+                      { value: "AUCTION", label: "AUCTION" },
+                    ]}
+                    rules={{ required: "This field is required!" }}
+                  ></RHFRadioGroup>
+                </div>
               </div>
-              <div className="w-1/2">
-                <DatePicker
-                  id="eta_to_ph"
-                  name="eta_to_ph"
-                  label="ETA to Philippines:"
-                  className="w-1/2"
-                  validations={{
-                    required: { value: true, message: "required" },
-                  }}
-                />
+
+              <div className="w-1/2 flex flex-col gap-2">
+                <div>
+                  <Typography.Title level={5}>
+                    Departure Date from Japan:
+                  </Typography.Title>
+                  <RHFDatePicker
+                    control={methods.control}
+                    name="departure_date_from_japan"
+                    disabled={isLoading}
+                    placeholder="Departure Date from Japan:"
+                    rules={{ required: "This field is required!" }}
+                  />
+                </div>
+
+                <div>
+                  <Typography.Title level={5}>ETA to PH:</Typography.Title>
+                  <RHFDatePicker
+                    control={methods.control}
+                    name="eta_to_ph"
+                    disabled={isLoading}
+                    placeholder="ETA to PH:"
+                    rules={{ required: "This field is required!" }}
+                  />
+                </div>
+
+                <div>
+                  <Typography.Title level={5}>
+                    Arrival Date in PH Warehouse:
+                  </Typography.Title>
+                  <RHFDatePicker
+                    control={methods.control}
+                    name="arrival_date_warehouse_ph"
+                    disabled={isLoading}
+                    placeholder="Arrival Date in PH Warehouse:"
+                    rules={{ required: "This field is required!" }}
+                  />
+                </div>
+
+                <div>
+                  <Typography.Title level={5}>Sorting Date:</Typography.Title>
+                  <RHFDatePicker
+                    control={methods.control}
+                    name="sorting_date"
+                    disabled={isLoading}
+                    placeholder="Sorting Date:"
+                    rules={{ required: "This field is required!" }}
+                  />
+                </div>
+
+                <div>
+                  <Typography.Title level={5}>Auction Date:</Typography.Title>
+                  <RHFDatePicker
+                    control={methods.control}
+                    name="auction_date"
+                    disabled={isLoading}
+                    placeholder="Auction Date:"
+                    rules={{ required: "This field is required!" }}
+                  />
+                </div>
+
+                <div>
+                  <Typography.Title level={5}>Payment Date:</Typography.Title>
+                  <RHFDatePicker
+                    control={methods.control}
+                    name="payment_date"
+                    disabled={isLoading}
+                    placeholder="Payment Date:"
+                    rules={{ required: "This field is required!" }}
+                  />
+                </div>
+
+                <div>
+                  <Typography.Title level={5}>Vanning Date:</Typography.Title>
+                  <RHFDatePicker
+                    control={methods.control}
+                    name="vanning_date"
+                    disabled={isLoading}
+                    placeholder="Vanning Date:"
+                    rules={{ required: "This field is required!" }}
+                  />
+                </div>
+
+                <div>
+                  <Typography.Title level={5}>Devanning Date:</Typography.Title>
+                  <RHFDatePicker
+                    control={methods.control}
+                    name="devanning_date"
+                    disabled={isLoading}
+                    placeholder="Devanning Date:"
+                    rules={{ required: "This field is required!" }}
+                  />
+                </div>
+
+                <div>
+                  <Typography.Title level={5}>
+                    Telegraphic transferred:
+                  </Typography.Title>
+                  <RHFDatePicker
+                    control={methods.control}
+                    name="telegraphic_transferred"
+                    disabled={isLoading}
+                    placeholder="Telegraphic transferred:"
+                    rules={{ required: "This field is required!" }}
+                  />
+                </div>
               </div>
             </div>
+          </div>
 
-            <div className="flex w-full gap-10">
-              <div className="w-1/2">
-                <DatePicker
-                  id="arrival_date_warehouse_ph"
-                  name="arrival_date_warehouse_ph"
-                  label="Arrival Date to PH Warehouse:"
-                  className="w-1/2"
-                  validations={{
-                    required: { value: true, message: "required" },
-                  }}
-                />
-              </div>
-              <div className="w-1/2">
-                <DatePicker
-                  id="sorting_date"
-                  name="sorting_date"
-                  label="Sorting Date:"
-                  className="w-1/2"
-                  validations={{
-                    required: { value: true, message: "required" },
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="flex w-full gap-10">
-              <div className="w-1/2">
-                <DatePicker
-                  id="auction_date"
-                  name="auction_date"
-                  label="Auction Date:"
-                  className="w-1/2"
-                  validations={{
-                    required: { value: true, message: "required" },
-                  }}
-                />
-              </div>
-              <div className="w-1/2">
-                <DatePicker
-                  id="payment_date"
-                  name="payment_date"
-                  label="Payment Date:"
-                  className="w-1/2"
-                  validations={{
-                    required: { value: true, message: "required" },
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="flex w-full gap-10">
-              <div className="w-1/2">
-                <DatePicker
-                  id="vanning_date"
-                  name="vanning_date"
-                  label="Vanning Date:"
-                  className="w-1/2"
-                  validations={{
-                    required: { value: true, message: "required" },
-                  }}
-                />
-              </div>
-              <div className="w-1/2">
-                <DatePicker
-                  id="devanning_date"
-                  name="devanning_date"
-                  label="Devanning Date:"
-                  className="w-1/2"
-                  validations={{
-                    required: { value: true, message: "required" },
-                  }}
-                />
-              </div>
-            </div>
-
-            <DatePicker
-              id="telegraphic_transferred"
-              name="telegraphic_transferred"
-              label="Telegraphic transferred:"
-              className="w-1/2"
-              validations={{
-                required: { value: true, message: "required" },
-              }}
-            />
-
-            <Select
-              id="auction_or_sell"
-              label="Auction or Sell:"
-              name="auction_or_sell"
-              options={["AUCTION", "SELL"].map((item) => ({
-                value: item,
-                label: item,
-              }))}
-              validations={{
-                required: { value: true, message: "This field is required" },
-              }}
-            />
-
-            <div className="flex mt-4">
-              <Button
-                onClick={handleSubmitCreateContainer}
-                buttonType="primary"
-                type="submit"
-                className="w-full h-12"
-              >
-                Save
-              </Button>
-            </div>
-          </form>
-        </FormProvider>
-      </div>
-    </div>
+          <div className="flex  gap-2 w-full justify-end">
+            <Button
+              onClick={() => navigate(`/suppliers/${params.supplier_id}`)}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitCreateContainer}
+              type="primary"
+              loading={isLoading}
+            >
+              Save
+            </Button>
+          </div>
+        </form>
+      </Card>
+    </>
   );
 };
 

@@ -1,10 +1,11 @@
 import { createContext, useCallback, useContext, useReducer } from "react";
-import axios from "axios";
+import axios, { isAxiosError } from "axios";
 import {
   APIError,
   AuctionTransaction,
   PullOutPayment,
   BidderAuctionTransaction,
+  PaymentDetails,
 } from "@types";
 import * as PaymentActions from "./action";
 
@@ -12,6 +13,7 @@ interface PaymentState {
   payment: PullOutPayment | null;
   auctionTransactions: AuctionTransaction | null;
   bidderTransactions: BidderAuctionTransaction[];
+  paymentDetails: PaymentDetails | null;
   isLoading: boolean;
   error?: APIError;
 }
@@ -28,6 +30,7 @@ interface PaymentContextType extends PaymentState {
     auctionId: string,
     auctionBidderId: number
   ) => Promise<void>;
+  fetchPaymentDetails: (auctionId: string, paymentId: string) => Promise<void>;
 }
 
 export type PaymentAction =
@@ -52,12 +55,16 @@ export type PaymentAction =
   | {
       type: "FETCH_BIDDER_AUCTION_TRANSACTIONS_FAILED";
       payload: APIError;
-    };
+    }
+  | { type: "FETCH_PAYMENT_DETAILS" }
+  | { type: "FETCH_PAYMENT_DETAILS_SUCCESS"; payload: { data: PaymentDetails } }
+  | { type: "FETCH_PAYMENT_DETAILS_FAILED"; payload: APIError };
 
 const initialState: PaymentState = {
   payment: null,
   auctionTransactions: null,
   bidderTransactions: [],
+  paymentDetails: null,
   isLoading: false,
   error: undefined,
 };
@@ -68,6 +75,7 @@ const PaymentContext = createContext<PaymentContextType>({
   payBidderItems: async () => {},
   resetPaymentState: () => {},
   fetchBidderAuctionTransactions: async () => {},
+  fetchPaymentDetails: async () => {},
 });
 
 const paymentsReducer = (
@@ -75,6 +83,7 @@ const paymentsReducer = (
   action: PaymentAction
 ): PaymentState => {
   switch (action.type) {
+    case PaymentActions.FETCH_PAYMENT_DETAILS:
     case PaymentActions.FETCH_AUCTION_PAYMENT:
     case PaymentActions.FETCH_BIDDER_AUCTION_TRANSACTIONS:
     case PaymentActions.BIDDER_PULLOUT_PAYMENT:
@@ -99,7 +108,15 @@ const paymentsReducer = (
         isLoading: false,
         error: undefined,
       };
+    case PaymentActions.FETCH_PAYMENT_DETAILS_SUCCESS:
+      return {
+        ...state,
+        paymentDetails: action.payload.data,
+        isLoading: false,
+        error: undefined,
+      };
 
+    case PaymentActions.FETCH_PAYMENT_DETAILS_FAILED:
     case PaymentActions.FETCH_BIDDER_AUCTION_TRANSACTIONS_FAILED:
     case PaymentActions.BIDDER_PULLOUT_PAYMENT_FAILED:
     case PaymentActions.FETCH_AUCTION_PAYMENT_FAILED:
@@ -180,6 +197,29 @@ export const PaymentProvider = ({
     []
   );
 
+  const fetchPaymentDetails = useCallback(
+    async (auctionId: string, paymentId: string) => {
+      dispatch({ type: PaymentActions.FETCH_PAYMENT_DETAILS });
+      try {
+        const response = await axios.get(
+          `/auctions/${auctionId}/payments/${paymentId}`
+        );
+        dispatch({
+          type: PaymentActions.FETCH_PAYMENT_DETAILS_SUCCESS,
+          payload: response.data,
+        });
+      } catch (error) {
+        if (isAxiosError(error) && error.response?.data) {
+          dispatch({
+            type: PaymentActions.FETCH_PAYMENT_DETAILS_FAILED,
+            payload: error.response.data,
+          });
+        }
+      }
+    },
+    []
+  );
+
   const resetPaymentState = async () => {
     dispatch({ type: PaymentActions.RESET_PAYMENT_STATE });
   };
@@ -188,6 +228,7 @@ export const PaymentProvider = ({
     <PaymentContext.Provider
       value={{
         ...state,
+        fetchPaymentDetails,
         fetchAuctionTransactions,
         payBidderItems,
         resetPaymentState,

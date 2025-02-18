@@ -22,9 +22,10 @@ interface SuppliersState {
 }
 
 interface SupplierContextType extends SuppliersState {
-  fetchSupplier: (id: number) => Promise<void>;
+  fetchSupplier: (id: number | string) => Promise<void>;
   fetchSuppliers: () => Promise<void>;
   createSupplier: (body: CreateSupplierPayload) => Promise<void>;
+  resetSupplier: () => void;
 }
 
 const initialState: SuppliersState = {
@@ -39,9 +40,11 @@ const SupplierContext = createContext<SupplierContextType>({
   fetchSupplier: async () => {},
   fetchSuppliers: async () => {},
   createSupplier: async () => {},
+  resetSupplier: () => {},
 });
 
 export type SuppliersAction =
+  | { type: "RESET_SUPPLIER" }
   | { type: "FETCH_SUPPLIER" }
   | { type: "FETCH_SUPPLIER_SUCCESS"; payload: { data: Supplier } }
   | { type: "FETCH_SUPPLIER_FAILED"; payload: APIError }
@@ -89,6 +92,8 @@ const suppliersReducer = (state: SuppliersState, action: SuppliersAction) => {
         error: null,
       };
     }
+    case SupplierActions.RESET_SUPPLIER:
+      return { ...state, isLoading: false, supplier: null, error: null };
   }
 };
 
@@ -99,14 +104,16 @@ export const SupplierProvider = ({
 }) => {
   const [state, dispatch] = useReducer(suppliersReducer, initialState);
 
-  const fetchSupplier = useCallback(async (supplierId: number) => {
+  const fetchSupplier = useCallback(async (supplierId: number | string) => {
     dispatch({ type: SupplierActions.FETCH_SUPPLIER });
     try {
       const response = await axios.get(`/suppliers/${supplierId}`);
-      dispatch({
-        type: SupplierActions.FETCH_SUPPLIER_SUCCESS,
-        payload: response.data,
-      });
+      setTimeout(() => {
+        dispatch({
+          type: SupplierActions.FETCH_SUPPLIER_SUCCESS,
+          payload: response.data,
+        });
+      }, 1000);
     } catch (error) {
       if (isAxiosError(error) && error.response?.data) {
         dispatch({
@@ -153,6 +160,11 @@ export const SupplierProvider = ({
     }
   };
 
+  const resetSupplier = useCallback(
+    () => dispatch({ type: SupplierActions.RESET_SUPPLIER }),
+    []
+  );
+
   const memoizedSuppliers = useMemo(() => state.suppliers, [state.suppliers]);
 
   return (
@@ -163,6 +175,7 @@ export const SupplierProvider = ({
         fetchSupplier,
         fetchSuppliers,
         createSupplier,
+        resetSupplier,
       }}
     >
       {children}
