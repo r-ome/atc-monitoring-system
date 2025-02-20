@@ -27,6 +27,7 @@ export const getContainer = async (container_id) => {
               'id', c.branch_id,
               'name', b.name
             ) AS branch,
+            SUM(CASE WHEN i.status = "SOLD" THEN i.inventory_id END) AS total_sold_item_price,
             c.container_num,
             c.bill_of_lading_number,
             c.port_of_landing,
@@ -50,6 +51,8 @@ export const getContainer = async (container_id) => {
           FROM containers c
           LEFT JOIN suppliers s ON s.supplier_id = c.supplier_id
           LEFT JOIN branches b ON b.branch_id = c.branch_id
+          LEFT JOIN inventories i ON i.container_id = c.container_id
+          LEFT JOIN auctions_inventories ai ON ai.inventory_id = i.inventory_id
           WHERE c.container_id = ?;
         `,
       [container_id]

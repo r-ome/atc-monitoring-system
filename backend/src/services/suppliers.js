@@ -46,13 +46,16 @@ export const getSuppliers = async () => {
   try {
     return await query(`
       SELECT
-        supplier_id,
-        name,
-        supplier_code,
-        DATE_FORMAT(created_at, '%b %d, %Y %h:%i%p') AS created_at,
-        DATE_FORMAT(updated_at, '%b %d, %Y %h:%i%p') AS updated_at
-      FROM suppliers
-      WHERE deleted_at IS NULL
+        s.supplier_id,
+        s.name,
+        s.supplier_code,
+        COUNT(DISTINCT c.container_id) as total_containers,
+        DATE_FORMAT(s.created_at, '%b %d, %Y %h:%i%p') AS created_at,
+        DATE_FORMAT(s.updated_at, '%b %d, %Y %h:%i%p') AS updated_at
+      FROM suppliers s
+      LEFT JOIN containers c ON c.supplier_id = s.supplier_id
+      WHERE s.deleted_at IS NULL
+      GROUP BY s.supplier_id
     `);
   } catch (error) {
     throw new DBErrorException("getSuppliers", error);

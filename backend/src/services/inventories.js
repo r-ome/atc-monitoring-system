@@ -235,7 +235,7 @@ export const bulkCreateAuctionInventories = async (auctions_inventories) => {
       item.auction_bidders_id,
       item.inventory_id,
       "UNPAID",
-      item.PRICE,
+      parseInt(item.PRICE),
       item.QTY,
       item.MANIFEST,
     ]);
@@ -245,16 +245,19 @@ export const bulkCreateAuctionInventories = async (auctions_inventories) => {
     let bidder_balance = auctions_inventories
       .map((item) => ({
         auction_bidders_id: item.auction_bidders_id,
-        balance: item.PRICE,
+        balance: parseInt(item.PRICE, 10),
       }))
       .reduce((acc, item) => {
         acc[item.auction_bidders_id] =
-          (acc[item.auction_bidders_id] || 0) + item.balance;
+          (acc[item.auction_bidders_id] || 0) + parseInt(item.balance, 10);
         return acc;
       }, {});
 
     bidder_balance = Object.entries(bidder_balance).map(
-      ([auction_bidders_id, price]) => [Number(auction_bidders_id), price]
+      ([auction_bidders_id, price]) => [
+        Number(auction_bidders_id),
+        parseInt(price, 10),
+      ]
     );
 
     const update_cases = bidder_balance
@@ -292,6 +295,7 @@ export const bulkCreateAuctionInventories = async (auctions_inventories) => {
 
     return;
   } catch (error) {
+    console.log(error);
     throw new DBErrorException("bulkCreateAuctionInventories", error);
   }
 };

@@ -47,9 +47,11 @@ export const getAuctions = async () => {
         SELECT
           a.auction_id,
           DATE_FORMAT(a.created_at, '%M %d, %Y, %W') AS auction_date,
-          COUNT(ab.auction_bidders_id) AS number_of_bidders
+          COUNT(DISTINCT ab.auction_bidders_id) AS total_bidders,
+          COUNT(ai.auction_inventory_id) AS total_items
         FROM auctions a
         LEFT JOIN auctions_bidders ab ON ab.auction_id = a.auction_id
+        LEFT JOIN auctions_inventories ai ON ai.auction_bidders_id = ab.auction_bidders_id
         GROUP BY a.auction_id
       `
     );
