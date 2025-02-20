@@ -93,7 +93,7 @@ router.post("/", async (req, res) => {
     }
 
     const response = await createBranch(req.body);
-    const [branch] = await getBranch(response.insertId);
+    const branch = await getBranch(response.insertId);
     return res.status(200).json({ data: branch });
   } catch (error) {
     return renderHttpError(res, {

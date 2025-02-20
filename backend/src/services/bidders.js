@@ -8,9 +8,9 @@ export const getBidder = async (bidder_id) => {
           b.bidder_id,
           b.bidder_number,
           b.first_name,
-          b.middle_name,
+          IFNULL(b.middle_name, "") as middle_name,
           b.last_name,
-          CONCAT(b.first_name, " ", b.middle_name, " ", b.last_name) as full_name,
+          CONCAT(b.first_name, " ", b.last_name) as full_name,
           DATE_FORMAT(b.created_at, '%b %d, %Y %h:%i%p') AS created_at,
           DATE_FORMAT(b.updated_at, '%b %d, %Y %h:%i%p') AS updated_at,
           IF (COUNT(br.requirement_id) = 0,
@@ -74,18 +74,22 @@ export const getMultipleBiddersByBidderNumber = async (
 
 export const getBidders = async () => {
   try {
-    return await query(`
-      SELECT
-        bidder_id,
-        bidder_number,
-        first_name,
-        middle_name,
-        last_name,
-        CONCAT(first_name, " ", middle_name, " ", last_name) as full_name,
-        DATE_FORMAT(created_at, '%b %d, %Y %h:%i%p') AS created_at,
-        DATE_FORMAT(updated_at, '%b %d, %Y %h:%i%p') AS updated_at
-      FROM bidders
-      WHERE deleted_at IS NULL`);
+    return await query(
+      `
+        SELECT
+          bidder_id,
+          bidder_number,
+          first_name,
+          middle_name,
+          last_name,
+          CONCAT(first_name, " ", last_name) as full_name,
+          DATE_FORMAT(created_at, '%b %d, %Y %h:%i%p') AS created_at,
+          DATE_FORMAT(updated_at, '%b %d, %Y %h:%i%p') AS updated_at
+        FROM bidders
+        WHERE deleted_at IS NULL
+        ORDER BY bidder_id
+      `
+    );
   } catch (error) {
     throw new DBErrorException("getBidders", error);
   }
@@ -230,7 +234,7 @@ export const getBidderPaymentHistory = async (bidder_id) => {
           payment_type,
           payment,
           created_at,
-          REPLACE(purpose, "_", " ") AS purpose
+          purpose
         FROM payments
         WHERE bidder_id = ?`,
       [bidder_id]

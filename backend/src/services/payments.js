@@ -1,5 +1,58 @@
 import { query, DBErrorException } from "./index.js";
 
+export const getPaymentDetails = async (payment_id) => {
+  try {
+    const [payment] = await query(
+      `
+        SELECT
+          p.payment_id,
+          IF(p.receipt_number = 0,
+            b.bidder_number,
+            CONCAT(b.bidder_number, "-", p.receipt_number)
+          ) AS receipt_number,
+          p.amount_paid,
+          p.purpose,
+          CONCAT(b.first_name, " ", b.last_name) AS full_name,
+          b.bidder_number,
+          ab.service_charge,
+          ab.already_consumed,
+          ab.registration_fee,
+          DATE_FORMAT(p.created_at, '%b %d, %Y %h:%i%p') AS created_at,
+          (
+            SELECT
+            JSON_ARRAYAGG(
+              JSON_OBJECT(
+                'payment_id', p.payment_id,
+                'auction_inventory_id', ai.auction_inventory_id,
+                'inventory_id', ai.inventory_id,
+                'inventory_status', i.status,
+                'auction_status', ai.status,
+                'barcode_number', i.barcode,
+                'control_number', i.control_number,
+                'price', CONCAT("₱", FORMAT(ai.price, 2)),
+                'qty', ai.qty,
+                'description', i.description,
+                'manifest_number', ai.manifest_number
+              ))
+            FROM auctions_inventories ai
+            LEFT JOIN inventories i ON i.inventory_id = ai.inventory_id
+            WHERE ai.payment_id = p.payment_id
+          ) AS auction_inventories
+        FROM payments p
+        LEFT JOIN auctions_bidders ab ON ab.auction_bidders_id = p.auction_bidders_id 
+        LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
+        WHERE p.payment_id = ?
+      `,
+      [payment_id]
+    );
+
+    return payment;
+  } catch (error) {
+    console.error(error);
+    throw new DBErrorException("getPaymentDetails", error);
+  }
+};
+
 export const getAuctionPayments = async (auction_id) => {
   try {
     const [auction] = await query(
@@ -13,8 +66,8 @@ export const getAuctionPayments = async (auction_id) => {
               'payment_id', p.payment_id,
               'full_name', CONCAT(b.first_name, " ", b.last_name),
               'bidder_number', b.bidder_number,
-              'purpose', REPLACE(p.purpose,"_"," "),
-              'amount_paid', CONCAT("₱", FORMAT(p.amount_paid, 2)),
+              'purpose', p.purpose,
+              'amount_paid', p.amount_paid,
               'payment_type', p.payment_type,
               'created_at', DATE_FORMAT(p.created_at, '%b %d, %Y %h:%i:%S%p' )
             ))
@@ -52,7 +105,7 @@ export const handleBidderPullout = async (
 
     const [{ registration_fee, service_charge, balance }] = await query(
       `
-      SELECT registration_fee, service_charge,balance
+      SELECT registration_fee, service_charge, balance
       FROM auctions_bidders
       WHERE auction_bidders_id = ?
     `,
@@ -148,26 +201,17 @@ export const getBidderAuctionTransactions = async (auction_bidders_id) => {
       `
         SELECT
           p.payment_id,
-          REPLACE(p.purpose,"_"," ") as purpose,
-          CONCAT("₱", FORMAT(p.amount_paid, 2)) AS amount_paid,
-          IF(p.purpose = "REGISTRATION", "---", CONCAT(b.bidder_number, "-", p.receipt_number)) AS receipt_number,
+          p.purpose,
+          p.amount_paid AS amount_paid,
+          IF(p.purpose = "REGISTRATION",
+            b.bidder_number,
+            CONCAT(b.bidder_number, "-", p.receipt_number)) AS receipt_number,
           p.payment_type,
-          DATE_FORMAT(p.created_at, '%b %d, %Y %h:%i:%S%p') as created_at,
-          IF(p.purpose = "REGISTRATION", "---", COUNT(ai.auction_inventory_id)) AS total_items,
-          IF(COUNT(ai.auction_inventory_id) = 0,
-            JSON_ARRAY(),
-            JSON_ARRAYAGG(JSON_OBJECT(
-              'barcode', i.barcode,
-              'control_number', i.control_number,
-              'description', i.description,
-              'price', CONCAT("₱", FORMAT(ai.price, 2)),
-              'qty', ai.qty
-            ))
-          ) AS items
+          DATE_FORMAT(p.created_at, '%b %d, %Y %h:%i%p') as created_at,
+          IF(p.purpose = "REGISTRATION", "---", COUNT(ai.auction_inventory_id)) AS total_items
         FROM payments p
         LEFT JOIN auctions_bidders ab ON ab.auction_bidders_id = p.auction_bidders_id
         LEFT JOIN auctions_inventories ai ON ai.payment_id = p.payment_id
-        LEFT JOIN inventories i ON i.inventory_id = ai.inventory_id
         LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
         WHERE ab.auction_bidders_id = ?
         GROUP BY p.payment_id;

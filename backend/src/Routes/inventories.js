@@ -55,14 +55,13 @@ router.post("/", async (req, res) => {
           "string.empty": "Barcode is required",
         }),
       control_number: Joi.string()
-        .pattern(/^[a-zA-Z0-9\- ]+$/)
-        .required()
+        .pattern(/^[0-9 ]+$/)
+        .allow("")
         .messages({
           "string.pattern.base": "Invalid characters",
-          "string.empty": "Control Number is required",
         }),
       description: Joi.string()
-        .pattern(/^[a-zA-Z0-9\- ]+$/)
+        .pattern(/^[a-zA-Z0-9\-. ]+$/)
         .required()
         .messages({
           "string.pattern.base": "Invalid characters",

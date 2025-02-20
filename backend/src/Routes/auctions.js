@@ -16,6 +16,7 @@ import {
   getManifestRecords,
   getAuctionItemDetails,
   discountItem,
+  createAuctionInventory,
 } from "../services/auctions.js";
 import {
   getBidder,
@@ -144,7 +145,7 @@ router.post("/:auction_id/register-bidder", async (req, res) => {
       const [isAlreadyRegistered] = bidders.filter(
         (bidder) => bidder.bidder_id === parseInt(body.bidder_id)
       );
-      console.log(isAlreadyRegistered);
+
       if (isAlreadyRegistered) {
         return renderHttpError(res, {
           log: `Bidder with ID: ${body.bidder_id} and number: ${isAlreadyRegistered.bidder_number} already registered.`,
@@ -266,6 +267,10 @@ router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
       // get unique values
       sheet_bidder_numbers = [...new Set(sheet_bidder_numbers)];
 
+      if (!sheet_bidder_numbers.length) {
+        return filtered_unregistered_bidders;
+      }
+
       // get registered bidder id from auction_bidders table by bidder number
       const registered_auction_bidder_ids =
         await getMultipleBiddersByBidderNumber(
@@ -287,7 +292,7 @@ router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
     };
 
     const validateInventories = async (sheet_data) => {
-      // if item is in inventories table, update status = SOLD
+      // if item is in inventories table, update status = UNSOLD
       // get list of barcodes from sheet
       // check if it has inventory barcode (27-01-01) (the 3rd digit from the combination)
       // if barcode is only a combination of container barcode we skip it and consider it as new inventory
@@ -338,19 +343,20 @@ router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
     };
 
     const addContainerIdKey = async (sheet_data) => {
+      // if inventory doesn't exists
       // add container_id for inventories table
       // PS: this is the array with complete data
       // get container barcodes
       const container_barcodes = await getBarcodesFromContainers();
       return sheet_data.map((item) => {
         if (item.remarks === INVALID_ROW) return item;
-        let itemBarcode = item.BARCODE.split("-");
-        itemBarcode =
-          itemBarcode.length === 3
-            ? itemBarcode.slice(0, -1).join("-")
+        let item_barcode = item.BARCODE.split("-");
+        item_barcode =
+          item_barcode.length === 3
+            ? item_barcode.slice(0, -1).join("-")
             : item.BARCODE;
         const container = container_barcodes.find(
-          (temp) => temp.barcode === itemBarcode
+          (temp) => temp.barcode === item_barcode
         );
 
         if (!container) {
@@ -517,6 +523,7 @@ router.post(
   async (req, res) => {
     try {
       const { auction_id, auction_inventory_id } = req.params;
+      const { reason } = req.body;
       const inventory = await getAuctionItemDetails(auction_inventory_id);
       if (!inventory) {
         return renderHttpError(res, {
@@ -531,7 +538,23 @@ router.post(
         });
       }
 
-      const data = await cancelItem(auction_id, auction_inventory_id);
+      const schema = Joi.object({ reason: Joi.string() });
+      const { error } = schema.validate(req.body);
+      if (error) {
+        const errorDetails = error.details.map((err) => {
+          return {
+            field: err.context.key,
+            message: err.message,
+          };
+        });
+
+        return renderHttpError(res, {
+          log: JSON.stringify(errorDetails, null, 2),
+          error: AUCTIONS_401,
+        });
+      }
+
+      const data = await cancelItem(auction_id, auction_inventory_id, reason);
       return res.status(200).json({ data });
     } catch (error) {
       return renderHttpError(res, {
@@ -542,7 +565,7 @@ router.post(
   }
 );
 
-// REASSIGN ITEM FROM AND TO BIDDER
+// REASSIGN ITEM FROM ONE BIDDER TO ANOTHER BIDDER
 router.post(
   "/:auction_id/reassign-item/:auction_inventory_id",
   async (req, res) => {
@@ -585,7 +608,7 @@ router.post(
       const registered_bidders = await getRegisteredBidders(auction_id);
       const bidder_numbers = registered_bidders.bidders.map((item) => ({
         auction_bidders_id: item.auction_bidders_id,
-        service_charge: parseInt(item.service_charge.replace("%", ""), 10),
+        service_charge: item.service_charge,
         bidder_number: item.bidder_number,
       }));
 
@@ -671,4 +694,69 @@ router.post(
   }
 );
 
+// ENCODE SINGLE ADD ON
+router.post("/:auction_id/add-on", async (req, res) => {
+  try {
+    const { auction_id } = req.params;
+    const { body } = req;
+
+    const schema = Joi.object({
+      barcode: Joi.string().required(),
+      control: Joi.string().required(),
+      description: Joi.string().required(),
+      bidder: Joi.string().required(),
+      qty: Joi.string().required(),
+      price: Joi.number().required(),
+    });
+    const { error } = schema.validate(body);
+    if (error) {
+      const errorDetails = error.details.map((err) => {
+        return {
+          field: err.context.key,
+          message: err.message,
+        };
+      });
+
+      return renderHttpError(res, {
+        log: JSON.stringify(errorDetails, null, 2),
+        error: AUCTIONS_401,
+      });
+    }
+
+    let registered_bidders = await getRegisteredBidders(auction_id);
+    registered_bidders = registered_bidders.bidders.map(
+      (item) => item.bidder_id
+    );
+
+    if (!registered_bidders.includes(parseInt(body.bidder, 10))) {
+      return renderHttpError(res, {
+        log: `Bidder with ID: ${body.bidder} is not registered in auction`,
+        error: AUCTIONS_403,
+      });
+    }
+    let container_barcodes = await getBarcodesFromContainers();
+    container_barcodes = container_barcodes.map((item) => item.barcode);
+    let item_container_barcode = body.barcode.split("-");
+    item_container_barcode =
+      item_container_barcode.length === 3
+        ? item_container_barcode.slice(0, -1).join("-")
+        : body.barcode;
+
+    if (!container_barcodes.includes(item_container_barcode)) {
+      return renderHttpError(res, {
+        log: `Container with Barcode:${item_container_barcode} does not exist. Please create container first!`,
+        error: AUCTIONS_403,
+      });
+    }
+
+    const auction_inventory = await createAuctionInventory(auction_id, body);
+
+    return res.status(200).json({ data: auction_inventory });
+  } catch (error) {
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
+    });
+  }
+});
 export default router;

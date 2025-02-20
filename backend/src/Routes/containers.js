@@ -1,17 +1,13 @@
 import express from "express";
 import Joi from "joi";
-
 import { getSupplier } from "../services/suppliers.js";
 import { getBranch } from "../services/branches.js";
 import {
-  getContainers,
   getContainersBySupplier,
   createContainer,
-  updateContainer,
-  deleteContainer,
   getContainer,
+  getBarcodesFromContainers,
 } from "../services/containers.js";
-import { logger } from "../logger.js";
 
 import {
   renderHttpError,
@@ -23,6 +19,7 @@ import {
   CONTAINERS_503,
 } from "./error_infos.js";
 import { DB_ERROR_EXCEPTION } from "../services/index.js";
+import { formatNumberPadding } from "../utils/index.js";
 
 const router = express.Router({ mergeParams: true });
 // THIS ROUTE IS /suppliers/{supplier_id}/containers
@@ -169,6 +166,20 @@ router.post("/", async (req, res) => {
       });
     }
 
+    // validate if barcode exists
+    let container_barcodes = await getBarcodesFromContainers();
+    container_barcodes = container_barcodes.map((item) => item.barcode);
+    const barcode = `${supplier.supplier_code}-${formatNumberPadding(
+      body.container_num,
+      3
+    )}`;
+    if (container_barcodes.includes(barcode)) {
+      return renderHttpError(res, {
+        log: `Container with barcode ${barcode} already exists!`,
+        error: CONTAINERS_402,
+      });
+    }
+
     const container = await createContainer(supplier_id, body);
     return res.status(200).json({ data: container });
   } catch (error) {
@@ -176,52 +187,6 @@ router.post("/", async (req, res) => {
       log: error,
       error: error[DB_ERROR_EXCEPTION] ? CONTAINERS_501 : CONTAINERS_503,
     });
-  }
-});
-
-router.put("/:container_id", async (req, res) => {
-  try {
-    const { container_id } = req.params;
-    const containerExists = await getContainer(container_id);
-    if (!containerExists) {
-      res.status(404).json({
-        status: "fail",
-        message: `Container not found`,
-      });
-    }
-
-    const container = await updateContainer(req.params.container_id, req.body);
-    res.status(200).json({ status: "success", data: container });
-  } catch (error) {
-    logger.error({ error });
-    res.status(500).json({ status: "fail", error });
-  }
-});
-
-router.delete("/:id", async (req, res) => {
-  try {
-    const containerExists = await getContainer(req.params.id);
-    if (!containerExists) {
-      res.status(404).json({
-        status: "fail",
-        message: `Container not found`,
-      });
-    }
-    const container = await deleteContainer(req.params.id);
-    res.status(200).json({ status: "success", container });
-  } catch (error) {
-    logger.error({ error });
-    res.status(500).json({ status: "fail", error });
-  }
-});
-
-router.get("/all", async (req, res) => {
-  try {
-    const containers = await getContainers();
-    res.status(200).json({ status: "success", data: containers });
-  } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
   }
 });
 

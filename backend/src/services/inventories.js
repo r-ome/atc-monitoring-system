@@ -123,11 +123,11 @@ export const getInventoryByBarcode = async (barcodes) => {
           FROM inventories i
           JOIN TEMP_INVENTORIES temp
           ON i.barcode = temp.barcode
+          WHERE i.status in ("UNSOLD", "REBID")
         `
     );
 
     await query(`DROP TEMPORARY TABLE IF EXISTS TEMP_INVENTORIES`);
-
     return inventories;
   } catch (error) {
     throw new DBErrorException("getInventoryByBarcode", error);

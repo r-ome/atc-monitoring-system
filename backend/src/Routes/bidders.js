@@ -9,7 +9,6 @@ import {
   updateBidder,
   deleteBidder,
   addRequirement,
-  getRequirements,
   getAuctionsJoined,
   getBidderPaymentHistory,
 } from "../services/bidders.js";
@@ -23,10 +22,7 @@ import {
   BIDDERS_402,
   BIDDERS_401,
   BIDDER_REQUIREMENT_401,
-  BIDDER_REQUIREMENT_402,
-  BIDDER_REQUIREMENT_403,
   BIDDER_REQUIREMENT_501,
-  BIDDER_REQUIREMENT_502,
   BIDDER_REQUIREMENT_503,
 } from "./error_infos.js";
 import { DB_ERROR_EXCEPTION } from "../services/index.js";
@@ -68,13 +64,6 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const { body } = req;
-    const bidders = await getBidderByBidderNumber(body.bidder_number);
-    if (bidders.length) {
-      return renderHttpError(res, {
-        log: `Bidder Number ${body.bidder_number} already exists!`,
-        error: BIDDERS_402,
-      });
-    }
 
     const schema = Joi.object({
       bidder_number: Joi.number()
@@ -82,26 +71,26 @@ router.post("/", async (req, res) => {
         .messages({ "number.base": "Bidder Number is required" }),
       first_name: Joi.string()
         .pattern(/^[a-zA-Z\- ]+$/)
-        .min(3)
+        .min(2)
         .max(255)
         .required()
         .messages({
           "string.pattern.base": "Invalid characters",
           "string.empty": "Supplier Name is required",
-          "string.min": "Must be at least 3 characters ",
+          "string.min": "Must be at least 2 characters ",
         }),
       middle_name: Joi.string()
         .pattern(/^[a-zA-Z\- ]+$/)
         .allow(""),
       last_name: Joi.string()
         .pattern(/^[a-zA-Z\- ]+$/)
-        .min(3)
+        .min(2)
         .max(255)
         .required()
         .messages({
           "string.pattern.base": "Invalid characters",
           "string.empty": "Supplier Name is required",
-          "string.min": "Must be at least 3 characters ",
+          "string.min": "Must be at least 2 characters ",
         }),
       old_number: Joi.number().valid(""),
     });
@@ -122,6 +111,16 @@ router.post("/", async (req, res) => {
     }
 
     body.bidder_number = formatNumberPadding(body.bidder_number, 4);
+
+    const bidders = await getBidderByBidderNumber(
+      formatNumberPadding(body.bidder_number, 4)
+    );
+    if (bidders.length) {
+      return renderHttpError(res, {
+        log: `Bidder Number ${body.bidder_number} already exists!`,
+        error: BIDDERS_402,
+      });
+    }
     const response = await createBidder(body);
     const bidder = await getBidder(response.insertId);
     return res.status(200).json({ data: bidder });
@@ -204,6 +203,7 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+// create bidder requirements
 router.post("/:bidder_id/requirements", async (req, res) => {
   try {
     const { bidder_id } = req.params;

@@ -2,6 +2,7 @@ import express from "express";
 import Joi from "joi";
 import { getAuctionDetails } from "../services/auctions.js";
 import {
+  getPaymentDetails,
   getAuctionPayments,
   handleBidderPullout,
   getBidderAuctionTransactions,
@@ -17,6 +18,36 @@ import { DB_ERROR_EXCEPTION } from "../services/index.js";
 
 const router = express.Router({ mergeParams: true });
 // THIS ROUTE IS /auctions/{auction_id}/payments
+
+router.get("/:payment_id", async (req, res) => {
+  try {
+    const { auction_id, payment_id } = req.params;
+    const auction = await getAuctionDetails(auction_id);
+    if (!auction) {
+      return renderHttpError(res, {
+        log: `Auction with ID:${auction_id} does not exist`,
+        error: AUCTION_PAYMENTS_403,
+      });
+    }
+
+    const payment = await getPaymentDetails(payment_id);
+    if (!payment) {
+      return renderHttpError(res, {
+        log: `Payment with ID:${payment_id} does not exist`,
+        error: AUCTION_PAYMENTS_403,
+      });
+    }
+
+    return res.status(200).json({ data: payment });
+  } catch (error) {
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION]
+        ? AUCTION_PAYMENTS_501
+        : AUCTION_PAYMENTS_503,
+    });
+  }
+});
 
 router.get("/", async (req, res) => {
   try {

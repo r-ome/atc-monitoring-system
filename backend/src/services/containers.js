@@ -135,7 +135,7 @@ export const createContainer = async (supplier_id, container) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         supplier_id,
-        `${supplier_code}-${formatNumberPadding(container.container_num, 2)}`,
+        `${supplier_code}-${formatNumberPadding(container.container_num, 3)}`,
         container.container_num,
         container.departure_date_from_japan,
         container.bill_of_lading_number,
