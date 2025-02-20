@@ -1,10 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { BaseBranch } from "@types";
 import { useBranches } from "@context";
-import { Tooltip, Space, Button, Table, Spin } from "antd";
+import { Tooltip, Space, Button, Table } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
-import RenderServerError from "../ServerCrashComponent";
 import { usePageLayoutProps } from "@layouts";
 
 const BranchList = () => {
@@ -16,7 +15,7 @@ const BranchList = () => {
     error: ErrorResponse,
     resetCreateBranchResponse,
   } = useBranches();
-  const { setPageBreadCrumbs } = usePageLayoutProps();
+  const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
 
   useEffect(() => {
     resetCreateBranchResponse();
@@ -30,17 +29,17 @@ const BranchList = () => {
     fetchInitialData();
   }, [fetchBranches]);
 
-  if (ErrorResponse?.httpStatus === 500) {
-    return <RenderServerError {...ErrorResponse} />;
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Spin size="large" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!isLoading) {
+      if (ErrorResponse && ErrorResponse.httpStatus === 500) {
+        openNotification(
+          "There might be problems in the server. Please contact your admin.",
+          "error",
+          "Server Error"
+        );
+      }
+    }
+  }, [ErrorResponse, isLoading, openNotification]);
 
   return (
     <div>

@@ -2,13 +2,20 @@ import { useEffect } from "react";
 import moment from "moment";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import { RHFInput, RHFSelect, RHFDatePicker, RHFRadioGroup } from "@components";
+import {
+  RHFInput,
+  RHFInputNumber,
+  RHFSelect,
+  RHFDatePicker,
+  RHFRadioGroup,
+} from "@components";
 import { useBranches, useContainers } from "@context";
 import { CreateContainerPayload } from "@types";
-import RenderServerError from "../ServerCrashComponent";
 import { Button, Card, Spin, Typography } from "antd";
 import { usePageLayoutProps, BreadcrumbsType } from "@layouts/PageLayout";
 import { useSession } from "app/hooks";
+import { CONTAINERS_402, CONTAINERS_403 } from "../errors";
+import { formatNumberPadding } from "@lib/utils";
 
 const CreateContainer = () => {
   const navigate = useNavigate();
@@ -24,6 +31,7 @@ const CreateContainer = () => {
     isLoading,
     createContainer,
     error: ContainerErrorResponse,
+    resetContainer: resetError,
   } = useContainers();
   const {
     branches,
@@ -66,16 +74,32 @@ const CreateContainer = () => {
   }, [fetchBranches]);
 
   useEffect(() => {
-    if (ContainerErrorResponse) {
-      openNotification("Please double check your inputs", "error", "Error");
-    }
+    if (!isLoading) {
+      if (ContainerErrorResponse) {
+        let message = "Please double check your inputs";
+        const barcode = formatNumberPadding(methods.getValues("container_num"));
+        if (ContainerErrorResponse.error === CONTAINERS_402) {
+          message = `Container barcode ${barcode} already exists!`;
+          methods.setError("container_num", { type: "string", message });
+        }
+        if (ContainerErrorResponse.error === CONTAINERS_403)
+          message = `Provided Supplier or Branch does not exist!`;
+        openNotification(message, "error", "Error");
+        if (ContainerErrorResponse.httpStatus === 500) {
+          openNotification("Server Error", "error", "Error");
+        }
+        resetError();
+      }
 
-    if (!ContainerErrorResponse && !isLoading && SuccessResponse) {
-      methods.reset();
-      openNotification("Successfully Added Container");
-      navigate(
-        `/suppliers/${SuccessResponse.supplier.id}/containers/${SuccessResponse.container_id}`
-      );
+      if (SuccessResponse) {
+        methods.reset();
+        resetError();
+
+        openNotification("Successfully Added Container");
+        navigate(
+          `/suppliers/${SuccessResponse.supplier.id}/containers/${SuccessResponse.container_id}`
+        );
+      }
     }
   }, [
     ContainerErrorResponse,
@@ -83,6 +107,7 @@ const CreateContainer = () => {
     methods,
     SuccessResponse,
     navigate,
+    resetError,
     openNotification,
   ]);
 
@@ -108,10 +133,6 @@ const CreateContainer = () => {
     }
   });
 
-  if (ContainerErrorResponse?.httpStatus === 500) {
-    return <RenderServerError {...ContainerErrorResponse} />;
-  }
-
   return (
     <>
       <Card
@@ -123,7 +144,7 @@ const CreateContainer = () => {
             <div className="flex gap-4 w-full">
               <div className="w-1/2 flex flex-col gap-2">
                 <div className="flex gap-2">
-                  <div className="w-4/6">
+                  <div className="w-3/6">
                     <Typography.Title level={5}>Branches:</Typography.Title>
                     <Spin spinning={isFetchingBranches}>
                       <RHFSelect
@@ -145,16 +166,15 @@ const CreateContainer = () => {
                     </Spin>
                   </div>
 
-                  <div className="w-2/6">
+                  <div className="w-3/6">
                     <Typography.Title level={5}>
                       Container Number:
                     </Typography.Title>
-                    <RHFInput
+                    <RHFInputNumber
                       control={methods.control}
                       name="container_num"
                       disabled={isLoading}
                       placeholder="Container Number:"
-                      type="number"
                       rules={{
                         required: "Container Number is required!",
                         pattern: {

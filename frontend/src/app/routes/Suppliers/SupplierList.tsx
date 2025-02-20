@@ -1,16 +1,23 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BaseSupplier } from "../../../types";
 import { useSuppliers } from "@context/SupplierProvider/SupplierContext";
 import { usePageLayoutProps } from "@layouts";
-import RenderServerError from "../ServerCrashComponent";
-import { Button, Space, Table, Tooltip } from "antd";
+import { Button, Input, Space, Table, Tooltip } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 
 const Suppliers = () => {
   const navigate = useNavigate();
-  const { setPageBreadCrumbs } = usePageLayoutProps();
-  const { error, suppliers, fetchSuppliers, resetSupplier } = useSuppliers();
+  const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
+  const {
+    suppliers,
+    isLoading,
+    error: ErrorResponse,
+    fetchSuppliers,
+    resetSupplier,
+  } = useSuppliers();
+  const [searchValue, setSearchValue] = useState<string>("");
+  const [dataSource, setDataSource] = useState<BaseSupplier[]>(suppliers);
 
   useEffect(() => {
     resetSupplier();
@@ -24,25 +31,54 @@ const Suppliers = () => {
     fetchInitialData();
   }, [fetchSuppliers]);
 
-  if (error?.httpStatus === 500) {
-    return <RenderServerError {...error} />;
-  }
+  useEffect(() => {
+    if (!isLoading) {
+      if (ErrorResponse && ErrorResponse.httpStatus === 500) {
+        openNotification(
+          "There might be problems in the server. Please contact your admin.",
+          "error",
+          "Server Error"
+        );
+        resetSupplier();
+      }
+    }
+  }, [ErrorResponse, resetSupplier, isLoading, openNotification]);
 
   return (
     <div>
-      <div className="flex my-2">
-        <Button
-          type="primary"
-          size="large"
-          onClick={() => navigate(`/suppliers/create`)}
-        >
-          Create Supplier
-        </Button>
+      <div className="flex justify-between my-2">
+        <div>
+          <Button
+            type="primary"
+            size="large"
+            onClick={() => navigate(`/suppliers/create`)}
+          >
+            Create Supplier
+          </Button>
+        </div>
+        <div className="w-2/6 my-2">
+          <Input
+            placeholder="Search by Supplier Name or Code"
+            value={searchValue}
+            onChange={(e) => {
+              const currentValue = e.target.value;
+              setSearchValue(currentValue);
+              const filteredData = suppliers.filter(
+                (item) =>
+                  item.supplier_code
+                    .toUpperCase()
+                    .includes(currentValue.toUpperCase()) ||
+                  item.name.toUpperCase().includes(currentValue.toUpperCase())
+              );
+              setDataSource(filteredData);
+            }}
+          />
+        </div>
       </div>
 
       <Table
         rowKey={(record) => record.supplier_id}
-        dataSource={suppliers}
+        dataSource={searchValue ? dataSource : suppliers}
         columns={[
           {
             title: "Name",

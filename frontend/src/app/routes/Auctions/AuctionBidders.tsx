@@ -1,65 +1,130 @@
-import { useNavigate } from "react-router-dom";
-import { Button, Table } from "@components";
+import { useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAuction } from "@context";
-import { useSession } from "../../hooks";
-import RenderServerError from "../ServerCrashComponent";
+import {
+  Button,
+  Input,
+  Skeleton,
+  Space,
+  Table,
+  Tooltip,
+  Typography,
+} from "antd";
+import RegisterBidderModal from "./RegisterBidder";
+import { EyeOutlined } from "@ant-design/icons";
+import { formatNumberToCurrency } from "@lib/utils";
+import { RegisterBidderResponse } from "@types";
 
 const AuctionBidders = () => {
   const navigate = useNavigate();
-  const [sessionAuction] = useSession<any>("auction", null);
-  const {
-    registeredBidders,
-    isLoading: isFetchingRegisteredBidders,
-    error,
-  } = useAuction();
+  const params = useParams();
+  const [isRegisterModalOpen, setIsRegisterModalOpen] =
+    useState<boolean>(false);
+  const { registeredBidders } = useAuction();
+  const [dataSource, setDataSource] = useState<RegisterBidderResponse[]>(
+    registeredBidders?.bidders || []
+  );
+  const [searchValue, setSearchValue] = useState<string>("");
 
-  if (error?.httpStatus === 500) {
-    return <RenderServerError {...error} />;
-  }
+  if (!registeredBidders) return <Skeleton />;
 
   return (
-    <div className="w-full border p-4 h-full">
-      <div className="flex justify-between items-center w-full p-2">
-        <h1 className="text-3xl font-bold">Registered Bidders</h1>
-        <Button
-          buttonType="primary"
-          onClick={() =>
-            navigate(`/auctions/${sessionAuction.auction_id}/register-bidder`)
-          }
-        >
-          Register Bidder
-        </Button>
+    <div className="flex flex-col gap-2 w-full h-full">
+      <div className="flex justify-between items-center">
+        <Typography.Title level={2}>Registered Bidders</Typography.Title>
+
+        <div className="flex gap-4">
+          <Input
+            placeholder="Search by Bidder or Full Name"
+            value={searchValue}
+            onChange={(e) => {
+              const currentValue = e.target.value;
+              setSearchValue(currentValue);
+              const filteredData = registeredBidders.bidders.filter(
+                (item) =>
+                  item.bidder_number.includes(currentValue) ||
+                  item.full_name.includes(currentValue.toUpperCase())
+              );
+              setDataSource(filteredData);
+            }}
+          />
+          <Button type="primary" onClick={() => setIsRegisterModalOpen(true)}>
+            Register Bidder
+          </Button>
+        </div>
       </div>
 
-      {!isFetchingRegisteredBidders && registeredBidders?.bidders ? (
-        <Table
-          data={registeredBidders?.bidders || []}
-          loading={isFetchingRegisteredBidders}
-          onRowClick={(bidder) => {
-            navigate(
-              `/auctions/${sessionAuction.auction_id}/bidders/${bidder.bidder_id}`
-            );
-          }}
-          rowKeys={[
-            "bidder_number",
-            "full_name",
-            "service_charge",
-            "registration_fee",
-            "total_no_items",
-            "balance",
-          ]}
-          columnHeaders={[
-            "Bidder Number",
-            "Bidder Name",
-            "Service Charge",
-            "Registration Fee",
-            "Number of items",
-            "balance",
-          ]}
-        />
-      ) : (
-        <div className="border p-2 flex justify-center">Loading...</div>
-      )}
+      <Table
+        rowKey={(record) => record.bidder_id}
+        dataSource={searchValue ? dataSource : registeredBidders?.bidders}
+        columns={[
+          {
+            title: "Bidder Number",
+            dataIndex: "bidder_number",
+          },
+          {
+            title: "Full Name",
+            dataIndex: "full_name",
+          },
+          {
+            title: "Service Charge",
+            dataIndex: "service_charge",
+            render: (item) => <span>{item}%</span>,
+          },
+          {
+            title: "Registration Fee",
+            dataIndex: "registration_fee",
+            render: (item) => formatNumberToCurrency(item),
+          },
+          {
+            title: "Total Items",
+            dataIndex: "total_items",
+          },
+          {
+            title: "Balance",
+            dataIndex: "balance",
+            render: (item) => (
+              <span
+                className={`${
+                  parseInt(item, 10) < 0 ? "text-red-500" : "text-green-500"
+                }`}
+              >
+                {item < 0
+                  ? `(${formatNumberToCurrency(
+                      item.toString().replace("-", "")
+                    )})`
+                  : formatNumberToCurrency(item)}
+              </span>
+            ),
+          },
+          {
+            title: "Action",
+            key: "action",
+            render: (_, bidder) => {
+              return (
+                <Space size="middle">
+                  <Tooltip placement="top" title="View Bidder">
+                    <Button
+                      onClick={() =>
+                        navigate(
+                          `/auctions/${params.auction_id}/bidders/${bidder.bidder_id}`
+                        )
+                      }
+                    >
+                      <EyeOutlined />
+                    </Button>
+                  </Tooltip>
+                </Space>
+              );
+            },
+          },
+        ]}
+      />
+
+      <RegisterBidderModal
+        open={isRegisterModalOpen}
+        onCancel={() => setIsRegisterModalOpen(false)}
+      />
     </div>
   );
 };

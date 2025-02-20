@@ -10,10 +10,14 @@ import RHFInput from "./RHFInput";
 import RHFSelect from "./RHFSelect";
 import RHFDatePicker from "./RHFDatePicker";
 import RHFRadioGroup from "./RHFRadioGroup";
+import RHFInputNumber from "./RHFInputNumber";
+import RHFTextArea from "./RHFTextArea";
 
 export {
   Button,
   RHFInput,
+  RHFTextArea,
+  RHFInputNumber,
   RHFSelect,
   RHFDatePicker,
   Input,

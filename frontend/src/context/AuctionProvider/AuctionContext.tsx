@@ -10,8 +10,12 @@ import {
   RegisterBidderPayload,
   RegisterBidderResponse,
   BidderAuctionProfile,
-  CancelItemResponse,
+  ActionItemResponse,
   APIError,
+  AuctionItemDetails,
+  RefundPayload,
+  ReassignPayload,
+  AddOnPayload,
 } from "@types";
 import * as AuctionActions from "./actions";
 
@@ -23,8 +27,9 @@ interface AuctionState {
   manifestRecord: ManifestRecordResponse | null;
   registeredBidders: RegisteredBidders | null;
   registeredBidder: RegisterBidderResponse | null;
-  cancelItemResponse: CancelItemResponse | null;
+  actionItemResponse: ActionItemResponse | null;
   bidder: BidderAuctionProfile | null;
+  auctionItemDetails: AuctionItemDetails | null;
   isLoading: boolean;
   error: APIError | null;
 }
@@ -37,14 +42,41 @@ interface AuctionStateContextType extends AuctionState {
   fetchBidderAuctionProfile: (a: string, b: string) => Promise<void>;
   fetchManifestRecords: (id: string) => Promise<void>;
   fetchRegisteredBidders: (id: string) => Promise<void>;
-  uploadManifest: (id: number, file: any) => Promise<void>;
-  registerBidderAtAuction: (id: number, bidder: any) => Promise<void>;
-  cancelItem: (auctionId: number, inventoryId: number) => Promise<void>;
+  uploadManifest: (id: number | string, file: any) => Promise<void>;
+  registerBidderAtAuction: (id: number | string, bidder: any) => Promise<void>;
+  cancelItem: (
+    auctionId: number | string,
+    inventoryId: number | string,
+    reason: string | null
+  ) => Promise<void>;
+  reassignItem: (
+    auctionId: number | string,
+    auctionInventoryId: number | string,
+    body: ReassignPayload
+  ) => Promise<void>;
+  refundItem: (
+    auctionId: number | string,
+    auctionInventoryId: number | string,
+    body: RefundPayload
+  ) => Promise<void>;
+  addOn: (auctionId: number | string, body: AddOnPayload) => Promise<void>;
+  fetchAuctionItemDetails: (
+    auctionId: string | number,
+    auctionInventoryId: string | number
+  ) => Promise<void>;
+  resetRegisteredBidder: () => void;
+  resetActionItem: () => void;
+  resetAuction: () => void;
+  resetAuctionItem: () => void;
 }
 
 export type MonitoringAction =
+  | { type: "RESET_AUCTION_ITEM" }
+  | { type: "RESET_AUCTION" }
+  | { type: "RESET_ACTION_ITEM" }
+  | { type: "RESET_REGISTERED_BIDDER" }
   | { type: "CREATE_AUCTION" }
-  | { type: "CREATE_AUCTION_SUCCESS"; payload: { data: BaseAuction } }
+  | { type: "CREATE_AUCTION_SUCCESS"; payload: { data: AuctionDetails } }
   | { type: "CREATE_AUCTION_FAILED"; payload: APIError }
   | { type: "FETCH_AUCTIONS" }
   | { type: "FETCH_AUCTIONS_SUCCESS"; payload: { data: BaseAuction[] } }
@@ -56,8 +88,17 @@ export type MonitoringAction =
   | { type: "FETCH_MONITORING_SUCCESS"; payload: { data: Monitoring[] } }
   | { type: "FETCH_MONITORING_FAILED"; payload: APIError }
   | { type: "CANCEL_ITEM" }
-  | { type: "CANCEL_ITEM_SUCCESS"; payload: { data: CancelItemResponse } }
+  | { type: "CANCEL_ITEM_SUCCESS"; payload: { data: ActionItemResponse } }
   | { type: "CANCEL_ITEM_FAILED"; payload: APIError }
+  | { type: "REFUND_ITEM" }
+  | { type: "REFUND_ITEM_SUCCESS"; payload: { data: ActionItemResponse } }
+  | { type: "REFUND_ITEM_FAILED"; payload: APIError }
+  | { type: "REASSIGN_ITEM" }
+  | { type: "REASSIGN_ITEM_SUCCESS"; payload: { data: ActionItemResponse } }
+  | { type: "REASSIGN_ITEM_FAILED"; payload: APIError }
+  | { type: "ADD_ON" }
+  | { type: "ADD_ON_SUCCESS"; payload: { data: AuctionItemDetails } }
+  | { type: "ADD_ON_FAILED"; payload: APIError }
   | { type: "REGISTER_BIDDER_AT_AUCTION" }
   | {
       type: "REGISTER_BIDDER_AT_AUCTION_SUCCESS";
@@ -87,7 +128,13 @@ export type MonitoringAction =
       type: "FETCH_REGISTERED_BIDDERS_SUCCESS";
       payload: { data: RegisteredBidders };
     }
-  | { type: "FETCH_REGISTERED_BIDDERS_FAILED"; payload: APIError };
+  | { type: "FETCH_REGISTERED_BIDDERS_FAILED"; payload: APIError }
+  | { type: "FETCH_AUCTION_ITEM_DETAILS" }
+  | {
+      type: "FETCH_AUCTION_ITEM_DETAILS_SUCCESS";
+      payload: { data: AuctionItemDetails };
+    }
+  | { type: "FETCH_AUCTION_ITEM_DETAILS_FAILED"; payload: APIError };
 
 const initialState = {
   auction: null,
@@ -98,7 +145,8 @@ const initialState = {
   registeredBidders: null,
   registeredBidder: null,
   auctionBidders: [],
-  cancelItemResponse: null,
+  actionItemResponse: null,
+  auctionItemDetails: null,
   bidder: null,
   isLoading: false,
   error: null,
@@ -115,7 +163,15 @@ const AuctionContext = createContext<AuctionStateContextType>({
   uploadManifest: async () => {},
   registerBidderAtAuction: async () => {},
   fetchAuctionDetails: async () => {},
+  fetchAuctionItemDetails: async () => {},
   cancelItem: async () => {},
+  refundItem: async () => {},
+  reassignItem: async () => {},
+  addOn: async () => {},
+  resetRegisteredBidder: () => {},
+  resetActionItem: () => {},
+  resetAuction: () => {},
+  resetAuctionItem: () => {},
 });
 
 const monitoringReducer = (
@@ -124,6 +180,7 @@ const monitoringReducer = (
 ): AuctionState => {
   switch (action.type) {
     case AuctionActions.CREATE_AUCTION:
+    case AuctionActions.FETCH_AUCTION_ITEM_DETAILS:
     case AuctionActions.FETCH_AUCTIONS:
     case AuctionActions.FETCH_MANIFEST_RECORDS:
     case AuctionActions.FETCH_REGISTERED_BIDDERS:
@@ -132,6 +189,9 @@ const monitoringReducer = (
     case AuctionActions.REGISTER_BIDDER_AT_AUCTION:
     case AuctionActions.FETCH_AUCTION_DETAILS:
     case AuctionActions.CANCEL_ITEM:
+    case AuctionActions.REFUND_ITEM:
+    case AuctionActions.REASSIGN_ITEM:
+    case AuctionActions.ADD_ON:
     case AuctionActions.FETCH_BIDDER_AUCTION_PROFILE:
       return { ...state, isLoading: true };
 
@@ -193,13 +253,26 @@ const monitoringReducer = (
         error: null,
       };
 
-    case AuctionActions.CANCEL_ITEM_SUCCESS:
+    case AuctionActions.ADD_ON_SUCCESS:
+    case AuctionActions.FETCH_AUCTION_ITEM_DETAILS_SUCCESS:
       return {
         ...state,
-        cancelItemResponse: action.payload.data,
+        isLoading: false,
+        auctionItemDetails: action.payload.data,
         error: null,
       };
 
+    case AuctionActions.REFUND_ITEM_SUCCESS:
+    case AuctionActions.REASSIGN_ITEM_SUCCESS:
+    case AuctionActions.CANCEL_ITEM_SUCCESS:
+      return {
+        ...state,
+        actionItemResponse: action.payload.data,
+        error: null,
+      };
+
+    case AuctionActions.ADD_ON_FAILED:
+    case AuctionActions.FETCH_AUCTION_ITEM_DETAILS_FAILED:
     case AuctionActions.FETCH_BIDDER_AUCTION_PROFILE_FAILED:
     case AuctionActions.UPLOAD_MANIFEST_FAILED:
     case AuctionActions.FETCH_MANIFEST_RECORDS_FAILED:
@@ -210,11 +283,45 @@ const monitoringReducer = (
     case AuctionActions.REGISTER_BIDDER_AT_AUCTION_FAILED:
     case AuctionActions.FETCH_AUCTION_DETAILS_FAILED:
     case AuctionActions.CANCEL_ITEM_FAILED:
+    case AuctionActions.REFUND_ITEM_FAILED:
+    case AuctionActions.REASSIGN_ITEM_FAILED:
       return {
         ...state,
         isLoading: false,
         error: action.payload,
         manifestRecord: null,
+      };
+
+    case AuctionActions.RESET_REGISTERED_BIDDER:
+      return {
+        ...state,
+        isLoading: false,
+        error: null,
+        registeredBidder: null,
+      };
+
+    case AuctionActions.RESET_AUCTION:
+      return {
+        ...state,
+        isLoading: false,
+        error: null,
+        auction: null,
+      };
+
+    case AuctionActions.RESET_AUCTION_ITEM:
+      return {
+        ...state,
+        isLoading: false,
+        auctionItemDetails: null,
+        error: null,
+      };
+
+    case AuctionActions.RESET_ACTION_ITEM:
+      return {
+        ...state,
+        isLoading: false,
+        error: null,
+        actionItemResponse: null,
       };
   }
 };
@@ -237,11 +344,13 @@ export const AuctionProvider = ({
           type: AuctionActions.FETCH_BIDDER_AUCTION_PROFILE_SUCCESS,
           payload: response.data,
         });
-      } catch (error: any) {
-        dispatch({
-          type: AuctionActions.FETCH_BIDDER_AUCTION_PROFILE_FAILED,
-          payload: error.payload,
-        });
+      } catch (error) {
+        if (isAxiosError(error) && error.response?.data) {
+          dispatch({
+            type: AuctionActions.FETCH_BIDDER_AUCTION_PROFILE_FAILED,
+            payload: error.response.data,
+          });
+        }
       }
     },
     []
@@ -257,11 +366,13 @@ export const AuctionProvider = ({
         type: AuctionActions.FETCH_MANIFEST_RECORDS_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({
-        type: AuctionActions.FETCH_MANIFEST_RECORDS_FAILED,
-        payload: error.response.data,
-      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: AuctionActions.FETCH_MANIFEST_RECORDS_FAILED,
+          payload: error.response.data,
+        });
+      }
     }
   }, []);
 
@@ -273,15 +384,17 @@ export const AuctionProvider = ({
         type: AuctionActions.FETCH_MONITORING_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({
-        type: AuctionActions.FETCH_MONITORING_FAILED,
-        payload: error.response.data,
-      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: AuctionActions.FETCH_MONITORING_FAILED,
+          payload: error.response.data,
+        });
+      }
     }
   }, []);
 
-  const getAuctions = async () => {
+  const getAuctions = useCallback(async () => {
     dispatch({ type: AuctionActions.FETCH_AUCTIONS });
     try {
       const response = await axios.get("/auctions");
@@ -289,13 +402,15 @@ export const AuctionProvider = ({
         type: AuctionActions.FETCH_AUCTIONS_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({
-        type: AuctionActions.FETCH_AUCTIONS_FAILED,
-        payload: error.response.data,
-      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: AuctionActions.FETCH_AUCTIONS_FAILED,
+          payload: error.response.data,
+        });
+      }
     }
-  };
+  }, []);
 
   const fetchRegisteredBidders = useCallback(async (auctionId: string) => {
     dispatch({ type: AuctionActions.FETCH_REGISTERED_BIDDERS });
@@ -305,11 +420,13 @@ export const AuctionProvider = ({
         type: AuctionActions.FETCH_REGISTERED_BIDDERS_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({
-        type: AuctionActions.FETCH_REGISTERED_BIDDERS_FAILED,
-        payload: error.response.data,
-      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: AuctionActions.FETCH_REGISTERED_BIDDERS_FAILED,
+          payload: error.response.data,
+        });
+      }
     }
   }, []);
 
@@ -317,19 +434,25 @@ export const AuctionProvider = ({
     dispatch({ type: AuctionActions.CREATE_AUCTION });
     try {
       const response = await axios.post("/auctions");
-      dispatch({
-        type: AuctionActions.CREATE_AUCTION_SUCCESS,
-        payload: response.data,
-      });
-    } catch (error: any) {
-      dispatch({
-        type: AuctionActions.CREATE_AUCTION_FAILED,
-        payload: error.data,
-      });
+      setTimeout(() => {
+        dispatch({
+          type: AuctionActions.CREATE_AUCTION_SUCCESS,
+          payload: response.data,
+        });
+      }, 1000);
+    } catch (error) {
+      setTimeout(() => {
+        if (isAxiosError(error) && error.response?.data) {
+          dispatch({
+            type: AuctionActions.CREATE_AUCTION_FAILED,
+            payload: error.response.data,
+          });
+        }
+      }, 1000);
     }
   };
 
-  const uploadManifest = async (auctionId: number, file: any) => {
+  const uploadManifest = async (auctionId: number | string, file: any) => {
     dispatch({ type: AuctionActions.UPLOAD_MANIFEST });
     try {
       const response = await axios.post(`/auctions/${auctionId}/encode`, file);
@@ -337,16 +460,18 @@ export const AuctionProvider = ({
         type: AuctionActions.UPLOAD_MANIFEST_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({
-        type: AuctionActions.UPLOAD_MANIFEST_FAILED,
-        payload: error.response.data,
-      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: AuctionActions.UPLOAD_MANIFEST_FAILED,
+          payload: error.response.data,
+        });
+      }
     }
   };
 
   const registerBidderAtAuction = async (
-    auctionId: number,
+    auctionId: number | string,
     body: RegisterBidderPayload
   ) => {
     dispatch({ type: AuctionActions.REGISTER_BIDDER_AT_AUCTION });
@@ -355,15 +480,21 @@ export const AuctionProvider = ({
         `/auctions/${auctionId}/register-bidder`,
         body
       );
-      dispatch({
-        type: AuctionActions.REGISTER_BIDDER_AT_AUCTION_SUCCESS,
-        payload: response.data,
-      });
-    } catch (error: any) {
-      dispatch({
-        type: AuctionActions.REGISTER_BIDDER_AT_AUCTION_FAILED,
-        payload: error.response.data,
-      });
+      setTimeout(() => {
+        dispatch({
+          type: AuctionActions.REGISTER_BIDDER_AT_AUCTION_SUCCESS,
+          payload: response.data,
+        });
+      }, 1000);
+    } catch (error) {
+      setTimeout(() => {
+        if (isAxiosError(error) && error.response?.data) {
+          dispatch({
+            type: AuctionActions.REGISTER_BIDDER_AT_AUCTION_FAILED,
+            payload: error.response.data,
+          });
+        }
+      }, 1000);
     }
   };
 
@@ -375,39 +506,159 @@ export const AuctionProvider = ({
         type: AuctionActions.FETCH_AUCTION_DETAILS_SUCCESS,
         payload: response.data,
       });
-    } catch (error: any) {
-      dispatch({
-        type: AuctionActions.FETCH_AUCTION_DETAILS_FAILED,
-        payload: error.response.data,
-      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: AuctionActions.FETCH_AUCTION_DETAILS_FAILED,
+          payload: error.response.data,
+        });
+      }
     }
   }, []);
 
-  const cancelItem = async (auctionId: number, inventoryId: number) => {
+  const cancelItem = async (
+    auctionId: number | string,
+    inventoryId: number | string,
+    reason: string | null
+  ) => {
     dispatch({ type: AuctionActions.CANCEL_ITEM });
     try {
       const response = await axios.post(
-        `/auctions/${auctionId}/cancel-item/${inventoryId}`
+        `/auctions/${auctionId}/cancel-item/${inventoryId}`,
+        { reason }
       );
-      dispatch({
-        type: AuctionActions.CANCEL_ITEM_SUCCESS,
-        payload: response.data,
-      });
+      setTimeout(() => {
+        dispatch({
+          type: AuctionActions.CANCEL_ITEM_SUCCESS,
+          payload: response.data,
+        });
+      }, 1000);
     } catch (error) {
       if (isAxiosError(error) && error.response?.data) {
         dispatch({
           type: AuctionActions.CANCEL_ITEM_FAILED,
-          payload: error.response?.data,
+          payload: error.response.data,
         });
       }
     }
   };
 
+  const refundItem = async (
+    auctionId: number | string,
+    auctionInventoryId: number | string,
+    body: RefundPayload
+  ) => {
+    dispatch({ type: AuctionActions.REFUND_ITEM });
+    try {
+      const response = await axios.post(
+        `/auctions/${auctionId}/discount-item/${auctionInventoryId}`,
+        body
+      );
+      dispatch({
+        type: AuctionActions.REFUND_ITEM_SUCCESS,
+        payload: response.data,
+      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: AuctionActions.REFUND_ITEM_FAILED,
+          payload: error.response.data,
+        });
+      }
+    }
+  };
+
+  const reassignItem = async (
+    auctionId: number | string,
+    auctionInventoryId: number | string,
+    body: ReassignPayload
+  ) => {
+    dispatch({ type: AuctionActions.REASSIGN_ITEM });
+    try {
+      const response = await axios.post(
+        `/auctions/${auctionId}/reassign-item/${auctionInventoryId}`,
+        body
+      );
+      dispatch({
+        type: AuctionActions.REASSIGN_ITEM_SUCCESS,
+        payload: response.data,
+      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: AuctionActions.REASSIGN_ITEM_FAILED,
+          payload: error.response.data,
+        });
+      }
+    }
+  };
+
+  const addOn = async (auctionId: number | string, body: AddOnPayload) => {
+    dispatch({ type: AuctionActions.ADD_ON });
+    try {
+      const response = await axios.post(`/auctions/${auctionId}/add-on`, body);
+      dispatch({ type: AuctionActions.ADD_ON_SUCCESS, payload: response.data });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: AuctionActions.ADD_ON_FAILED,
+          payload: error.response.data,
+        });
+      }
+    }
+  };
+
+  const fetchAuctionItemDetails = useCallback(
+    async (auctionId: string | number, auctionInventoryId: string | number) => {
+      dispatch({ type: AuctionActions.FETCH_AUCTION_ITEM_DETAILS });
+      try {
+        const response = await axios.get(
+          `/auctions/${auctionId}/item/${auctionInventoryId}`
+        );
+        dispatch({
+          type: AuctionActions.FETCH_AUCTION_ITEM_DETAILS_SUCCESS,
+          payload: response.data,
+        });
+      } catch (error) {
+        if (isAxiosError(error) && error.response?.data) {
+          dispatch({
+            type: AuctionActions.FETCH_AUCTION_ITEM_DETAILS_FAILED,
+            payload: error.response.data,
+          });
+        }
+      }
+    },
+    []
+  );
+
+  const resetRegisteredBidder = useCallback(
+    () => dispatch({ type: AuctionActions.RESET_REGISTERED_BIDDER }),
+    []
+  );
+
+  const resetActionItem = useCallback(
+    () => dispatch({ type: AuctionActions.RESET_ACTION_ITEM }),
+    []
+  );
+
+  const resetAuction = useCallback(
+    () => dispatch({ type: AuctionActions.RESET_AUCTION }),
+    []
+  );
+
+  const resetAuctionItem = useCallback(
+    () => dispatch({ type: AuctionActions.RESET_AUCTION_ITEM }),
+    []
+  );
+
   return (
     <AuctionContext.Provider
       value={{
         ...state,
+        addOn,
+        resetAuctionItem,
         createAuction,
+        fetchAuctionItemDetails,
         fetchManifestRecords,
         fetchMonitoring,
         fetchBidderAuctionProfile,
@@ -417,6 +668,11 @@ export const AuctionProvider = ({
         registerBidderAtAuction,
         fetchAuctionDetails,
         cancelItem,
+        refundItem,
+        reassignItem,
+        resetRegisteredBidder,
+        resetActionItem,
+        resetAuction,
       }}
     >
       {children}

@@ -4,18 +4,28 @@ import { useContainers, useInventories } from "@context";
 import { useSession } from "../../hooks";
 import { Inventory } from "@types";
 import { usePageLayoutProps, BreadcrumbsType } from "@layouts";
-import { Button, Card, Descriptions, Space, Table, Tooltip } from "antd";
+import {
+  Button,
+  Card,
+  Descriptions,
+  Skeleton,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+} from "antd";
 import { EyeOutlined } from "@ant-design/icons";
-import RenderServerError from "../ServerCrashComponent";
+import { CONTAINERS_403, INVENTORIES_403 } from "../errors";
 
 const ContainerProfile = () => {
   const navigate = useNavigate();
   const params = useParams();
   const {
     container,
-    isLoading: isFetchingContainer,
     fetchContainer,
+    isLoading: isFetchingContainer,
     error: ContainerErrorResponse,
+    resetContainer,
   } = useContainers();
   const {
     resetInventory,
@@ -73,18 +83,55 @@ const ContainerProfile = () => {
     }
   }, [params, fetchContainer, fetchInventoriesByContainer]);
 
-  const httpErrors = [
-    InventoryErrorResponse?.httpStatus,
-    ContainerErrorResponse?.httpStatus,
-  ];
-  if (httpErrors.includes(500)) {
-    const ErrorResponse = InventoryErrorResponse || ContainerErrorResponse;
-    if (ErrorResponse) return <RenderServerError {...ErrorResponse} />;
-  }
+  useEffect(() => {
+    if (!isFetchingContainer) {
+      if (ContainerErrorResponse) {
+        let message = "Server Error";
+        if (ContainerErrorResponse.httpStatus === 500) {
+          message =
+            "There might be problems in the server. Please contact your admin.";
+        }
 
-  if (isFetchingContainer || !container) {
-    return <div className="border p-2 flex justify-center">Loading...</div>;
-  }
+        if (ContainerErrorResponse.error === CONTAINERS_403) {
+          message =
+            "Container does not exist. Please go back to list and choose another one";
+        }
+        openNotification(message, "error", "Server Error");
+        resetContainer();
+      }
+    }
+  }, [
+    ContainerErrorResponse,
+    isFetchingContainer,
+    openNotification,
+    resetContainer,
+  ]);
+
+  useEffect(() => {
+    if (!isFetchingInventories) {
+      if (InventoryErrorResponse) {
+        let message = "Server Error";
+        if (InventoryErrorResponse.httpStatus === 500) {
+          message =
+            "There might be problems in the server. Please contact your admin.";
+        }
+
+        if (InventoryErrorResponse.error === INVENTORIES_403) {
+          message =
+            "Container does not exist. Please go back to list and choose another one";
+        }
+        openNotification(message, "error", "Server Error");
+        resetInventory();
+      }
+    }
+  }, [
+    InventoryErrorResponse,
+    isFetchingInventories,
+    openNotification,
+    resetInventory,
+  ]);
+
+  if (!container) return <Skeleton />;
 
   return (
     <>
@@ -230,7 +277,7 @@ const ContainerProfile = () => {
             className="w-4/6 py-4 h-full"
             title={
               <div className="flex justify-between items-center w-full p-2">
-                <h1 className="text-3xl font-bold">Containers</h1>
+                <h1 className="text-3xl font-bold">Inventories</h1>
                 <Button
                   type="primary"
                   onClick={() => navigate("inventory/create")}
@@ -253,7 +300,18 @@ const ContainerProfile = () => {
                 },
                 { title: "Description", dataIndex: "description" },
                 { title: "Control Number", dataIndex: "control_number" },
-                { title: "Status", dataIndex: "status" },
+                {
+                  title: "Status",
+                  dataIndex: "status",
+                  render: (item) => (
+                    <Tag
+                      color={item === "SOLD" ? "green" : "red"}
+                      bordered={false}
+                    >
+                      {item}
+                    </Tag>
+                  ),
+                },
                 {
                   title: "Action",
                   key: "action",
@@ -262,9 +320,10 @@ const ContainerProfile = () => {
                       <Space size="middle">
                         <Tooltip placement="top" title="View item">
                           <Button
-                            onClick={
-                              () => alert("GO TO INVENTORY PROFILE!")
-                              // navigate(`inventories/${inventory.inventory_id}`)
+                            onClick={() =>
+                              navigate(
+                                `/suppliers/${params.supplier_id}/containers/${params.container_id}/inventory/${inventory.inventory_id}`
+                              )
                             }
                           >
                             <EyeOutlined />

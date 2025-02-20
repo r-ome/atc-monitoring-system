@@ -15,9 +15,11 @@ interface BidderStateContextType extends BidderState {
   fetchBidders: () => Promise<void>;
   createBidder: (body: CreateBidderPayload) => Promise<void>;
   resetCreateBidderResponse: () => void;
+  resetError: () => void;
 }
 
 export type BidderAction =
+  | { type: "RESET_ERROR" }
   | { type: "RESET_CREATE_BIDDER_RESPONSE" }
   | { type: "FETCH_BIDDER" }
   | { type: "FETCH_BIDDER_SUCCESS"; payload: { data: Bidder } }
@@ -45,6 +47,7 @@ const BidderContext = createContext<BidderStateContextType>({
   fetchBidders: async () => {},
   createBidder: async () => {},
   resetCreateBidderResponse: () => {},
+  resetError: () => {},
 });
 
 const bidderReducer = (
@@ -86,6 +89,8 @@ const bidderReducer = (
 
     case BidderActions.RESET_CREATE_BIDDER_RESPONSE:
       return { ...state, isLoading: false, bidder: null };
+    case BidderActions.RESET_ERROR:
+      return { ...state, isLoading: false, error: undefined };
   }
 };
 
@@ -150,6 +155,11 @@ export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
     dispatch({ type: BidderActions.RESET_CREATE_BIDDER_RESPONSE });
   }, []);
 
+  const resetError = useCallback(
+    () => dispatch({ type: BidderActions.RESET_ERROR }),
+    []
+  );
+
   return (
     <BidderContext.Provider
       value={{
@@ -158,6 +168,7 @@ export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
         fetchBidders,
         createBidder,
         resetCreateBidderResponse,
+        resetError,
       }}
     >
       {children}

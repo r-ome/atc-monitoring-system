@@ -1,154 +1,127 @@
-import { useState } from "react";
-import { FormProvider, useForm } from "react-hook-form";
-import { Button, Input, Table } from "@components";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { useAuction } from "@context";
-import { UploadManifestPayload, APIError } from "@types";
-import { AUCTIONS_401 } from "../errors";
+import { usePageLayoutProps, BreadcrumbsType } from "@layouts";
+import { Button, Card, Table, Upload, UploadFile } from "antd";
+import { UploadOutlined } from "@ant-design/icons";
+import { AUCTIONS_401, AUCTIONS_501 } from "../errors";
+import { useSession } from "app/hooks";
 
 const EncodePage = () => {
-  const methods = useForm<UploadManifestPayload>();
-  const [fileName, setFileName] = useState<string | null>(null);
+  const params = useParams();
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const { pageBreadcrumbs, setPageBreadCrumbs, openNotification } =
+    usePageLayoutProps();
   const {
-    auction,
     manifestRecord: SuccessResponse,
     uploadManifest,
-    error,
+    error: ErrorResponse,
     isLoading,
   } = useAuction();
+  const [breadcrumbsSession] = useSession<BreadcrumbsType[]>(
+    "breadcrumbs",
+    pageBreadcrumbs
+  );
 
-  const handleSubmitManifest = methods.handleSubmit(async (data) => {
-    const [file] = data.file;
-    const validFileTypes = [
-      "application/x-iwork-numbers-sffnumbers",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "application/vnd.ms-excel",
-    ];
-    if (auction) {
-      if (validFileTypes.includes(file.type)) {
-        const formData = new FormData();
-        formData.append("file", data.file[0]);
-        await uploadManifest(auction.auction_id, formData);
-      } else {
-        methods.setError("file", {
-          type: "string",
-          message: "Invalid file! Please use only excel files!",
-        });
+  useEffect(() => {
+    if (!breadcrumbsSession) return;
+    setPageBreadCrumbs([
+      ...breadcrumbsSession,
+      { title: "Encode Page", path: "/encode" },
+    ]);
+  }, [setPageBreadCrumbs, breadcrumbsSession]);
+
+  useEffect(() => {
+    if (ErrorResponse) {
+      if (ErrorResponse.error === AUCTIONS_401) {
+        openNotification("Please check your file!", "error", "Error");
+      }
+
+      if (ErrorResponse.error === AUCTIONS_501) {
+        openNotification("Server Error!", "error", "Server Error");
       }
     }
-  });
+  }, [ErrorResponse, openNotification]);
 
-  const handleChangeFileName = () => {
-    const [file] = methods.getValues("file");
-    setFileName(file?.name);
-  };
-
-  const ValidationError: React.FC<APIError> = ({ error }) => {
-    if (error === AUCTIONS_401) {
-      return (
-        <h1 className="text-red-500 border py-2 border-red-500 mb-4 text-xl flex flex-col items-center justify-center">
-          <div className="mb-2">Please double check the file!</div>
-        </h1>
-      );
+  const handleSubmitManifest = async () => {
+    const { auction_id: auctionId } = params;
+    const formData = new FormData();
+    const [file] = fileList;
+    formData.append("file", file as any);
+    if (auctionId && file) {
+      await uploadManifest(auctionId, formData);
     }
-    return null;
+    setFileList([]);
   };
 
   return (
     <>
-      <div className="h-full">
-        <div className="flex flex-col gap-2">
-          <div className="w-full border p-4 h-full">
-            <div className="flex align-middle items-center w-full p-2">
-              <h1 className="text-3xl font-bold">Encode Manifests</h1>
-              <a
-                href="/MANIFEST.xlsx"
-                download="MANIFEST.xlsx"
-                className="text-blue-400 pt-1 pl-4"
+      <Card
+        className="flex flex-col gap-2 w-full h-full"
+        title={
+          <div className="flex justify-center items-center p-2">
+            <div>
+              <h1 className="text-2xl">Encode Manifests</h1>
+            </div>
+            <a
+              href="/MANIFEST.xlsx"
+              download="MANIFEST.xlsx"
+              className="text-blue-400 pt-1 pl-4 text-sm"
+            >
+              (Download Manifest Here)
+            </a>
+          </div>
+        }
+      >
+        <div className="flex flex-col w-full">
+          <form id="upload_manifest" className="w-2/5 flex flex-col gap-4">
+            <Card>
+              <Upload
+                accept="application/x-iwork-numbers-sffnumbers,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onRemove={() => setFileList([])}
+                beforeUpload={(file) => {
+                  setFileList([file]);
+                  return false;
+                }}
+                fileList={fileList}
               >
-                (Download Manifest Here!)
-              </a>
-            </div>
+                <Button icon={<UploadOutlined />}>Select File</Button>
+              </Upload>
+              <Button
+                type="primary"
+                className="mt-2"
+                size="large"
+                onClick={handleSubmitManifest}
+                disabled={fileList.length === 0}
+                loading={isLoading}
+              >
+                {isLoading ? "Uploading" : "Start Upload"}
+              </Button>
+            </Card>
+          </form>
 
-            <div className="flex">
-              <div className="w-2/6 p-2">
-                {error && <ValidationError {...error} />}
-                <FormProvider {...methods}>
-                  <form
-                    id="create_bidder"
-                    onSubmit={(e) => e.preventDefault()}
-                    noValidate
-                    autoComplete="off"
-                  >
-                    <div className="flex flex-col items-center justify-center mb-4 h-40 w-full border-2 border-dashed rounded shadow">
-                      <label
-                        htmlFor="manifest"
-                        className="cursor-pointer border px-4 py-2 rounded-lg shadow bg-[#4E5BA6] text-white"
-                      >
-                        Browse Files Here
-                      </label>
-
-                      <div className="mt-4">{fileName}</div>
-                      <Input
-                        id="manifest"
-                        name="file"
-                        type="file"
-                        className="hidden"
-                        validations={{
-                          required: {
-                            value: true,
-                            message: "Please select a file!",
-                          },
-                          onChange: handleChangeFileName,
-                        }}
-                      />
-                    </div>
-                    <div className="flex">
-                      <Button
-                        onClick={handleSubmitManifest}
-                        buttonType="primary"
-                        type="submit"
-                        className="w-full h-12"
-                      >
-                        Upload File
-                      </Button>
-                    </div>
-                  </form>
-                </FormProvider>
-              </div>
-              <div className="w-4/6 p-2">
-                <div className="text-3xl text-center">
-                  {SuccessResponse?.message}
-                </div>
-                <Table
-                  data={SuccessResponse?.manifest || []}
-                  loading={isLoading}
-                  hasCount
-                  rowKeys={[
-                    "barcode",
-                    "control_number",
-                    "description",
-                    "bidder_number",
-                    "qty",
-                    "price",
-                    "manifest_number",
-                    "error_messages",
-                  ]}
-                  columnHeaders={[
-                    "barcode",
-                    "control",
-                    "description",
-                    "bidder",
-                    "qty",
-                    "price",
-                    "manifest",
-                    "error_messages",
-                  ]}
-                />
-              </div>
+          <div className="w-full p-2">
+            <div className="text-3xl text-center">
+              {SuccessResponse?.message}
             </div>
+            <Table
+              rowKey={(rowKey) => `${rowKey.barcode}-${rowKey.control_number}`}
+              dataSource={SuccessResponse?.manifest || []}
+              loading={isLoading}
+              columns={[
+                { title: "BARCODE", dataIndex: "barcode" },
+                { title: "CONTROL", dataIndex: "control_number" },
+                { title: "DESCRIPTION", dataIndex: "description" },
+                { title: "BIDDER", dataIndex: "bidder_number" },
+                { title: "QTY", dataIndex: "qty" },
+                { title: "PRICE", dataIndex: "price" },
+                { title: "MANIFEST", dataIndex: "manifest_number" },
+                { title: "ERROR", dataIndex: "error_messages" },
+              ]}
+            />
           </div>
         </div>
-      </div>
+      </Card>
     </>
   );
 };

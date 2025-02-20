@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer } from "react";
+import { createContext, useCallback, useContext, useReducer } from "react";
 import axios, { isAxiosError } from "axios";
 import moment from "moment";
 import {
@@ -11,7 +11,7 @@ import * as BidderRequirementActions from "./actions";
 interface BidderRequirementState {
   requirement: AddBidderRequirementResponse | null;
   isLoading: boolean;
-  error?: APIError;
+  error: APIError | null;
 }
 
 interface BidderRequirementContextType extends BidderRequirementState {
@@ -19,11 +19,11 @@ interface BidderRequirementContextType extends BidderRequirementState {
     bidderId: number,
     body: BidderRequirementPayload
   ) => Promise<void>;
-  resetCreateRequirementResponse: () => void;
+  resetBidderRequirement: () => void;
 }
 
 export type BidderRequirementAction =
-  | { type: "RESET_SUCCESS_RESPONSE" }
+  | { type: "RESET_REQUIREMENT" }
   | { type: "ADD_REQUIREMENT" }
   | {
       type: "ADD_REQUIREMENT_SUCCESS";
@@ -34,13 +34,13 @@ export type BidderRequirementAction =
 const initialState = {
   requirement: null,
   isLoading: false,
-  error: undefined,
+  error: null,
 };
 
 const BidderRequirementContext = createContext<BidderRequirementContextType>({
   ...initialState,
   createBidderRequirement: async () => {},
-  resetCreateRequirementResponse: () => {},
+  resetBidderRequirement: () => {},
 });
 
 const bidderRequirementReducer = (
@@ -56,14 +56,14 @@ const bidderRequirementReducer = (
         ...state,
         isLoading: false,
         requirement: action.payload.data,
-        error: undefined,
+        error: null,
       };
 
     case BidderRequirementActions.ADD_REQUIREMENT_FAILED:
       return { ...state, isLoading: false, error: action.payload };
 
-    case BidderRequirementActions.RESET_SUCCESS_RESPONSE:
-      return { ...state, isLoading: false, requirement: null };
+    case BidderRequirementActions.RESET_REQUIREMENT:
+      return { ...state, isLoading: false, requirement: null, error: null };
   }
 };
 
@@ -74,9 +74,9 @@ export const BidderRequirementProvider = ({
 }) => {
   const [state, dispatch] = useReducer(bidderRequirementReducer, initialState);
 
-  const resetCreateRequirementResponse = () => {
-    dispatch({ type: BidderRequirementActions.RESET_SUCCESS_RESPONSE });
-  };
+  const resetBidderRequirement = useCallback(() => {
+    dispatch({ type: BidderRequirementActions.RESET_REQUIREMENT });
+  }, []);
 
   const createBidderRequirement = async (
     bidderId: number,
@@ -118,7 +118,7 @@ export const BidderRequirementProvider = ({
     <BidderRequirementContext.Provider
       value={{
         ...state,
-        resetCreateRequirementResponse,
+        resetBidderRequirement,
         createBidderRequirement,
       }}
     >

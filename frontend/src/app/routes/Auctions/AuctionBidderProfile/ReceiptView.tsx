@@ -1,23 +1,55 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, ProfileDetails, Table } from "@components";
-import { useAuction, usePayments } from "@context";
+import { usePayments } from "@context";
 import { AuctionInventory } from "@types";
-import ItemProfile from "./ItemProfile";
-import RenderServerError from "../../ServerCrashComponent";
+import { Button, Card, Descriptions, Space, Table, Tooltip } from "antd";
+import { EyeOutlined } from "@ant-design/icons";
+import { BreadcrumbsType, usePageLayoutProps } from "@layouts/PageLayout";
+import { formatNumberToCurrency } from "@lib/utils";
+import { useSession } from "app/hooks";
 
 const ReceiptView = () => {
   const params = useParams();
   const navigate = useNavigate();
-  const [auctionInventory, setAuctionInventory] =
-    useState<AuctionInventory | null>(null);
   const {
     paymentDetails,
     fetchPaymentDetails,
     isLoading: isFetchingPayments,
-    error: ErrorResponse,
   } = usePayments();
-  const { cancelItem, cancelItemResponse } = useAuction();
+  const { pageBreadcrumbs, setPageBreadCrumbs } = usePageLayoutProps();
+  const [breadcrumbsSession] = useSession<BreadcrumbsType[]>(
+    "breadcrumbs",
+    pageBreadcrumbs
+  );
+
+  useEffect(() => {
+    if (!breadcrumbsSession) return;
+    if (breadcrumbsSession) {
+      setPageBreadCrumbs(breadcrumbsSession);
+    }
+  }, [setPageBreadCrumbs, breadcrumbsSession]);
+
+  useEffect(() => {
+    if (!paymentDetails) return;
+    setPageBreadCrumbs((prevBreadcrumbs) => {
+      const newBreadcrumb = {
+        title: `Transaction`,
+        path: `transactions/${paymentDetails.payment_id}`,
+      };
+      const doesExist = prevBreadcrumbs.find(
+        (item) => item.title === newBreadcrumb.title
+      );
+      if (doesExist) {
+        return prevBreadcrumbs;
+      }
+
+      const updatedBreadcrumbs = [
+        ...prevBreadcrumbs.filter((item) => item.title !== newBreadcrumb.title),
+        newBreadcrumb,
+      ];
+      return updatedBreadcrumbs;
+    });
+  }, [paymentDetails, setPageBreadCrumbs]);
 
   useEffect(() => {
     const { auction_id: auctionId, payment_id: paymentId } = params;
@@ -29,85 +61,105 @@ const ReceiptView = () => {
     }
   }, [params, fetchPaymentDetails]);
 
-  // TO DO
-  // handle cancel item
-  // useEffect(() => {
-
-  // }, [cancelItemResponse])
-
-  if (isFetchingPayments || !paymentDetails) {
-    return <div className="text-3xl flex justify-center">Loading...</div>;
-  }
-
-  if (ErrorResponse?.httpStatus === 500) {
-    return <RenderServerError {...ErrorResponse} />;
-  }
+  if (!paymentDetails) return null;
 
   return (
     <div className="w-full">
       <div className="flex h-full gap-2">
-        <div className="w-2/6 h-fit border rounded p-4">
-          <div className="flex justify-between gap-4">
-            <Button
-              buttonType="secondary"
-              className="text-blue-500 cursor-pointer"
-              onClick={() => navigate(-1)}
-            >
-              Go Back
-            </Button>
-            <Button
-              buttonType="primary"
-              className="text-blue-500 cursor-pointer"
-              onClick={() => console.log("PRINT RECEIPT")}
-            >
-              Print Receipt
-            </Button>
-          </div>
-
-          <div className="flex mt-4">
-            <div className="flex-col w-full gap-4">
-              <ProfileDetails
-                title={`Receipt Number: ${paymentDetails.receipt_number}`}
-                profile={paymentDetails}
-                excludedProperties={[
-                  "payment_id",
-                  "purpose",
-                  "already_consumed",
-                  "auction_inventories",
+        <div className="w-2/6">
+          <Card>
+            <Descriptions
+              size="small"
+              layout="vertical"
+              bordered
+              extra={
+                paymentDetails.purpose === "PULL_OUT" ? (
+                  <Button type="primary" onClick={() => alert("PRINT RECEIPT")}>
+                    Print Receipt
+                  </Button>
+                ) : null
+              }
+              title={`Receipt Number: ${paymentDetails.receipt_number}`}
+              items={[
+                {
+                  key: "2",
+                  label: "Full Name",
+                  span: 3,
+                  children: `${paymentDetails.full_name}`,
+                },
+                {
+                  key: "2",
+                  label: "Purpose",
+                  span: 3,
+                  children: `${paymentDetails.purpose.replace("_", " ")}`,
+                },
+                {
+                  key: "1",
+                  label: "Amount Paid",
+                  span: 3,
+                  children: formatNumberToCurrency(paymentDetails.amount_paid),
+                },
+                {
+                  key: "3",
+                  label: "Payment Date",
+                  span: 3,
+                  children: paymentDetails.created_at,
+                },
+              ]}
+            ></Descriptions>
+          </Card>
+        </div>
+        {paymentDetails.auction_inventories ? (
+          <div className="w-4/6">
+            <Card title={`Receipt ${paymentDetails.receipt_number} items`}>
+              <Table
+                dataSource={paymentDetails.auction_inventories}
+                loading={isFetchingPayments}
+                columns={[
+                  {
+                    title: "Status",
+                    dataIndex: "auction_status",
+                    render: (item) => (
+                      <span
+                        className={`${
+                          item === "PAID" ? "text-green-500" : " text-red-500"
+                        }`}
+                      >
+                        {item}
+                      </span>
+                    ),
+                  },
+                  { title: "Barcode", dataIndex: "barcode_number" },
+                  { title: "Control", dataIndex: "control_number" },
+                  { title: "Description", dataIndex: "description" },
+                  { title: "QTY", dataIndex: "qty" },
+                  { title: "Price", dataIndex: "price" },
+                  {
+                    title: "Action",
+                    key: "action",
+                    render: (_, transaction: AuctionInventory) => {
+                      return (
+                        <Space size="middle">
+                          <Tooltip placement="top" title="View Item">
+                            <Button
+                              onClick={() =>
+                                navigate(
+                                  `/auctions/${params.auction_id}/auction-item/${transaction.auction_inventory_id}`
+                                )
+                              }
+                            >
+                              <EyeOutlined />
+                            </Button>
+                          </Tooltip>
+                        </Space>
+                      );
+                    },
+                  },
                 ]}
               />
-            </div>
+            </Card>
           </div>
-        </div>
-
-        <div className="w-5/6 border rounded p-4 h-full flex flex-col">
-          {auctionInventory ? (
-            <ItemProfile
-              auctionInventory={auctionInventory}
-              setAuctionInventory={setAuctionInventory}
-            />
-          ) : (
-            <Table
-              data={paymentDetails.auction_inventories}
-              loading={isFetchingPayments}
-              onRowClick={(row: AuctionInventory) => setAuctionInventory(row)}
-              rowKeys={[
-                "barcode_number",
-                "control_number",
-                "description",
-                "qty",
-                "price",
-              ]}
-              columnHeaders={[
-                "Barcode",
-                "control #",
-                "Description",
-                "qty",
-                "price",
-              ]}
-            />
-          )}
-        </div>
+        ) : null}
       </div>
     </div>
   );

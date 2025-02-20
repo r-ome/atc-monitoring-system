@@ -2,6 +2,7 @@ import { InventoryStatus } from "./Inventories";
 
 export type AuctionItemStatus = "PAID" | "UNPAID" | "CANCELLED";
 export type ItemHistoryStatus =
+  | AuctionItemStatus
   | (AuctionItemStatus & "REFUNDED")
   | "LESS"
   | "DISCREPANCY";
@@ -15,12 +16,16 @@ export type BaseAuction = {
 export type AuctionDetails = BaseAuction & {
   total_items: number;
   total_items_price: string;
+  total_registration_fee: string;
 };
 
 export type Monitoring = {
   auction_inventory_id: number;
   barcode: string;
   control_number: string;
+  description: string;
+  auction_status: AuctionItemStatus;
+  inventory_status: InventoryStatus;
   bidder: {
     bidder_id: number;
     bidder_number: string;
@@ -52,6 +57,7 @@ export type ManifestRecordResponse = {
   message: string;
   manifest: {
     barcode: string;
+    control_number: string;
     description: string;
     price: number;
     bidder_number: string;
@@ -108,7 +114,7 @@ export type RegisterBidderResponse = {
   full_name: string;
   bidder_number: string;
   service_charge: string;
-  total_no_items: number;
+  total_items: number;
   registration_fee: string;
   auction_bidders_id: number;
 };
@@ -121,12 +127,16 @@ type AuctionItemHistory = {
   inventory_history_id: number;
 };
 
-type AuctionItemDetails = {
+export type AuctionItemDetails = {
   auction_inventory_id: number;
   auction_id: number;
   price: string;
   inventory_status: InventoryStatus;
   auction_status: AuctionItemStatus;
+  qty: string;
+  description: string;
+  control_number: string;
+  barcode_number: string;
   service_charge: number;
   bidder: {
     bidder_id: number;
@@ -138,7 +148,7 @@ type AuctionItemDetails = {
 
 // TO DO:
 // UPDATE THIS TO AUCTION ITEM DETAILS
-export type CancelItemResponse = {
+export type ActionItemResponse = {
   auction_inventory_id: number;
   inventory_id: number;
   auction_bidders: number;
@@ -150,4 +160,21 @@ export type CancelItemResponse = {
 
 export type UploadManifestPayload = {
   file: any;
+};
+
+export type RefundPayload = {
+  new_price: number;
+};
+
+export type ReassignPayload = {
+  new_bidder_number: string;
+};
+
+export type AddOnPayload = {
+  barcode: string;
+  control: string;
+  description: string;
+  bidder: string;
+  qty: string;
+  price: number;
 };

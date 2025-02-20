@@ -1,7 +1,8 @@
 import { Control, Controller, RegisterOptions } from "react-hook-form";
-import { Input, InputProps } from "antd";
+import { Input } from "antd";
+import { TextAreaProps } from "antd/es/input";
 
-interface RHFInputProps extends InputProps {
+interface RHFTextAreaProps extends TextAreaProps {
   name: string;
   control: Control<any>;
   rules?: RegisterOptions;
@@ -12,7 +13,7 @@ interface RHFInputProps extends InputProps {
   defaultValue?: number | string;
 }
 
-const RHFInput: React.FC<RHFInputProps> = ({
+const RHFTextArea: React.FC<RHFTextAreaProps> = ({
   name,
   control,
   rules,
@@ -30,7 +31,7 @@ const RHFInput: React.FC<RHFInputProps> = ({
       rules={rules}
       render={({ field, fieldState: { invalid, error } }) => (
         <div>
-          <Input
+          <Input.TextArea
             {...field}
             {...rest}
             defaultValue={defaultValue}
@@ -50,4 +51,4 @@ const RHFInput: React.FC<RHFInputProps> = ({
   );
 };
 
-export default RHFInput;
+export default RHFTextArea;

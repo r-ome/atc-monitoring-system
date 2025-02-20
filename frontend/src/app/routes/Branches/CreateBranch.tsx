@@ -6,7 +6,6 @@ import { useBranches } from "@context";
 import { RHFInput } from "@components";
 import { BRANCHES_402 } from "../errors";
 import { Button, Card, Typography } from "antd";
-import RenderServerError from "../ServerCrashComponent";
 import { usePageLayoutProps } from "@layouts";
 
 const CreateBranch = () => {
@@ -19,27 +18,39 @@ const CreateBranch = () => {
     error: ErrorResponse,
     resetCreateBranchResponse,
   } = useBranches();
-  const { openNotification, pageBreadcrumbs, setPageBreadCrumbs } =
-    usePageLayoutProps();
+  const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
 
   useEffect(() => {
-    setPageBreadCrumbs([...pageBreadcrumbs, { title: "Create Branch" }]);
-  }, [setPageBreadCrumbs, pageBreadcrumbs]);
+    setPageBreadCrumbs([
+      { title: "Branches List", path: "/branches" },
+      { title: "Create Branch" },
+    ]);
+  }, [setPageBreadCrumbs]);
 
   useEffect(() => {
-    if (!ErrorResponse && SuccessResponse && !isLoading) {
-      methods.reset();
-      openNotification("Successfully Added Branch!");
-      navigate("/branches");
-      resetCreateBranchResponse();
-    }
+    if (!isLoading) {
+      if (SuccessResponse) {
+        methods.reset();
+        openNotification("Successfully Added Branch!");
+        navigate("/branches");
+        resetCreateBranchResponse();
+      }
 
-    if (ErrorResponse) {
-      if (ErrorResponse.error === BRANCHES_402) {
-        methods.setError("name", {
-          type: "string",
-          message: "Branch already exist!",
-        });
+      if (ErrorResponse) {
+        if (ErrorResponse.httpStatus === 500) {
+          openNotification(
+            "There might be problems in the server. Please contact your admin.",
+            "error",
+            "Server Error"
+          );
+        }
+
+        if (ErrorResponse.error === BRANCHES_402) {
+          methods.setError("name", {
+            type: "string",
+            message: "Branch already exist!",
+          });
+        }
       }
     }
   }, [
@@ -52,23 +63,17 @@ const CreateBranch = () => {
     navigate,
   ]);
 
-  useEffect(() => {
-    if (!ErrorResponse && SuccessResponse) {
-      methods.reset();
-    }
-  }, [ErrorResponse, SuccessResponse, methods]);
-
   const handleSubmitCreateBranch = methods.handleSubmit(async (data) => {
     await createBranch(data);
   });
 
-  if (ErrorResponse?.httpStatus === 500) {
-    return <RenderServerError {...ErrorResponse} />;
-  }
-
   return (
     <Card className="py-4" title={<h1 className="text-3xl">Create Branch</h1>}>
-      <form id="create_branch" className="flex flex-col gap-4 w-2/4">
+      <form
+        id="create_branch"
+        className="flex flex-col gap-4 w-2/4"
+        onSubmit={(e) => e.preventDefault()}
+      >
         <div>
           <Typography.Title level={5}>Branch Name:</Typography.Title>
           <RHFInput

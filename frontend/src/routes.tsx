@@ -16,18 +16,13 @@ import {
   BidderProfile,
   AuctionList,
   AuctionProfile,
-  AuctionBidders,
-  AuctionPayments,
-  RegisterBidder,
-  Monitoring,
   EncodePage,
+  AuctionBidderProfile,
+  ReceiptView,
+  AuctionItemProfile,
 } from "./app/routes";
 import { PageLayout } from "./layouts";
-import {
-  AuctionBidderProfile,
-  ManifestList,
-  ReceiptView,
-} from "./app/routes/Auctions";
+import { AddOnPage } from "app/routes/Auctions";
 
 const routes: RouteObject[] = [
   {
@@ -68,6 +63,10 @@ const routes: RouteObject[] = [
           {
             path: ":supplier_id/containers/:container_id/inventory/create",
             element: <CreateInventory />,
+          },
+          {
+            path: ":supplier_id/containers/:container_id/inventory/:auction_inventory_id",
+            element: <AuctionItemProfile />,
           },
         ],
       },
@@ -118,44 +117,41 @@ const routes: RouteObject[] = [
         ],
       },
       {
-        path: "auctions",
-        element: <AuctionList />,
-      },
-      {
-        path: "auctions/:auction_id",
-        element: <AuctionProfile />,
+        path: "/auctions",
+        element: (
+          <PageLayout
+            title="Auctions"
+            breadcrumbs={[{ title: "Auctions List", path: "auctions" }]}
+          />
+        ),
         children: [
           {
             index: true,
-            element: <AuctionBidders />,
+            element: <AuctionList />,
           },
           {
-            path: "payments",
-            element: <AuctionPayments />,
+            path: ":auction_id",
+            element: <AuctionProfile />,
           },
           {
-            path: "register-bidder",
-            element: <RegisterBidder />,
+            path: ":auction_id/auction-item/:auction_inventory_id",
+            element: <AuctionItemProfile />,
           },
           {
-            path: "encode",
+            path: ":auction_id/encode",
             element: <EncodePage />,
           },
           {
-            path: "bidders/:bidder_id",
+            path: ":auction_id/add-on",
+            element: <AddOnPage />,
+          },
+          {
+            path: ":auction_id/bidders/:bidder_id",
             element: <AuctionBidderProfile />,
           },
           {
-            path: "payments/:payment_id",
+            path: ":auction_id/bidders/:bidder_id/transactions/:payment_id",
             element: <ReceiptView />,
-          },
-          {
-            path: "monitoring",
-            element: <Monitoring />,
-          },
-          {
-            path: "manifest-records",
-            element: <ManifestList />,
           },
         ],
       },

@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useBranches } from "@context";
-import RenderServerError from "../ServerCrashComponent";
 import { usePageLayoutProps } from "@layouts";
 import { Button, Card, Descriptions, Skeleton, Table } from "antd";
 
@@ -10,8 +9,8 @@ const BranchProfile = () => {
   const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
   const {
     branch,
-    isLoading: isFetchingBranch,
     fetchBranch,
+    isLoading: isFetchingBranch,
     error: ErrorResponse,
   } = useBranches();
 
@@ -34,13 +33,19 @@ const BranchProfile = () => {
     }
   }, [params, fetchBranch]);
 
-  if (ErrorResponse?.httpStatus === 500) {
-    return <RenderServerError {...ErrorResponse} />;
-  }
+  useEffect(() => {
+    if (!isFetchingBranch) {
+      if (ErrorResponse && ErrorResponse.httpStatus === 500) {
+        openNotification(
+          "There might be problems in the server. Please contact your admin.",
+          "error",
+          "Server Error"
+        );
+      }
+    }
+  }, [ErrorResponse, isFetchingBranch, openNotification]);
 
-  if (!branch) {
-    return <Skeleton />;
-  }
+  if (!branch) return <Skeleton />;
 
   return (
     <>

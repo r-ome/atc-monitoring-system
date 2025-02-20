@@ -10,7 +10,7 @@ const lists = [
 
 const Navigation = () => {
   return (
-    <div className="flex flex-shrink-0 flex-col border p-2 mr-2 h-screen  w-1/4">
+    <div className="flex flex-shrink-0 flex-col border p-2 mr-2 h-screen  w-1/6">
       <div className="bg-[#F9FBFC] h-36 p-6 flex justify-center items-center">
         Logo and ATC name here
       </div>

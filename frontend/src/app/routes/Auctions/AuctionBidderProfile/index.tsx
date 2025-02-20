@@ -1,36 +1,77 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Modal, ProfileDetails } from "@components";
 import { useAuction, usePayments } from "@context";
 import TransactionsTable from "./TransactionsTable";
 import BidderItems from "./BidderItems";
-import RenderServerError from "../../ServerCrashComponent";
+import { Card, Descriptions, Tabs } from "antd";
+import { usePageLayoutProps, BreadcrumbsType } from "@layouts/PageLayout";
+import { useSession } from "app/hooks";
+import { formatNumberToCurrency } from "@lib/utils";
 
 const AuctionBidderProfile = () => {
   const params = useParams();
-  const [isTransactionsView, setIsTransactionsView] = useState<boolean>(false);
-  const [isPaymentSuccessful, setIsPaymentSuccessful] =
-    useState<boolean>(false);
   const {
     bidder,
     fetchBidderAuctionProfile,
-    error: AuctionErrorResponse,
+    isLoading: isFetchingAuctionBidderProfile,
+    error: FetchBidderProfileErrorResponse,
   } = useAuction();
-  const { payment, resetPaymentState, fetchBidderAuctionTransactions } =
-    usePayments();
+  const { payment, fetchBidderAuctionTransactions } = usePayments();
+
+  const { pageBreadcrumbs, setPageBreadCrumbs, openNotification } =
+    usePageLayoutProps();
+  const [breadcrumbsSession, setBreadcrumbSession] = useSession<
+    BreadcrumbsType[]
+  >("breadcrumbs", pageBreadcrumbs);
+
+  useEffect(() => {
+    if (!breadcrumbsSession) return;
+    if (breadcrumbsSession) {
+      setPageBreadCrumbs(breadcrumbsSession);
+    }
+  }, [setPageBreadCrumbs, breadcrumbsSession]);
+
+  useEffect(() => {
+    if (!bidder) return;
+    setPageBreadCrumbs((prevBreadcrumbs) => {
+      const newBreadcrumb = {
+        title: `Bidder ${bidder.bidder_number}`,
+        path: `bidders/${bidder.bidder_id}`,
+        key: "bidder",
+      };
+      const doesTitleExist = prevBreadcrumbs.find(
+        (item) => item.title === newBreadcrumb.title
+      );
+      if (doesTitleExist) {
+        return prevBreadcrumbs;
+      }
+
+      let filteredBreadcrumbs = prevBreadcrumbs;
+      const previousBidder = prevBreadcrumbs.find(
+        (item) => item.key === "bidder"
+      );
+      if (previousBidder?.title !== newBreadcrumb.title) {
+        filteredBreadcrumbs = filteredBreadcrumbs.filter(
+          (item) => item.key !== "bidder"
+        );
+      }
+      filteredBreadcrumbs = [...filteredBreadcrumbs, newBreadcrumb];
+
+      setBreadcrumbSession(filteredBreadcrumbs);
+      return filteredBreadcrumbs;
+    });
+  }, [bidder, setPageBreadCrumbs, setBreadcrumbSession]);
 
   useEffect(() => {
     const { auction_id: auctionId, bidder_id: bidderId } = params;
 
     if (bidderId && auctionId) {
-      if (!bidder || bidder.bidder_id !== parseInt(bidderId, 10)) {
-        const fetchInitialData = async () => {
-          await fetchBidderAuctionProfile(auctionId, bidderId);
-        };
-        fetchInitialData();
-      }
+      const fetchInitialData = async () => {
+        await fetchBidderAuctionProfile(auctionId, bidderId);
+      };
+      fetchInitialData();
     }
-  }, [params.bidder_id, params.auction_id, fetchBidderAuctionProfile]);
+  }, [params, fetchBidderAuctionProfile]);
 
   useEffect(() => {
     const { auction_id: auctionId } = params;
@@ -43,7 +84,7 @@ const AuctionBidderProfile = () => {
       };
       fetchInitialData();
     }
-  }, []);
+  }, [params, bidder, fetchBidderAuctionTransactions]);
 
   useEffect(() => {
     const { auction_id: auctionId, bidder_id: bidderId } = params;
@@ -53,16 +94,20 @@ const AuctionBidderProfile = () => {
       };
 
       if (payment) {
-        resetPaymentState();
         fetchInitialData();
-        setIsPaymentSuccessful(true);
       }
     }
-  }, [payment, fetchBidderAuctionProfile]);
+  }, [params, payment, fetchBidderAuctionProfile]);
 
-  if (AuctionErrorResponse?.httpStatus === 500) {
-    return <RenderServerError {...AuctionErrorResponse} />;
-  }
+  useEffect(() => {
+    if (FetchBidderProfileErrorResponse && !isFetchingAuctionBidderProfile) {
+      openNotification("Error fetching Bidder Profile", "error", "Error!");
+    }
+  }, [
+    FetchBidderProfileErrorResponse,
+    isFetchingAuctionBidderProfile,
+    openNotification,
+  ]);
 
   if (!bidder) {
     return null;
@@ -71,41 +116,99 @@ const AuctionBidderProfile = () => {
   return (
     <div className="w-full">
       <div className="flex h-full gap-2">
-        <div className="w-2/6 h-fit border rounded p-4">
-          <div>
-            <span
-              className="text-blue-500 cursor-pointer"
-              onClick={() => setIsTransactionsView(!isTransactionsView)}
-            >
-              {!isTransactionsView ? "View Transactions" : "View Items"}
-            </span>
-          </div>
+        <div className="w-2/6">
+          <Card>
+            <Descriptions
+              size="small"
+              layout="vertical"
+              title={`Bidder ${bidder?.bidder_number}`}
+              bordered
+              column={4}
+              items={[
+                {
+                  key: "1",
+                  label: "Full Name",
+                  span: 4,
+                  children: bidder.full_name,
+                },
+                {
+                  key: "8",
+                  label: "Balance",
+                  span: 4,
+                  children: (
+                    <span
+                      className={`${
+                        parseInt(bidder.balance, 10) < 0
+                          ? "text-red-500"
+                          : "text-green-500"
+                      }`}
+                    >
+                      {parseInt(bidder.balance, 10) < 0
+                        ? `(${formatNumberToCurrency(bidder.balance).replace(
+                            "-",
+                            ""
+                          )})`
+                        : `${formatNumberToCurrency(bidder.balance)}`}
+                    </span>
+                  ),
+                },
+                {
+                  key: "5",
+                  label: "Total Item Price",
+                  span: 2,
+                  children: formatNumberToCurrency(bidder.total_item_price),
+                },
 
-          <div className="flex mt-4">
-            <div className="flex-col w-full gap-4">
-              <ProfileDetails
-                title={`Bidder ${bidder?.bidder_number}`}
-                profile={bidder}
-                excludedProperties={[
-                  "auction_bidders_id",
-                  "bidder_id",
-                  "already_consumed",
-                  "bidder_number",
-                  "items",
-                ]}
-              />
-            </div>
-          </div>
+                {
+                  key: "2",
+                  label: "Total Items",
+                  span: 1,
+                  children: bidder.total_items,
+                },
+                {
+                  key: "6",
+                  label: "Unpaid Items",
+                  span: 1,
+                  children: bidder.total_unpaid_items,
+                },
+                {
+                  key: "3",
+                  label: "Service Charge",
+                  span: 2,
+                  children: bidder.service_charge,
+                },
+                {
+                  key: "4",
+                  label: "Registration Fee",
+                  span: 2,
+                  children: formatNumberToCurrency(bidder.registration_fee),
+                },
+              ]}
+            ></Descriptions>
+          </Card>
         </div>
-        <div className="w-5/6 border rounded p-4 h-full flex flex-col">
-          {isTransactionsView ? <TransactionsTable /> : <BidderItems />}
+        <div className="w-4/6">
+          <Card>
+            <Tabs
+              defaultActiveKey="1"
+              className="w-full"
+              items={[
+                { key: "1", label: "ITEMS", children: <BidderItems /> },
+                {
+                  key: "2",
+                  label: "Transactions",
+                  children: <TransactionsTable />,
+                },
+              ]}
+            />
+          </Card>
         </div>
       </div>
-      <Modal
+      {/* <Modal
         isOpen={isPaymentSuccessful}
         title="Payment Successful!"
         setShowModal={setIsPaymentSuccessful}
-      ></Modal>
+      ></Modal> */}
     </div>
   );
 };

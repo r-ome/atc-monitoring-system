@@ -16,15 +16,19 @@ import {
   AuctionBidders,
   EncodePage,
   ReceiptView,
+  AuctionBidderProfile,
+  AuctionItemProfile,
 } from "./Auctions";
 import { CreateInventory } from "./Inventories";
 
 export {
+  AuctionItemProfile,
   SupplierList,
   AuctionBidders,
   BranchList,
   CreateInventory,
   CreateBidderRequirement,
+  AuctionBidderProfile,
   CreateBranch,
   CreateContainer,
   EncodePage,

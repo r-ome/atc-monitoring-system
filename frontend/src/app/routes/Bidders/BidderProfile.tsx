@@ -4,14 +4,19 @@ import { useBidderRequirement, useBidders } from "@context";
 import { usePageLayoutProps } from "@layouts";
 import { Button, Card, Descriptions, Skeleton, Table } from "antd";
 import CreateBidderRequirement from "./CreateBidderRequirement";
+import { BIDDERS_402 } from "../errors";
 
 const BidderProfile = () => {
   const params = useParams();
   const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
-  const { bidder, isLoading: isFetchingBidder, fetchBidder } = useBidders();
-  const { requirement, resetCreateRequirementResponse } =
-    useBidderRequirement();
+  const {
+    bidder,
+    isLoading: isFetchingBidder,
+    fetchBidder,
+    error: ErrorResponse,
+  } = useBidders();
+  const { requirement, resetBidderRequirement } = useBidderRequirement();
 
   useEffect(() => {
     if (bidder) {
@@ -33,6 +38,27 @@ const BidderProfile = () => {
   }, [params, fetchBidder]);
 
   useEffect(() => {
+    if (!isFetchingBidder) {
+      if (ErrorResponse) {
+        if (ErrorResponse?.error === BIDDERS_402) {
+          openNotification(
+            "Bidder does not exist. Please go back to list and choose another one",
+            "error",
+            "Server Error"
+          );
+        }
+        if (ErrorResponse?.httpStatus === 500) {
+          openNotification(
+            "There might be problems in the server. Please contact your admin.",
+            "error",
+            "Server Error"
+          );
+        }
+      }
+    }
+  }, [ErrorResponse, isFetchingBidder, openNotification]);
+
+  useEffect(() => {
     if (bidder) {
       if (requirement && !isFetchingBidder) {
         const fetchInitialData = async () => {
@@ -40,11 +66,11 @@ const BidderProfile = () => {
         };
         openNotification("Successfully Added Bidder Requirement");
         fetchInitialData();
-        resetCreateRequirementResponse();
+        resetBidderRequirement();
       }
     }
   }, [
-    resetCreateRequirementResponse,
+    resetBidderRequirement,
     fetchBidder,
     isFetchingBidder,
     requirement,

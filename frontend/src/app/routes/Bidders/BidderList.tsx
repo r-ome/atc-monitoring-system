@@ -1,9 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { BaseBidder } from "@types";
 import { useBidders } from "@context";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Button, Space, Spin, Table, Tooltip } from "antd";
-import RenderServerError from "../ServerCrashComponent";
+import { Button, Input, Space, Table, Tooltip, Typography } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { usePageLayoutProps } from "@layouts";
 
@@ -17,7 +16,9 @@ const BidderList = () => {
     isLoading,
     resetCreateBidderResponse,
   } = useBidders();
-  const { setPageBreadCrumbs } = usePageLayoutProps();
+  const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
+  const [dataSource, setDataSource] = useState<BaseBidder[]>(bidders);
+  const [searchValue, setSearchValue] = useState<string>("");
 
   useEffect(() => {
     resetCreateBidderResponse();
@@ -31,37 +32,69 @@ const BidderList = () => {
     fetchInitialData();
   }, [fetchBidders, location.key]);
 
-  if (ErrorResponse?.httpStatus === 500) {
-    return <RenderServerError {...ErrorResponse} />;
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Spin size="large" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!isLoading) {
+      if (ErrorResponse && ErrorResponse.httpStatus === 500) {
+        openNotification(
+          "There might be problems in the server. Please contact your admin.",
+          "error",
+          "Server Error"
+        );
+      }
+    }
+  }, [isLoading, ErrorResponse, openNotification]);
 
   return (
     <div>
-      <div className="flex my-2">
-        <Button type="primary" size="large" onClick={() => navigate("create")}>
-          Create Bidder
-        </Button>
+      <div className="flex justify-between my-2">
+        <div>
+          <Button
+            type="primary"
+            size="large"
+            onClick={() => navigate("create")}
+          >
+            Create Bidder
+          </Button>
+        </div>
+        <div className="w-2/6 my-2 flex gap-4 items-center ">
+          <div className="w-2/6 flex justify-end">
+            <Typography.Text strong>
+              {dataSource.length} Bidders
+            </Typography.Text>
+          </div>
+          <div className="w-4/6">
+            <Input
+              placeholder="Search by Bidder Number or Name"
+              value={searchValue}
+              onChange={(e) => {
+                const currentValue = e.target.value;
+                setSearchValue(currentValue);
+                const filteredData = bidders.filter(
+                  (item) =>
+                    item.bidder_number.includes(currentValue) ||
+                    item.full_name.includes(currentValue.toUpperCase())
+                );
+                setDataSource(filteredData);
+              }}
+            />
+          </div>
+        </div>
       </div>
 
       <Table
         rowKey={(record) => record.bidder_id}
-        dataSource={bidders}
+        dataSource={searchValue ? dataSource : bidders}
         columns={[
           {
             title: "Bidder Number",
             dataIndex: "bidder_number",
+            sorter: (a, b) =>
+              parseInt(b.bidder_number, 10) - parseInt(a.bidder_number, 10),
           },
           {
             title: "Full Name",
             dataIndex: "full_name",
+            sorter: (a, b) => -1 * a.full_name.localeCompare(b.bidder_number),
           },
           {
             title: "Date Joined",

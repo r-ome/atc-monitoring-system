@@ -1,46 +1,47 @@
-import { useEffect, useState } from "react";
-import { FormProvider, useForm } from "react-hook-form";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { useParams } from "react-router-dom";
 
 import { useAuction, useBidders } from "@context";
-import { Button, Input, Select } from "@components";
-import {
-  BaseBidder,
-  AuctionDetails,
-  RegisterBidderPayload,
-  APIError,
-} from "@types";
-import { useSession } from "../../hooks";
-import RenderServerError from "../ServerCrashComponent";
+import { RHFInputNumber, RHFSelect } from "@components";
+import { BaseBidder, RegisterBidderPayload } from "@types";
 import { AUCTIONS_401, AUCTIONS_402, AUCTIONS_403 } from "../errors";
+import { Modal, Typography } from "antd";
+import { usePageLayoutProps } from "@layouts";
 
-const RegisterBidder = () => {
-  const methods = useForm<RegisterBidderPayload>();
-  const [isSuccess, setIsSuccess] = useState<boolean>(false);
-  const [auction] = useSession<AuctionDetails | null>("auction", null);
+interface RegisterBidderProps {
+  open: boolean;
+  onCancel: () => void;
+}
+
+const RegisterBidderModal: React.FC<RegisterBidderProps> = ({
+  open,
+  onCancel,
+}) => {
+  const params = useParams();
+  const methods = useForm<RegisterBidderPayload>({
+    defaultValues: { service_charge: "12", registration_fee: "3000" },
+  });
   const [unregisteredBidders, setUnregisteredBidders] = useState<BaseBidder[]>(
     []
   );
+  const { bidders } = useBidders();
+  const { openNotification } = usePageLayoutProps();
   const {
-    bidders,
-    fetchBidders,
-    isLoading: isFetchingBidders,
-    error: BidderErrorResponse,
-  } = useBidders();
-  const {
+    fetchAuctionDetails,
     registeredBidders,
     registerBidderAtAuction,
+    resetRegisteredBidder,
     registeredBidder: SuccessResponse,
-    isLoading: isRegisteringBidder,
+    isLoading,
     error: AuctionErrorResponse,
   } = useAuction();
 
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      await fetchBidders();
-    };
-    fetchInitialData();
-  }, [fetchBidders]);
+  const handleCancel = useCallback(() => {
+    methods.reset();
+    onCancel();
+    resetRegisteredBidder();
+  }, [methods, onCancel, resetRegisteredBidder]);
 
   useEffect(() => {
     if (bidders && registeredBidders?.bidders) {
@@ -63,157 +64,113 @@ const RegisterBidder = () => {
   ]);
 
   useEffect(() => {
-    if (!AuctionErrorResponse && SuccessResponse) {
-      methods.reset();
-      setIsSuccess(true);
-    }
+    const { auction_id: auctionId } = params;
 
-    if (AuctionErrorResponse) {
-      setIsSuccess(false);
-    }
+    if (!isLoading && auctionId) {
+      if (SuccessResponse) {
+        const refetchAuctionDetails = async () =>
+          await fetchAuctionDetails(auctionId);
+        refetchAuctionDetails();
+        setUnregisteredBidders([]);
+        openNotification("Successfully registered bidder!");
+        handleCancel();
+      }
 
-    return () => {
-      setIsSuccess(false);
-    };
-  }, [AuctionErrorResponse, SuccessResponse, methods]);
+      if (AuctionErrorResponse) {
+        let message = "Server Error!";
+        if (AuctionErrorResponse.error === AUCTIONS_401)
+          message = "Please double check your inputs!";
+        if (AuctionErrorResponse.error === AUCTIONS_402)
+          message = "Bidder already registered";
+        if (AuctionErrorResponse.error === AUCTIONS_403)
+          message = "Please double check the bidder if already registered!";
+
+        openNotification(message, "error", "Error!");
+        resetRegisteredBidder();
+      }
+    }
+  }, [
+    AuctionErrorResponse,
+    SuccessResponse,
+    fetchAuctionDetails,
+    params,
+    isLoading,
+    methods,
+    resetRegisteredBidder,
+    handleCancel,
+    openNotification,
+  ]);
 
   const handleSubmitRegisterBidder = methods.handleSubmit(async (data) => {
-    if (auction) {
-      await registerBidderAtAuction(auction?.auction_id, data);
+    const { auction_id: auctionId } = params;
+    if (auctionId) {
+      await registerBidderAtAuction(auctionId, data);
     }
   });
 
-  const ValidationError: React.FC<APIError> = ({ error }) => {
-    let ErrorMessage = null;
-    switch (error) {
-      case AUCTIONS_401:
-        ErrorMessage = "Please double check your inputs!";
-        break;
-      case AUCTIONS_402:
-        ErrorMessage = "Bidder already registered!";
-        break;
-      case AUCTIONS_403:
-        ErrorMessage = "Please double check the bidder if already registered!";
-        break;
-    }
-
-    if ([AUCTIONS_401, AUCTIONS_402, AUCTIONS_403].includes(error)) {
-      return (
-        <h1 className="text-red-500 border py-2 border-red-500 mb-4 text-xl flex flex-col items-center justify-center">
-          <div className="mb-2">{ErrorMessage}</div>
-        </h1>
-      );
-    }
-
-    return null;
-  };
-
-  if (BidderErrorResponse?.httpStatus === 500) {
-    return <RenderServerError {...BidderErrorResponse} />;
-  }
-
-  if (isRegisteringBidder || isFetchingBidders || !auction) {
-    return <div className="text-3xl flex justify-center">Loading...</div>;
-  }
-
   return (
-    <div>
-      <div className="flex justify-center items-center my-4">
-        <h1 className="text-3xl">Register Bidder</h1>
-      </div>
+    <Modal
+      onCancel={handleCancel}
+      destroyOnClose
+      onOk={handleSubmitRegisterBidder}
+      confirmLoading={isLoading}
+      open={open}
+      title={
+        <div className="flex justify-center items-center my-4">
+          <h1 className="text-3xl">Register Bidder</h1>
+        </div>
+      }
+    >
+      <form id="create_branch" className="flex flex-col gap-4 w-full">
+        <div>
+          <Typography.Title level={5}>Branch Name:</Typography.Title>
+          <RHFSelect
+            showSearch
+            control={methods.control}
+            name="bidder_id"
+            disabled={isLoading}
+            placeholder="Select a Bidder"
+            filterOption={(input: string, option: any) =>
+              (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+            }
+            options={unregisteredBidders.map((bidder) => ({
+              value: bidder?.bidder_id.toString(),
+              label: `${bidder.bidder_number} - ${bidder.full_name}`,
+            }))}
+            rules={{ required: "This field is required!" }}
+          />
+        </div>
 
-      <div className="block p-10 border rounded-lg shadow-lg">
-        <FormProvider {...methods}>
-          {AuctionErrorResponse && (
-            <ValidationError {...AuctionErrorResponse} />
-          )}
-          {!unregisteredBidders.length && (
-            <div className="border p-2 flex flex-col gap-4 items-center w-full rounded border-red-500">
-              <div className="text-red-500 text-xl">
-                No bidders to register. Please go to the Bidders Page and create
-                a Bidder.
-              </div>
+        <div>
+          <Typography.Title level={5}>Service Charge</Typography.Title>
+          <RHFInputNumber
+            control={methods.control}
+            name="service_charge"
+            disabled={isLoading || !methods.watch("bidder_id")}
+            placeholder="Service Charge"
+            addonAfter="%"
+            rules={{
+              required: "This field is required!",
+            }}
+          />
+        </div>
 
-              <Link
-                to={`/auctions/${auction.auction_id}`}
-                className="text-blue-500"
-              >
-                Go back to Bidders Page
-              </Link>
-            </div>
-          )}
-          {isSuccess ? (
-            <h1 className="text-green-500 text-xl flex justify-center">
-              Successfully Registered Bidder!
-            </h1>
-          ) : null}
-
-          <form
-            id="register_bidder"
-            onSubmit={(e) => e.preventDefault()}
-            noValidate
-            autoComplete="off"
-          >
-            <Select
-              id="bidder_id"
-              name="bidder_id"
-              label="Bidder:"
-              disabled={!unregisteredBidders.length}
-              options={unregisteredBidders.map((bidder) => ({
-                value: bidder?.bidder_id.toString(),
-                label: `${bidder.bidder_number} - ${bidder.full_name}`,
-              }))}
-              validations={{
-                required: { value: true, message: "Bidder is required" },
-              }}
-            />
-
-            <Input
-              id="service_charge"
-              name="service_charge"
-              placeholder="Service Charge"
-              label="Service Charge:"
-              disabled={!unregisteredBidders.length}
-              type="number"
-              validations={{
-                required: {
-                  value: true,
-                  message: "Service Charge is required",
-                },
-              }}
-            />
-
-            <Input
-              id="registration_fee"
-              name="registration_fee"
-              placeholder="Registration Fee"
-              disabled={!unregisteredBidders.length}
-              label="Registration Fee:"
-              type="number"
-              validations={{
-                required: {
-                  value: true,
-                  message: "Registration Fee is required",
-                },
-              }}
-            />
-
-            <div className="flex">
-              <Button
-                onClick={handleSubmitRegisterBidder}
-                disabled={!unregisteredBidders.length}
-                buttonType="primary"
-                type="submit"
-                className="w-full h-12"
-              >
-                Save
-              </Button>
-            </div>
-          </form>
-        </FormProvider>
-      </div>
-    </div>
+        <div>
+          <Typography.Title level={5}>Registration Fee</Typography.Title>
+          <RHFInputNumber
+            control={methods.control}
+            name="registration_fee"
+            disabled={isLoading || !methods.watch("bidder_id")}
+            addonBefore="₱"
+            placeholder="Registration Fee"
+            rules={{
+              required: "This field is required!",
+            }}
+          />
+        </div>
+      </form>
+    </Modal>
   );
 };
 
-export default RegisterBidder;
+export default RegisterBidderModal;

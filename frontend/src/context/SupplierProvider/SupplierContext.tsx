@@ -108,12 +108,10 @@ export const SupplierProvider = ({
     dispatch({ type: SupplierActions.FETCH_SUPPLIER });
     try {
       const response = await axios.get(`/suppliers/${supplierId}`);
-      setTimeout(() => {
-        dispatch({
-          type: SupplierActions.FETCH_SUPPLIER_SUCCESS,
-          payload: response.data,
-        });
-      }, 1000);
+      dispatch({
+        type: SupplierActions.FETCH_SUPPLIER_SUCCESS,
+        payload: response.data,
+      });
     } catch (error) {
       if (isAxiosError(error) && error.response?.data) {
         dispatch({

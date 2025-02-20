@@ -19,7 +19,7 @@ const ItemProfile: React.FC<ItemProfileProps> = ({
   const handleCancelItem = async (auctionInventoryId: number) => {
     const { auction_id: auctionId } = params;
     if (auctionId) {
-      await cancelItem(parseInt(auctionId, 2), auctionInventoryId);
+      // await cancelItem(parseInt(auctionId, 2), auctionInventoryId);
     }
   };
 

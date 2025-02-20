@@ -7,6 +7,7 @@ import { CreateInventoryPayload } from "@types";
 import { Button, Card, Typography } from "antd";
 import { usePageLayoutProps, BreadcrumbsType } from "@layouts";
 import { useSession } from "app/hooks";
+import { INVENTORIES_401, INVENTORIES_403 } from "../errors";
 
 const CreateInventory = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const CreateInventory = () => {
     inventory: SuccessResponse,
     isLoading,
     error: ErrorResponse,
+    resetInventory,
   } = useInventories();
   const { pageBreadcrumbs, openNotification, setPageBreadCrumbs } =
     usePageLayoutProps();
@@ -59,32 +61,45 @@ const CreateInventory = () => {
   });
 
   useEffect(() => {
-    if (!ErrorResponse && !isLoading && SuccessResponse) {
-      methods.reset();
-      // navigate to Inventory Profile
-      navigate(-1);
-      openNotification("Successfully added Inventory");
-    }
+    if (!isLoading) {
+      if (SuccessResponse) {
+        methods.reset();
+        openNotification("Successfully Added Inventory!");
+        navigate(-1);
+      }
 
-    if (ErrorResponse) {
-      openNotification("Please check your inputs!", "error", "Error");
+      if (ErrorResponse) {
+        let message = "Server Error";
+        if (ErrorResponse.httpStatus === 500)
+          message =
+            "There might be problems in the server. Please contact your admin.";
+        if (ErrorResponse.error === INVENTORIES_401)
+          message = "Please double check your inputs!";
+        if (ErrorResponse.error === INVENTORIES_403)
+          message =
+            "Container does not exist. Please check your Container Profile";
+
+        openNotification(message, "error", "Error");
+      }
+      resetInventory();
     }
   }, [
     ErrorResponse,
     SuccessResponse,
     methods,
-    openNotification,
     isLoading,
+    openNotification,
     navigate,
+    resetInventory,
   ]);
 
   return (
     <>
       <Card
         className="py-4"
-        title={<h1 className="text-3xl">Create Branch</h1>}
+        title={<h1 className="text-3xl">Add Inventory</h1>}
       >
-        <form id="create_branch" className="flex flex-col gap-4 w-2/4">
+        <form id="create_inventory" className="flex flex-col gap-4 w-2/4">
           <div>
             <Typography.Title level={5}>Barcode:</Typography.Title>
             <RHFInput

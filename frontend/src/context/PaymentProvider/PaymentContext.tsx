@@ -164,15 +164,21 @@ export const PaymentProvider = ({
           auction_inventory_ids: inventoryIds,
         }
       );
-      dispatch({
-        type: PaymentActions.BIDDER_PULLOUT_PAYMENT_SUCCESS,
-        payload: response.data,
-      });
-    } catch (error: any) {
-      dispatch({
-        type: PaymentActions.BIDDER_PULLOUT_PAYMENT_FAILED,
-        payload: error.response.data,
-      });
+      setTimeout(() => {
+        dispatch({
+          type: PaymentActions.BIDDER_PULLOUT_PAYMENT_SUCCESS,
+          payload: response.data,
+        });
+      }, 1000);
+    } catch (error) {
+      setTimeout(() => {
+        if (isAxiosError(error) && error.response?.data) {
+          dispatch({
+            type: PaymentActions.BIDDER_PULLOUT_PAYMENT_FAILED,
+            payload: error.response.data,
+          });
+        }
+      }, 1000);
     }
   };
 
@@ -187,11 +193,13 @@ export const PaymentProvider = ({
           type: PaymentActions.FETCH_BIDDER_AUCTION_TRANSACTIONS_SUCCESS,
           payload: response.data,
         });
-      } catch (error: any) {
-        dispatch({
-          type: PaymentActions.FETCH_BIDDER_AUCTION_TRANSACTIONS_FAILED,
-          payload: error.response.data,
-        });
+      } catch (error) {
+        if (isAxiosError(error) && error.response?.data) {
+          dispatch({
+            type: PaymentActions.FETCH_BIDDER_AUCTION_TRANSACTIONS_FAILED,
+            payload: error.response.data,
+          });
+        }
       }
     },
     []

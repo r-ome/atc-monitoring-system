@@ -5,6 +5,8 @@ import { useBidderRequirement } from "@context";
 import { Bidder, BidderRequirementPayload } from "@types";
 import { Modal, Typography } from "antd";
 import { RHFDatePicker, RHFInput } from "@components";
+import { usePageLayoutProps } from "@layouts/PageLayout";
+import { BIDDER_REQUIREMENT_401 } from "../errors";
 
 interface CreateBidderRequirementProps {
   open: boolean;
@@ -20,10 +22,12 @@ const CreateBidderRequirement: React.FC<CreateBidderRequirementProps> = ({
   const methods = useForm<BidderRequirementPayload>();
   const {
     createBidderRequirement,
-    requirement,
+    requirement: SuccessResponse,
     isLoading,
     error: ErrorResponse,
+    resetBidderRequirement,
   } = useBidderRequirement();
+  const { openNotification } = usePageLayoutProps();
 
   const handleCancel = useCallback(() => {
     methods.reset({ name: "", validity_date: "" });
@@ -38,17 +42,41 @@ const CreateBidderRequirement: React.FC<CreateBidderRequirementProps> = ({
   });
 
   useEffect(() => {
-    if (ErrorResponse) {
-      methods.setError("name", {
-        type: "string",
-        message: "Invalid Requirement Type!",
-      });
-    }
+    if (!isLoading) {
+      if (ErrorResponse) {
+        if (ErrorResponse.httpStatus === 500) {
+          openNotification(
+            "There might be problems in the server. Please contact your admin.",
+            "error",
+            "Server Error"
+          );
+        }
+        if (ErrorResponse.error === BIDDER_REQUIREMENT_401) {
+          methods.setError("name", {
+            type: "string",
+            message: "Invalid Requirement Type!",
+          });
+          methods.setError("validity_date", {
+            type: "string",
+            message: "Invalid Date!",
+          });
+        }
+        resetBidderRequirement();
+      }
 
-    if (!ErrorResponse && !isLoading && requirement) {
-      handleCancel();
+      if (SuccessResponse) {
+        handleCancel();
+      }
     }
-  }, [ErrorResponse, isLoading, methods, requirement, handleCancel]);
+  }, [
+    ErrorResponse,
+    isLoading,
+    methods,
+    SuccessResponse,
+    openNotification,
+    handleCancel,
+    resetBidderRequirement,
+  ]);
 
   return (
     <Modal
@@ -80,7 +108,7 @@ const CreateBidderRequirement: React.FC<CreateBidderRequirementProps> = ({
               control={methods.control}
               name="validity_date"
               disabled={isLoading}
-              rules={{ required: "This field is required" }}
+              rules={{ required: "This field is required!" }}
             />
           </div>
         </div>

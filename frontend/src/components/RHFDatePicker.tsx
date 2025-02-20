@@ -33,6 +33,7 @@ const RHFDatePicker: React.FC<RHFDatePickerProps> = ({
                 <DatePicker
                   {...field}
                   placeholder={placeholder}
+                  status={invalid ? "error" : ""}
                   format="MMMM DD, YYYY"
                   className="w-full"
                   size="large"
@@ -43,8 +44,6 @@ const RHFDatePicker: React.FC<RHFDatePickerProps> = ({
               </div>
             )}
           />
-
-          {invalid && <div className="text-red-500">{error?.message}</div>}
         </div>
       )}
     />

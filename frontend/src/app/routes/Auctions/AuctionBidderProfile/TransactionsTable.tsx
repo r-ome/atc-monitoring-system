@@ -1,7 +1,9 @@
-import { Table } from "@components";
 import { useNavigate } from "react-router-dom";
 import { usePayments } from "@context";
 import { BidderAuctionTransaction } from "@types";
+import { Button, Space, Table, Tooltip } from "antd";
+import { EyeOutlined } from "@ant-design/icons";
+import { formatNumberToCurrency } from "@lib/utils";
 
 const TransactionsTable: React.FC = () => {
   const navigate = useNavigate();
@@ -13,30 +15,56 @@ const TransactionsTable: React.FC = () => {
       </div>
 
       <Table
-        data={bidderTransactions}
+        rowKey={(rowKey) => rowKey.payment_id}
+        dataSource={bidderTransactions}
         loading={isLoading}
-        onRowClick={(payment: BidderAuctionTransaction) => {
-          if (payment.purpose === "REGISTRATION") {
-            alert("NOTHING TO SEE HERE");
-          } else {
-            navigate(`../payments/${payment.payment_id}`);
-          }
-        }}
-        rowKeys={[
-          "created_at",
-          "amount_paid",
-          "purpose",
-          "receipt_number",
-          "total_items",
-          "payment_type",
-        ]}
-        columnHeaders={[
-          "Date",
-          "Amount Paid",
-          "purpose",
-          "Receipt Number",
-          "Total Items",
-          "Payment Type",
+        columns={[
+          { title: "Date", dataIndex: "created_at" },
+          {
+            title: "Amount Paid",
+            dataIndex: "amount_paid",
+            render: (item) => (
+              <span
+                className={`${
+                  parseInt(item, 10) < 0 ? "text-red-500" : "text-green-500"
+                }`}
+              >
+                {item < 0
+                  ? `(${formatNumberToCurrency(
+                      item.toString().replace("-", "")
+                    )})`
+                  : formatNumberToCurrency(item)}
+              </span>
+            ),
+          },
+          {
+            title: "Purpose",
+            dataIndex: "purpose",
+            render: (val) => val.replace("_", " "),
+          },
+          { title: "Receipt Number", dataIndex: "receipt_number" },
+          { title: "Items", dataIndex: "total_items" },
+          {
+            title: "Action",
+            key: "action",
+            render: (_, transaction: BidderAuctionTransaction) => {
+              // if (transaction.purpose === "REGISTRATION") return;
+
+              return (
+                <Space size="middle">
+                  <Tooltip placement="top" title="View Transaction">
+                    <Button
+                      onClick={() =>
+                        navigate(`transactions/${transaction.payment_id}`)
+                      }
+                    >
+                      <EyeOutlined />
+                    </Button>
+                  </Tooltip>
+                </Space>
+              );
+            },
+          },
         ]}
       />
     </>

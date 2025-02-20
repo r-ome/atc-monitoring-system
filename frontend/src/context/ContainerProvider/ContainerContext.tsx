@@ -125,12 +125,10 @@ export const ContainerProvider = ({
       dispatch({ type: ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER });
       try {
         const response = await axios.get(`/suppliers/${supplierId}/containers`);
-        setTimeout(() => {
-          dispatch({
-            type: ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER_SUCCESS,
-            payload: response.data,
-          });
-        }, 1000);
+        dispatch({
+          type: ContainerActions.FETCH_CONTAINERS_BY_SUPPLIER_SUCCESS,
+          payload: response.data,
+        });
       } catch (error) {
         if (isAxiosError(error) && error.response?.data) {
           dispatch({
@@ -154,21 +152,17 @@ export const ContainerProvider = ({
         body
       );
 
-      setTimeout(() => {
-        dispatch({
-          type: ContainerActions.CREATE_CONTAINER_SUCCESS,
-          payload: response.data,
-        });
-      }, 1000);
+      dispatch({
+        type: ContainerActions.CREATE_CONTAINER_SUCCESS,
+        payload: response.data,
+      });
     } catch (error) {
-      setTimeout(() => {
-        if (isAxiosError(error) && error.response?.data) {
-          dispatch({
-            type: ContainerActions.CREATE_CONTAINER_FAILED,
-            payload: error.response?.data,
-          });
-        }
-      }, 1000);
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: ContainerActions.CREATE_CONTAINER_FAILED,
+          payload: error.response?.data,
+        });
+      }
     }
   };
 

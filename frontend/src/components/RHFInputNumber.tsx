@@ -1,7 +1,7 @@
 import { Control, Controller, RegisterOptions } from "react-hook-form";
-import { Input, InputProps } from "antd";
+import { InputNumber, InputNumberProps } from "antd";
 
-interface RHFInputProps extends InputProps {
+interface RHFInputProps extends InputNumberProps {
   name: string;
   control: Control<any>;
   rules?: RegisterOptions;
@@ -12,15 +12,13 @@ interface RHFInputProps extends InputProps {
   defaultValue?: number | string;
 }
 
-const RHFInput: React.FC<RHFInputProps> = ({
+const RHFInputNumber: React.FC<RHFInputProps> = ({
   name,
   control,
   rules,
   onChange,
   placeholder,
   defaultValue,
-  type = "text",
-  disabled = false,
   ...rest
 }) => {
   return (
@@ -30,19 +28,18 @@ const RHFInput: React.FC<RHFInputProps> = ({
       rules={rules}
       render={({ field, fieldState: { invalid, error } }) => (
         <div>
-          <Input
+          <InputNumber
             {...field}
             {...rest}
             defaultValue={defaultValue}
-            disabled={disabled}
             status={invalid ? "error" : ""}
+            className="w-full"
             onChange={(...params) => {
               onChange ? onChange(...params) : field.onChange(...params);
             }}
             placeholder={placeholder}
             size="large"
           />
-
           {invalid && <div className="text-red-500">{error?.message}</div>}
         </div>
       )}
@@ -50,4 +47,4 @@ const RHFInput: React.FC<RHFInputProps> = ({
   );
 };
 
-export default RHFInput;
+export default RHFInputNumber;

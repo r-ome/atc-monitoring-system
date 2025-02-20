@@ -1,16 +1,30 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BaseAuction } from "@types";
-import { Modal, Button, Table } from "@components";
 import { useAuction } from "@context";
-import AuctionError from "../ServerCrashComponent";
+import { Button, Popconfirm, Space, Table, Tooltip } from "antd";
+import { EyeOutlined } from "@ant-design/icons";
+import { usePageLayoutProps } from "@layouts/PageLayout";
+// import { usePreviousValue } from "app/hooks";
 
 const AuctionList = () => {
   const navigate = useNavigate();
-  const { auctions, isLoading, getAuctions, createAuction, error } =
-    useAuction();
-  const [showConfirmationModal, setConfirmationModal] =
-    useState<boolean>(false);
+  const [popconfirmState, setPopconfirmState] = useState<boolean>(false);
+  const {
+    auctions,
+    isLoading,
+    getAuctions,
+    createAuction,
+    resetAuction,
+    // auction: SuccessResponse,
+    error: ErrorResponse,
+  } = useAuction();
+  const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
+  // const auctionLength = usePreviousValue(auctions.length);
+
+  useEffect(() => {
+    setPageBreadCrumbs([{ title: "Auctions List", path: "/auctions" }]);
+  }, [setPageBreadCrumbs]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -18,63 +32,99 @@ const AuctionList = () => {
     };
 
     fetchInitialData();
-  }, []);
+  }, [getAuctions]);
 
-  if (error?.httpStatus) {
-    return <AuctionError {...error} />;
-  }
+  useEffect(() => {
+    if (!isLoading) {
+      if (ErrorResponse) {
+        let message = "Server Error";
+        if (ErrorResponse.httpStatus === 500) {
+          message =
+            "There might be problems in the server. Please contact your admin.";
+        }
+        openNotification(message, "error", "Server Error");
+      }
+
+      // DEFER TIHS FOR NOW
+      // if (auctionLength !== auctions.length) {
+      //   openNotification("Successfully created an Auction!");
+      // }
+      setPopconfirmState(false);
+      resetAuction();
+    }
+  }, [
+    ErrorResponse,
+    // SuccessResponse,
+    isLoading,
+    openNotification,
+    resetAuction,
+    // auctionLength,
+    // auctions,
+    // navigate,
+  ]);
+
+  const handleCreateAuction = async () => {
+    await createAuction();
+  };
 
   return (
-    <div>
-      <div className="flex justify-between my-2 items-center">
-        <h1 className="text-3xl">Auction</h1>
-        <div>
-          <Button
-            buttonType="primary"
-            onClick={() => setConfirmationModal(!showConfirmationModal)}
+    <>
+      <div>
+        <div className="flex my-2">
+          <Popconfirm
+            title="Are you sure?"
+            open={popconfirmState}
+            placement="right"
+            okButtonProps={{ loading: isLoading }}
+            onConfirm={handleCreateAuction}
+            okText="Yes"
+            onCancel={() => setPopconfirmState(false)}
           >
-            Create Auction
-          </Button>
+            <Button
+              size="large"
+              type="primary"
+              onClick={() => setPopconfirmState(true)}
+            >
+              Create Auction
+            </Button>
+          </Popconfirm>
         </div>
+
+        <Table
+          rowKey={(record) => record.auction_id}
+          dataSource={auctions}
+          columns={[
+            {
+              title: "Auction Date",
+              dataIndex: "auction_date",
+            },
+            {
+              title: "Number of Bidders",
+              dataIndex: "number_of_bidders",
+            },
+            {
+              title: "Action",
+              key: "action",
+              render: (_, auction: BaseAuction) => {
+                return (
+                  <Space size="middle">
+                    <Tooltip placement="top" title="View Auction">
+                      <Button
+                        onClick={() =>
+                          navigate(`/auctions/${auction.auction_id}`)
+                        }
+                      >
+                        <EyeOutlined />
+                      </Button>
+                    </Tooltip>
+                  </Space>
+                );
+              },
+            },
+          ]}
+        />
       </div>
-
-      <Table
-        data={auctions}
-        loading={isLoading}
-        onRowClick={(auction: BaseAuction) =>
-          navigate(`/auctions/${auction.auction_id}`, {
-            state: { auction },
-          })
-        }
-        rowKeys={["auction_date", "number_of_bidders"]}
-        columnHeaders={["Auction Date", "Number of Bidders"]}
-      />
-
-      <Modal
-        isOpen={showConfirmationModal}
-        title="Are you sure?"
-        setShowModal={setConfirmationModal}
-      >
-        <div className="flex gap-2 justify-between">
-          <Button
-            className="w-1/2"
-            onClick={async () => {
-              await createAuction();
-              setConfirmationModal(false);
-            }}
-          >
-            Yes
-          </Button>
-          <Button
-            className="w-1/2 border"
-            buttonType="secondary"
-            onClick={() => setConfirmationModal(false)}
-          >
-            No
-          </Button>
-        </div>
-      </Modal>
-    </div>
+    </>
   );
 };
 

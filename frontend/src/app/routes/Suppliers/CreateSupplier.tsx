@@ -18,6 +18,7 @@ const CreateSupplier = () => {
     isLoading,
     error: ErrorResponse,
     supplier: SuccessResponse,
+    resetSupplier,
   } = useSuppliers();
 
   useEffect(() => {
@@ -42,20 +43,25 @@ const CreateSupplier = () => {
   });
 
   useEffect(() => {
-    if (!ErrorResponse && !isLoading && SuccessResponse) {
-      methods.reset();
-      openNotification("Successfully Added Supplier!");
-      navigate(`/suppliers/${SuccessResponse.supplier_id}`);
-    }
-
-    if (ErrorResponse) {
-      if (ErrorResponse.error === SUPPLIERS_402) {
-        openNotification(
-          "Either Supplier Name or Supplier Code already exist!",
-          "error",
-          "Error"
-        );
+    if (!isLoading) {
+      if (SuccessResponse) {
+        methods.reset();
+        openNotification("Successfully Added Supplier!");
+        navigate(`/suppliers/${SuccessResponse.supplier_id}`);
       }
+
+      if (ErrorResponse) {
+        let message = "Server Error";
+        if (ErrorResponse.httpStatus === 500) {
+          message =
+            "There might be problems in the server. Please contact your admin.";
+        }
+        if (ErrorResponse.error === SUPPLIERS_402) {
+          message = "Either Supplier Name or Supplier Code already exist!";
+        }
+        openNotification(message, "error", "Error");
+      }
+      resetSupplier();
     }
   }, [
     ErrorResponse,
@@ -64,6 +70,7 @@ const CreateSupplier = () => {
     isLoading,
     openNotification,
     navigate,
+    resetSupplier,
   ]);
 
   if (ErrorResponse?.httpStatus === 500) {
@@ -76,7 +83,11 @@ const CreateSupplier = () => {
       title={<h1 className="text-3xl">Create Supplier</h1>}
     >
       {/* NOTE: CHECK WHETHER YOU NEED TO ADD NUM_OF_CONTAINERS */}
-      <form id="create_bidder" className="flex flex-col gap-4 w-2/4">
+      <form
+        id="create_bidder"
+        className="flex flex-col gap-4 w-2/4"
+        onSubmit={(e) => e.preventDefault()}
+      >
         <div>
           <Typography.Title level={5}>Supplier Name:</Typography.Title>
           <RHFInput

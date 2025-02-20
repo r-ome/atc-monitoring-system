@@ -17,7 +17,6 @@ const CreateSupplier = () => {
     isLoading,
     error: ErrorResponse,
     bidder: SuccessResponse,
-    resetCreateBidderResponse,
   } = useBidders();
   const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
 
@@ -29,21 +28,22 @@ const CreateSupplier = () => {
   }, [setPageBreadCrumbs]);
 
   useEffect(() => {
-    if (!ErrorResponse && SuccessResponse && !isLoading) {
-      methods.reset();
-      openNotification("Successfully Added Bidder!");
-      navigate("/bidders");
-      resetCreateBidderResponse();
-    }
+    if (!isLoading) {
+      if (SuccessResponse) {
+        methods.reset();
+        openNotification("Successfully Added Bidder!");
+        navigate("/bidders");
+      }
 
-    if (ErrorResponse) {
-      if (ErrorResponse.error === BIDDERS_402) {
-        methods.setError("bidder_number", {
-          type: "string",
-          message: `Bidder Number ${methods.getValues(
-            "bidder_number"
-          )} already taken!`,
-        });
+      if (ErrorResponse) {
+        if (ErrorResponse.error === BIDDERS_402) {
+          methods.setError("bidder_number", {
+            type: "string",
+            message: `Bidder Number ${methods.getValues(
+              "bidder_number"
+            )} already taken!`,
+          });
+        }
       }
     }
   }, [
@@ -51,7 +51,6 @@ const CreateSupplier = () => {
     SuccessResponse,
     methods,
     isLoading,
-    resetCreateBidderResponse,
     openNotification,
     navigate,
   ]);

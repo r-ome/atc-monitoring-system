@@ -1,72 +1,86 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Table } from "@components";
 import { usePayments } from "@context";
-import { useSession } from "../../hooks";
-import { AuctionDetails } from "@types";
+import { Button, Space, Table, Tooltip, Typography } from "antd";
+import { EyeOutlined } from "@ant-design/icons";
+import { formatNumberToCurrency } from "@lib/utils";
 
 const AuctionPayments = () => {
   const params = useParams();
-  const [auction, setAuction] = useState<AuctionDetails | null>(null);
-  const [sessionAuction] = useSession<AuctionDetails | null>("auction", null);
-  const {
-    auctionTransactions,
-    fetchAuctionTransactions,
-    isLoading: isFetchingAuctionPayments,
-  } = usePayments();
-
-  useEffect(() => {
-    if (sessionAuction) {
-      setAuction(sessionAuction);
-    }
-  }, [sessionAuction]);
+  const { auctionTransactions, fetchAuctionTransactions, isLoading } =
+    usePayments();
 
   useEffect(() => {
     const { auction_id: auctionId } = params;
     if (auctionId) {
-      if (!auction || auction.auction_id !== parseInt(auctionId, 10)) {
-        const fetchInitialData = async () => {
-          await fetchAuctionTransactions(auctionId);
-        };
-        fetchInitialData();
-      }
+      const fetchInitialData = async () => {
+        await fetchAuctionTransactions(auctionId);
+      };
+      fetchInitialData();
     }
-  }, [params.auction_id, auction?.auction_id, fetchAuctionTransactions]);
-
-  if (isFetchingAuctionPayments || !auctionTransactions) {
-    return <div className="border p-2 flex justify-center">Loading...</div>;
-  }
+  }, [params, fetchAuctionTransactions]);
 
   return (
-    <>
-      <div className="h-full">
-        <div className="flex flex-col gap-2">
-          <div className="w-full border p-4 h-full">
-            <div className="flex justify-between items-center w-full p-2">
-              <h1 className="text-3xl font-bold">Payments</h1>
-            </div>
-            <Table
-              data={auctionTransactions?.payments || []}
-              loading={isFetchingAuctionPayments}
-              rowKeys={[
-                "created_at",
-                "bidder_number",
-                "purpose",
-                "amount_paid",
-                "payment_type",
-              ]}
-              columnHeaders={[
-                "date",
-                "Bidder Number",
-                "Purpose",
-                "Amount Paid",
-                "Payment Type",
-              ]}
-            />
-          </div>
-        </div>
-      </div>
-    </>
+    <div className="flex flex-col gap-2 w-full h-full">
+      <Typography.Title level={2}>Transactions</Typography.Title>
+
+      <Table
+        dataSource={auctionTransactions?.payments || []}
+        rowKey={(record) => record.payment_id}
+        loading={isLoading}
+        columns={[
+          {
+            title: "Payment Date",
+            dataIndex: "created_at",
+          },
+          {
+            title: "Bidder",
+            dataIndex: "bidder_number",
+          },
+          {
+            title: "Purpose",
+            dataIndex: "purpose",
+            render: (item) => item.replace("_", " "),
+          },
+          {
+            title: "Amount Paid",
+            dataIndex: "amount_paid",
+            render: (item) => (
+              <span
+                className={`${
+                  parseInt(item, 10) < 0 ? "text-red-500" : "text-green-500"
+                }`}
+              >
+                {item < 0
+                  ? `(${formatNumberToCurrency(
+                      item.toString().replace("-", "")
+                    )})`
+                  : formatNumberToCurrency(item)}
+              </span>
+            ),
+          },
+          {
+            title: "Payment Type",
+            dataIndex: "payment_type",
+          },
+          {
+            title: "Action",
+            key: "action",
+            render: (transaction) => {
+              return (
+                <Space size="middle">
+                  <Tooltip placement="top" title="View Transaction">
+                    <Button onClick={() => alert("GO TO TRANSACTION DETAILS")}>
+                      <EyeOutlined />
+                    </Button>
+                  </Tooltip>
+                </Space>
+              );
+            },
+          },
+        ]}
+      />
+    </div>
   );
 };
 

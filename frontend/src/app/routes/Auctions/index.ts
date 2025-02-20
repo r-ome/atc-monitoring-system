@@ -8,8 +8,11 @@ import ManifestList from "./ManifestList";
 import AuctionBidderProfile from "./AuctionBidderProfile";
 import EncodePage from "./EncodePage";
 import ReceiptView from "./AuctionBidderProfile/ReceiptView";
+import AuctionItemProfile from "./AuctionItemProfile";
+import AddOnPage from "./AddOnPage";
 
 export {
+  AuctionItemProfile,
   AuctionList,
   Monitoring,
   AuctionProfile,
@@ -20,4 +23,5 @@ export {
   AuctionBidderProfile,
   EncodePage,
   ReceiptView,
+  AddOnPage,
 };

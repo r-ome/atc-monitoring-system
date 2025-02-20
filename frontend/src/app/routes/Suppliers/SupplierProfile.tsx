@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useSuppliers } from "@context/SupplierProvider/SupplierContext";
 import { useContainers } from "@context/ContainerProvider/ContainerContext";
 import { BaseContainer } from "@types";
-import RenderServerError from "../ServerCrashComponent";
 import { usePageLayoutProps, BreadcrumbsType } from "@layouts/PageLayout";
 import {
   Button,
@@ -16,6 +15,7 @@ import {
 } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { useSession } from "app/hooks";
+import { SUPPLIERS_403 } from "../errors";
 
 const SupplierProfile = () => {
   const params = useParams();
@@ -25,6 +25,7 @@ const SupplierProfile = () => {
     fetchSupplier,
     isLoading: isFetchingSupplier,
     error: SupplierErrorResponse,
+    resetSupplier,
   } = useSuppliers();
   const {
     containersBySupplier,
@@ -66,18 +67,53 @@ const SupplierProfile = () => {
     }
   }, [supplier?.supplier_id, fetchSupplier, fetchContainersBySupplier, params]);
 
-  const httpErrors = [
-    SupplierErrorResponse?.httpStatus,
-    ContainerErrorResponse?.httpStatus,
-  ];
-  if (httpErrors.includes(500)) {
-    const ErrorResponse = SupplierErrorResponse || ContainerErrorResponse;
-    if (ErrorResponse) return <RenderServerError {...ErrorResponse} />;
-  }
+  useEffect(() => {
+    if (!isFetchingSupplier) {
+      if (SupplierErrorResponse) {
+        let message = "Server Error";
+        if (SupplierErrorResponse.httpStatus === 500) {
+          message =
+            "There might be problems in the server. Please contact your admin.";
+        }
 
-  if (!supplier) {
-    return <Skeleton />;
-  }
+        if (SupplierErrorResponse.error === SUPPLIERS_403) {
+          message =
+            "Supplier does not exist. Please go back to list and choose another one";
+        }
+
+        openNotification(message, "error", "Server Error");
+        resetSupplier();
+      }
+    }
+  }, [
+    SupplierErrorResponse,
+    isFetchingSupplier,
+    openNotification,
+    resetSupplier,
+  ]);
+
+  useEffect(() => {
+    if (!isFetchingContainers) {
+      if (ContainerErrorResponse) {
+        if (ContainerErrorResponse.httpStatus === 500) {
+          openNotification(
+            "There might be problems in the server. Please contact your admin.",
+            "error",
+            "Server Error"
+          );
+        }
+
+        resetContainer();
+      }
+    }
+  }, [
+    ContainerErrorResponse,
+    isFetchingContainers,
+    openNotification,
+    resetContainer,
+  ]);
+
+  if (!supplier) return <Skeleton />;
 
   return (
     <>
@@ -155,7 +191,6 @@ const SupplierProfile = () => {
                   title: "Barcode",
                   dataIndex: "barcode",
                 },
-                { title: "Container Number", dataIndex: "container_num" },
                 { title: "Number of Items", dataIndex: "num_of_items" },
 
                 {
