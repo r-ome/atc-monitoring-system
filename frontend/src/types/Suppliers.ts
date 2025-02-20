@@ -2,6 +2,7 @@ export type BaseSupplier = {
   supplier_id: number;
   name: string;
   supplier_code: string;
+  total_containers: number;
   created_at: string;
   updated_at: string;
 };

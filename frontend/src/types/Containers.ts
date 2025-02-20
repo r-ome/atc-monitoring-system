@@ -16,6 +16,7 @@ export type Container = BaseContainer & {
   };
   container_num: number;
   bill_of_lading_number: string;
+  total_sold_item_price: string;
   port_of_landing: string;
   carrier: string;
   vessel: string;

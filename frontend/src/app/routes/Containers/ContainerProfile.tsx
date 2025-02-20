@@ -16,6 +16,7 @@ import {
 } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { CONTAINERS_403, INVENTORIES_403 } from "../errors";
+import { formatNumberToCurrency } from "@lib/utils";
 
 const ContainerProfile = () => {
   const navigate = useNavigate();
@@ -167,6 +168,14 @@ const ContainerProfile = () => {
                     label: "Number of Items",
                     span: 2,
                     children: container.num_of_items,
+                  },
+                  {
+                    key: "20",
+                    label: "Total SOLD items",
+                    span: 4,
+                    children: formatNumberToCurrency(
+                      container.total_sold_item_price
+                    ),
                   },
                   {
                     key: "16",

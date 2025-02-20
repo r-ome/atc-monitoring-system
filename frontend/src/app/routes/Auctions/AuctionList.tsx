@@ -99,8 +99,12 @@ const AuctionList = () => {
               dataIndex: "auction_date",
             },
             {
-              title: "Number of Bidders",
-              dataIndex: "number_of_bidders",
+              title: "Total Bidders",
+              dataIndex: "total_bidders",
+            },
+            {
+              title: "Total Items",
+              dataIndex: "total_items",
             },
             {
               title: "Action",

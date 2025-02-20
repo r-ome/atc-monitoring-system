@@ -43,7 +43,10 @@ interface AuctionStateContextType extends AuctionState {
   fetchManifestRecords: (id: string) => Promise<void>;
   fetchRegisteredBidders: (id: string) => Promise<void>;
   uploadManifest: (id: number | string, file: any) => Promise<void>;
-  registerBidderAtAuction: (id: number | string, bidder: any) => Promise<void>;
+  registerBidderAtAuction: (
+    id: number | string,
+    body: RegisterBidderPayload
+  ) => Promise<void>;
   cancelItem: (
     auctionId: number | string,
     inventoryId: number | string,

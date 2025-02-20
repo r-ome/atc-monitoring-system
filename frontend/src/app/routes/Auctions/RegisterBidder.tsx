@@ -104,7 +104,22 @@ const RegisterBidderModal: React.FC<RegisterBidderProps> = ({
   const handleSubmitRegisterBidder = methods.handleSubmit(async (data) => {
     const { auction_id: auctionId } = params;
     if (auctionId) {
-      await registerBidderAtAuction(auctionId, data);
+      // ORIGINAL
+      // await registerBidderAtAuction(auctionId, data);
+      const bidderIds = [
+        217, 746, 741, 739, 720, 12, 579, 687, 674, 525, 513, 647, 474, 389,
+        218, 187, 360, 168, 152, 205, 232, 27, 40, 43, 42, 58, 75, 166,
+      ];
+
+      bidders.forEach(async (item) => {
+        if (bidderIds.includes(item.bidder_id)) {
+          await registerBidderAtAuction(auctionId, {
+            bidder_id: item.bidder_id,
+            registration_fee: "3000",
+            service_charge: "12",
+          });
+        }
+      });
     }
   });
 

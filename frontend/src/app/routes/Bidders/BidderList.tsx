@@ -88,21 +88,25 @@ const BidderList = () => {
           {
             title: "Bidder Number",
             dataIndex: "bidder_number",
+            width: "20%",
             sorter: (a, b) =>
               parseInt(b.bidder_number, 10) - parseInt(a.bidder_number, 10),
           },
           {
             title: "Full Name",
             dataIndex: "full_name",
-            sorter: (a, b) => -1 * a.full_name.localeCompare(b.bidder_number),
+            sortDirections: ["ascend", "descend"],
+            sorter: (a, b) => a.full_name.localeCompare(b.full_name),
           },
           {
             title: "Date Joined",
             dataIndex: "created_at",
+            width: "20%",
           },
           {
             title: "Action",
             key: "action",
+            width: "10%",
             render: (_, bidder: BaseBidder) => {
               return (
                 <Space size="middle">

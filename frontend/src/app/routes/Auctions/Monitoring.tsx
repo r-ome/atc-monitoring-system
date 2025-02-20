@@ -59,7 +59,7 @@ const MonitoringPage = () => {
           {
             title: "Status",
             dataIndex: "inventory_status",
-            width: "12%",
+            width: "15%",
             filters: [
               { text: "REBID", value: "REBID" },
               { text: "CANCELLED", value: "CANCELLED" },
@@ -81,7 +81,9 @@ const MonitoringPage = () => {
                 </Tag>
                 <Tag
                   className={`${
-                    item === "PAID" ? "text-green-500" : "text-red-500"
+                    record.auction_status === "PAID"
+                      ? "text-green-500"
+                      : "text-red-500"
                   }`}
                 >
                   {record.auction_status}
@@ -89,29 +91,55 @@ const MonitoringPage = () => {
               </>
             ),
           },
-          { title: "Barcode", dataIndex: "barcode" },
-          { title: "Control Number", dataIndex: "control_number" },
-          { title: "Description", dataIndex: "description" },
+          { title: "Barcode", dataIndex: "barcode", width: "15%" },
+          {
+            title: "Control Number",
+            dataIndex: "control_number",
+            sortDirections: ["ascend", "descend"],
+            width: "12%",
+            sorter: (a, b) => a.control_number.localeCompare(b.control_number),
+          },
+          { title: "Description", dataIndex: "description", width: "20%" },
           {
             title: "Bidder",
-            filters: registeredBidders?.bidders.map((item) => ({
-              text: item.bidder_number,
-              value: item.bidder_number,
-            })),
+            width: "12%",
+            filters: registeredBidders?.bidders
+              .map((item) => ({
+                text: item.bidder_number,
+                value: item.bidder_number,
+              }))
+              .sort((a, b) => a.text.localeCompare(b.text)),
             onFilter: (value, record) =>
               record.bidder.bidder_number.indexOf(value as string) === 0,
             render: (_, row) => row.bidder.bidder_number,
           },
           { title: "QTY", dataIndex: "qty" },
-          { title: "Price", dataIndex: "price" },
+          { title: "Price", dataIndex: "price", width: "10%" },
           {
             title: "Manifest",
             dataIndex: "manifest_number",
+            width: "5%",
+            filters: [
+              ...monitoring
+                .map((item) => ({
+                  text: item.manifest_number,
+                  value: item.manifest_number,
+                }))
+                .filter(
+                  (item, index, arr) =>
+                    arr.findIndex((v) => v.text === item.text) === index
+                )
+                .sort((a, b) => a.text.localeCompare(b.text)),
+              // { text: "ADD ON", value: "ADD" }, DEFER; TO DO UPDATE "ADD" to "ADD ON"
+            ],
+            onFilter: (value, record) =>
+              record.manifest_number.indexOf(value as string) === 0,
             render: (item) => item.replace("_", " "),
           },
           {
             title: "Action",
             key: "action",
+            width: "5%",
             render: (_, monitoring: MonitoringType) => {
               return (
                 <Space size="middle">

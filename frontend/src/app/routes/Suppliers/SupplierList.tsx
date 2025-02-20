@@ -89,12 +89,12 @@ const Suppliers = () => {
             dataIndex: "supplier_code",
           },
           {
-            title: "Date Created",
-            dataIndex: "created_at",
+            title: "Total Containers",
+            dataIndex: "total_containers",
           },
           {
-            title: "Last Date Updated",
-            dataIndex: "updated_at",
+            title: "Date Created",
+            dataIndex: "created_at",
           },
           {
             title: "Action",
