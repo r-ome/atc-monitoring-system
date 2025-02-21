@@ -1,14 +1,19 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import moment from "moment";
 import { useParams } from "react-router-dom";
 import { usePayments } from "@context";
 import { Button, Space, Table, Tooltip, Typography } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { formatNumberToCurrency } from "@lib/utils";
+import { AuctionPayment } from "@types";
 
 const AuctionPayments = () => {
   const params = useParams();
   const { auctionTransactions, fetchAuctionTransactions, isLoading } =
     usePayments();
+  const [dataSource, setDataSource] = useState<AuctionPayment[]>(
+    auctionTransactions?.payments || []
+  );
 
   useEffect(() => {
     const { auction_id: auctionId } = params;
@@ -20,18 +25,30 @@ const AuctionPayments = () => {
     }
   }, [params, fetchAuctionTransactions]);
 
+  useEffect(() => {
+    if (auctionTransactions?.payments) {
+      const sortedPayments = auctionTransactions.payments.sort(
+        (a, b) => +new Date(b.created_at) - +new Date(a.created_at)
+      );
+
+      setDataSource(sortedPayments);
+    }
+  }, [auctionTransactions?.payments, setDataSource]);
+
   return (
     <div className="flex flex-col gap-2 w-full h-full">
       <Typography.Title level={2}>Transactions</Typography.Title>
 
       <Table
-        dataSource={auctionTransactions?.payments || []}
+        dataSource={dataSource}
         rowKey={(record) => record.payment_id}
         loading={isLoading}
         columns={[
           {
             title: "Payment Date",
             dataIndex: "created_at",
+            render: (val) =>
+              moment(new Date(val)).format("MMMM DD, YYYY, HH:mm A"),
           },
           {
             title: "Bidder",
@@ -40,6 +57,13 @@ const AuctionPayments = () => {
           {
             title: "Purpose",
             dataIndex: "purpose",
+            filters: [
+              { text: "REGISTRATION", value: "REGISTRATION" },
+              { text: "REFUNDED", value: "REFUNDED" },
+              { text: "PULL OUT", value: "PULL_OUT" },
+            ],
+            onFilter: (value, record) =>
+              record.purpose.indexOf(value as string) === 0,
             render: (item) => item.replace("_", " "),
           },
           {

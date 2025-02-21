@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button, Input, Space, Table, Tooltip, Typography } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { usePageLayoutProps } from "@layouts";
+import { formatNumberToCurrency } from "@lib/utils";
 
 const BidderList = () => {
   const navigate = useNavigate();
@@ -59,7 +60,7 @@ const BidderList = () => {
         <div className="w-2/6 my-2 flex gap-4 items-center ">
           <div className="w-2/6 flex justify-end">
             <Typography.Text strong>
-              {dataSource.length} Bidders
+              {searchValue ? dataSource.length : bidders.length} Bidders
             </Typography.Text>
           </div>
           <div className="w-4/6">
@@ -88,15 +89,54 @@ const BidderList = () => {
           {
             title: "Bidder Number",
             dataIndex: "bidder_number",
-            width: "20%",
+            width: "15%",
             sorter: (a, b) =>
               parseInt(b.bidder_number, 10) - parseInt(a.bidder_number, 10),
           },
           {
             title: "Full Name",
             dataIndex: "full_name",
+            width: "20%",
             sortDirections: ["ascend", "descend"],
             sorter: (a, b) => a.full_name.localeCompare(b.full_name),
+          },
+          {
+            title: "Status",
+            dataIndex: "status",
+            filters: [
+              { text: "BANNED", value: "BANNED" },
+              { text: "ACTIVE", value: "ACTIVE" },
+              { text: "INACTIVE", value: "INACTIVE" },
+            ],
+            onFilter: (value, record) =>
+              record.status.indexOf(value as string) === 0,
+            render: (item) => (
+              <span
+                className={`${
+                  item === "BANNED" ? "text-red-500" : "text-green-500"
+                }`}
+              >
+                {item}
+              </span>
+            ),
+          },
+          {
+            title: "Registration Fee",
+            dataIndex: "registration_fee",
+            render: (item) => (item ? formatNumberToCurrency(item) : 0),
+          },
+          {
+            title: "Service Charge",
+            dataIndex: "service_charge",
+            filters: [
+              { text: "Greater than or equal to 10%", value: "greater" },
+              { text: "Less than 10%", value: "less" },
+            ],
+            onFilter: (value, record: any) =>
+              value === "less"
+                ? record.service_charge < 10
+                : record.service_charge >= 10,
+            render: (item) => (item ? `${item}%` : "0%"),
           },
           {
             title: "Date Joined",

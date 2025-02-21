@@ -5,7 +5,6 @@ import { RHFInput } from "@components";
 import { useSuppliers } from "@context/SupplierProvider/SupplierContext";
 import { CreateSupplierPayload } from "@types";
 import { SUPPLIERS_402 } from "../errors";
-import RenderServerError from "../ServerCrashComponent";
 import { usePageLayoutProps } from "@layouts";
 import { Button, Card, Typography } from "antd";
 
@@ -72,10 +71,6 @@ const CreateSupplier = () => {
     navigate,
     resetSupplier,
   ]);
-
-  if (ErrorResponse?.httpStatus === 500) {
-    return <RenderServerError {...ErrorResponse} />;
-  }
 
   return (
     <Card

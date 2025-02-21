@@ -28,6 +28,7 @@ const RHFInput: React.FC<RHFInputProps> = ({
       control={control}
       name={name}
       rules={rules}
+      defaultValue={defaultValue}
       render={({ field, fieldState: { invalid, error } }) => (
         <div>
           <Input

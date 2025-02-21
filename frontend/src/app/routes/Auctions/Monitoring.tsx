@@ -14,16 +14,23 @@ const MonitoringPage = () => {
   } = useAuction();
   const [dataSource, setDataSource] = useState<MonitoringType[]>(monitoring);
   const [searchValue, setSearchValue] = useState<string>("");
+  const [currentCount, setCurrentCount] = useState<number>(0);
 
   return (
     <div className="flex flex-col gap-2 w-full h-full">
       <div className="flex justify-between items-center">
         <Typography.Title level={2}>Monitoring</Typography.Title>
 
-        <div className="flex gap-4">
+        <div className="flex items-center gap-4 w-3/6">
+          <div className="flex justify-end w-2/6">
+            <Typography.Text strong className="text-lg">
+              {currentCount} items
+            </Typography.Text>
+          </div>
           <Input
             placeholder="Search by Barcode, Control or Bidder"
             value={searchValue}
+            className="w-full"
             onChange={(e) => {
               const currentValue = e.target.value;
               setSearchValue(currentValue);
@@ -34,6 +41,7 @@ const MonitoringPage = () => {
                   item.bidder.bidder_number.includes(currentValue) ||
                   item.description.includes(currentValue.toUpperCase())
               );
+              setCurrentCount(filteredData.length);
               setDataSource(filteredData);
             }}
           />
@@ -54,7 +62,13 @@ const MonitoringPage = () => {
       <Table
         rowKey={(rowKey) => rowKey.auction_inventory_id}
         dataSource={searchValue ? dataSource : monitoring}
+        // dataSource={dataSource}
         loading={isFetchingMonitoring}
+        scroll={{ y: 300 }}
+        pagination={false}
+        onChange={(pagination, filters, sorter, extra) => {
+          // setCurrentCount(extra.currentDataSource.length);
+        }}
         columns={[
           {
             title: "Status",
@@ -113,7 +127,7 @@ const MonitoringPage = () => {
               record.bidder.bidder_number.indexOf(value as string) === 0,
             render: (_, row) => row.bidder.bidder_number,
           },
-          { title: "QTY", dataIndex: "qty" },
+          { title: "QTY", dataIndex: "qty", width: "10%" },
           { title: "Price", dataIndex: "price", width: "10%" },
           {
             title: "Manifest",
@@ -137,7 +151,7 @@ const MonitoringPage = () => {
             render: (item) => item.replace("_", " "),
           },
           {
-            title: "Action",
+            title: "",
             key: "action",
             width: "5%",
             render: (_, monitoring: MonitoringType) => {

@@ -5,6 +5,9 @@ export type BaseBidder = {
   middle_name?: string;
   last_name: string;
   full_name: string;
+  status: "BANNED" | "ACTIVE" | "INACTIVE";
+  registration_fee: number;
+  service_charge: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -30,6 +33,7 @@ export type BidderRequirementPayload = {
 };
 
 export type Bidder = BaseBidder & {
+  birthdate: string | null;
   requirements: BaseBidderRequirement[];
 };
 
@@ -38,4 +42,8 @@ export type CreateBidderPayload = {
   first_name: string;
   middle_name?: string;
   last_name: string;
+  status: "ACTIVE" | "INACTIVE" | "BANNED";
+  registration_fee: number;
+  service_charge: number;
+  birthdate: string;
 };

@@ -1,12 +1,36 @@
 import { NavLink } from "react-router-dom";
+import { Menu } from "antd";
 
 const lists = [
-  { name: "Home", path: "/" },
-  { name: "Auctions", path: "/auctions" },
-  { name: "Bidders", path: "/bidders" },
-  { name: "Suppliers", path: "/suppliers" },
-  { name: "Branches", path: "/branches" },
-];
+  {
+    key: "1",
+    label: "Home",
+    path: "/",
+  },
+  {
+    key: "2",
+    label: "Auctions",
+    path: "/auctions",
+  },
+  {
+    key: "3",
+    label: "Bidders",
+    path: "/bidders",
+  },
+  {
+    key: "4",
+    label: "Suppliers",
+    path: "/suppliers",
+  },
+  {
+    key: "5",
+    label: "Branches",
+    path: "/branches",
+  },
+].map((item) => ({
+  ...item,
+  label: <NavLink to={`${item.path}`}>{item.label}</NavLink>,
+}));
 
 const Navigation = () => {
   return (
@@ -15,7 +39,16 @@ const Navigation = () => {
         Logo and ATC name here
       </div>
 
-      <ul className="flex flex-col p-4">
+      <Menu
+        // onClick={onClick}
+        style={{ width: 256 }}
+        defaultSelectedKeys={["1"]}
+        className="w-full"
+        mode="inline"
+        items={lists}
+      />
+
+      {/* <ul className="flex flex-col p-4">
         {lists.map((item) => {
           return (
             <li
@@ -35,7 +68,7 @@ const Navigation = () => {
             </li>
           );
         })}
-      </ul>
+      </ul> */}
     </div>
   );
 };

@@ -17,16 +17,19 @@ const RHFSelect: React.FC<RHFSelectProps> = ({
   disabled = false,
   filterOption,
   showSearch,
+  ...rest
 }) => {
   return (
     <Controller
       control={control}
       name={name}
       rules={rules}
+      defaultValue={rest.defaultValue}
       render={({ field, fieldState: { invalid, error } }) => (
         <div>
           <Select
             {...field}
+            {...rest}
             showSearch={showSearch ? showSearch : false}
             className="w-full"
             options={options}

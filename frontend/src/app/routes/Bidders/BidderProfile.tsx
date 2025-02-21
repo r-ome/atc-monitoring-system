@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import moment from "moment";
 import { useBidderRequirement, useBidders } from "@context";
 import { usePageLayoutProps } from "@layouts";
 import { Button, Card, Descriptions, Skeleton, Table } from "antd";
 import CreateBidderRequirement from "./CreateBidderRequirement";
 import { BIDDERS_402 } from "../errors";
+import { formatNumberToCurrency } from "@lib/utils";
 
 const BidderProfile = () => {
   const params = useParams();
@@ -92,6 +94,7 @@ const BidderProfile = () => {
                 size="small"
                 layout="vertical"
                 bordered
+                column={4}
                 extra={
                   <Button
                     type="primary"
@@ -107,8 +110,24 @@ const BidderProfile = () => {
                   {
                     key: "1",
                     label: "Bidder Number",
-                    span: 1,
+                    span: 2,
                     children: bidder.bidder_number,
+                  },
+                  {
+                    key: "4",
+                    label: "status",
+                    span: 2,
+                    children: (
+                      <span
+                        className={`${
+                          bidder.status === "BANNED"
+                            ? "text-red-500"
+                            : "text-green-500"
+                        }`}
+                      >
+                        {bidder.status}
+                      </span>
+                    ),
                   },
                   {
                     key: "2",
@@ -118,6 +137,29 @@ const BidderProfile = () => {
                   },
                   {
                     key: "3",
+                    label: "Birth Date",
+                    span: 2,
+                    children: moment(bidder.birthdate).format("MMMM DD, YYYY"),
+                  },
+
+                  {
+                    key: "5",
+                    label: "Registration Fee",
+                    span: 2,
+                    children: bidder.registration_fee
+                      ? formatNumberToCurrency(bidder.registration_fee)
+                      : formatNumberToCurrency(0),
+                  },
+                  {
+                    key: "6",
+                    label: "Service Charge",
+                    span: 2,
+                    children: bidder.service_charge
+                      ? `${bidder.service_charge}%`
+                      : "0%",
+                  },
+                  {
+                    key: "7",
                     label: "Date Joined",
                     span: 3,
                     children: bidder.created_at,

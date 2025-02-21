@@ -26,12 +26,12 @@ const RHFInputNumber: React.FC<RHFInputProps> = ({
       control={control}
       name={name}
       rules={rules}
+      defaultValue={defaultValue}
       render={({ field, fieldState: { invalid, error } }) => (
         <div>
           <InputNumber
             {...field}
             {...rest}
-            defaultValue={defaultValue}
             status={invalid ? "error" : ""}
             className="w-full"
             onChange={(...params) => {
