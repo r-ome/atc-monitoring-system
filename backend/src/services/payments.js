@@ -69,7 +69,7 @@ export const getAuctionPayments = async (auction_id) => {
               'purpose', p.purpose,
               'amount_paid', p.amount_paid,
               'payment_type', p.payment_type,
-              'created_at', DATE_FORMAT(p.created_at, '%b %d, %Y %h:%i:%S%p' )
+              'created_at', p.created_at
             ))
           ) as payments
         FROM auctions a

@@ -10,6 +10,10 @@ export const getBidder = async (bidder_id) => {
           b.first_name,
           IFNULL(b.middle_name, "") as middle_name,
           b.last_name,
+          birthdate,
+          status,
+          registration_fee,
+          service_charge,
           CONCAT(b.first_name, " ", b.last_name) as full_name,
           DATE_FORMAT(b.created_at, '%b %d, %Y %h:%i%p') AS created_at,
           DATE_FORMAT(b.updated_at, '%b %d, %Y %h:%i%p') AS updated_at,
@@ -82,6 +86,9 @@ export const getBidders = async () => {
           first_name,
           middle_name,
           last_name,
+          status,
+          registration_fee,
+          service_charge,
           CONCAT(first_name, " ", last_name) as full_name,
           DATE_FORMAT(created_at, '%b %d, %Y %h:%i%p') AS created_at,
           DATE_FORMAT(updated_at, '%b %d, %Y %h:%i%p') AS updated_at
@@ -99,13 +106,17 @@ export const createBidder = async (bidder) => {
   try {
     const result = await query(
       `
-        INSERT INTO bidders(first_name, middle_name, last_name, bidder_number)
-        VALUES (?, ?, ?, ?);`,
+        INSERT INTO bidders(first_name, middle_name, last_name, bidder_number, birthdate, status, registration_fee, service_charge)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         bidder.first_name,
         bidder.middle_name,
         bidder.last_name,
         bidder.bidder_number,
+        bidder.birthdate,
+        bidder.status,
+        bidder.registration_fee,
+        bidder.service_charge,
       ]
     );
 

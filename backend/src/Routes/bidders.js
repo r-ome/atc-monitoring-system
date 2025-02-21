@@ -92,7 +92,10 @@ router.post("/", async (req, res) => {
           "string.empty": "Supplier Name is required",
           "string.min": "Must be at least 2 characters ",
         }),
-      old_number: Joi.number().valid(""),
+      birthdate: Joi.string().required(),
+      status: Joi.string().required(),
+      registration_fee: Joi.number().required(),
+      service_charge: Joi.number().required(),
     });
 
     const { error } = schema.validate(body);
