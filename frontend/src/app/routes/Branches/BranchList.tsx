@@ -21,7 +21,7 @@ const BranchList = () => {
 
   useEffect(() => {
     resetCreateBranchResponse();
-    setBreadcrumb({ title: "Branches List", path: "/branches" });
+    setBreadcrumb({ title: "Branches List", path: "/branches", level: 1 });
   }, [setBreadcrumb, resetCreateBranchResponse]);
 
   useEffect(() => {

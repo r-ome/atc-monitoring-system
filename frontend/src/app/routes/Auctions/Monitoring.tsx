@@ -21,10 +21,15 @@ const MonitoringPage = () => {
         <Typography.Title level={2}>Monitoring</Typography.Title>
 
         <div className="flex items-center gap-4 w-3/6">
+          <div className="w-1/6 justify-end flex">
+            <Typography.Text strong>
+              {searchValue ? dataSource.length : monitoring.length} Items
+            </Typography.Text>
+          </div>
           <Input
             placeholder="Search by Barcode, Control or Bidder"
             value={searchValue}
-            className="w-full"
+            className="w-3/6"
             onChange={(e) => {
               const currentValue = e.target.value;
               setSearchValue(currentValue);
