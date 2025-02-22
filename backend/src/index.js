@@ -101,7 +101,7 @@ app.use((req, res, next) => {
   }
 });
 
-const port = 3001;
+const port = 3000;
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
