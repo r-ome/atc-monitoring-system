@@ -66,6 +66,7 @@ export const getBranches = async () => {
       WHERE deleted_at IS NULL
     `);
   } catch (error) {
+    console.error(error);
     throw new DBErrorException("getBranches", error);
   }
 };
