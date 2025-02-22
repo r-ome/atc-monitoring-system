@@ -172,7 +172,7 @@ export const bulkCreateContainerInventory = async (inventories) => {
 
     await query(
       `
-        INSERT INTO INVENTORIES (container_id, description, control_number, barcode, status, v4_identifier)
+        INSERT INTO inventories (container_id, description, control_number, barcode, status, v4_identifier)
         VALUES ?
       `,
       [formattedInventories]

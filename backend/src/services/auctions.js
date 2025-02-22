@@ -756,7 +756,7 @@ export const createAuctionInventory = async (auction_id, body) => {
       // insert new inventory
       inventory = await query(
         `
-          INSERT INTO INVENTORIES (container_id, description, control_number, barcode, status)
+          INSERT INTO inventories (container_id, description, control_number, barcode, status)
           VALUES (?, ?, ?, ?, ?)
         `,
         [
