@@ -14,8 +14,7 @@ const AddOnPage = () => {
   const navigate = useNavigate();
   const params = useParams();
   const methods = useForm<AddOnPayload>();
-  const { pageBreadcrumbs, openNotification, setPageBreadCrumbs } =
-    usePageLayoutProps();
+  const { openNotification } = usePageLayoutProps();
   const {
     registeredBidders,
     auctionItemDetails: SuccessResponse,
@@ -30,7 +29,7 @@ const AddOnPage = () => {
 
   useEffect(() => {
     setBreadcrumb({ title: "Encode Page", path: "/encode" });
-  }, []);
+  }, [setBreadcrumb]);
 
   useEffect(() => {
     const { auction_id: auctionId } = params;

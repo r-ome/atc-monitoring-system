@@ -1,11 +1,4 @@
-import {
-  Document,
-  Page,
-  Text,
-  Font,
-  View,
-  StyleSheet,
-} from "@react-pdf/renderer";
+import { Document, Page, Font, View, StyleSheet } from "@react-pdf/renderer";
 
 import InvoiceHeading from "./InvoiceHeading";
 import InvoiceTableHeader from "./InvoiceTableHeader";

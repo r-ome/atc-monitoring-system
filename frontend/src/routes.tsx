@@ -24,7 +24,6 @@ import {
 } from "./app/routes";
 import { PageLayout } from "./layouts";
 import { AddOnPage } from "app/routes/Auctions";
-import { PDFViewer } from "@react-pdf/renderer";
 
 const routes: RouteObject[] = [
   {
