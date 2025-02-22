@@ -2,7 +2,6 @@ import { Document, Page, Font, View, StyleSheet } from "@react-pdf/renderer";
 
 import InvoiceHeading from "./InvoiceHeading";
 import InvoiceTableHeader from "./InvoiceTableHeader";
-import InvoiceItemsTable from "./InvoiceItemsTable";
 import BidderReceiptTop from "./BidderReceiptTop";
 import BidderReceiptBottom from "./BidderReceiptBottom";
 import InvoiceTableRow from "./InvoiceTableRow";

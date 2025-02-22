@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { Button, ProfileDetails } from "@components";
 import { AuctionInventory } from "@types";
-import { useAuction } from "@context/index";
+// import { useAuction } from "@context/index";
 
 interface ItemProfileProps {
   auctionInventory: AuctionInventory;
@@ -14,7 +14,7 @@ const ItemProfile: React.FC<ItemProfileProps> = ({
   setAuctionInventory,
 }) => {
   const params = useParams();
-  const { cancelItem } = useAuction();
+  // const { cancelItem } = useAuction();
 
   const handleCancelItem = async (auctionInventoryId: number) => {
     const { auction_id: auctionId } = params;
