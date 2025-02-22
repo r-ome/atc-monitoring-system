@@ -3,9 +3,9 @@ import { useParams } from "react-router-dom";
 import { useAuction, usePayments } from "@context";
 import TransactionsTable from "./TransactionsTable";
 import BidderItems from "./BidderItems";
-import { Card, Descriptions, Tabs } from "antd";
-import { usePageLayoutProps, BreadcrumbsType } from "@layouts/PageLayout";
-import { useSession } from "app/hooks";
+import { Card, Descriptions, Skeleton, Tabs } from "antd";
+import { usePageLayoutProps } from "@layouts/PageLayout";
+import { useBreadcrumbs } from "app/hooks";
 import { formatNumberToCurrency } from "@lib/utils";
 
 const AuctionBidderProfile = () => {
@@ -17,50 +17,17 @@ const AuctionBidderProfile = () => {
     error: FetchBidderProfileErrorResponse,
   } = useAuction();
   const { payment, fetchBidderAuctionTransactions } = usePayments();
-
-  const { pageBreadcrumbs, setPageBreadCrumbs, openNotification } =
-    usePageLayoutProps();
-  const [breadcrumbsSession, setBreadcrumbSession] = useSession<
-    BreadcrumbsType[]
-  >("breadcrumbs", pageBreadcrumbs);
-
-  useEffect(() => {
-    if (!breadcrumbsSession) return;
-    if (breadcrumbsSession) {
-      setPageBreadCrumbs(breadcrumbsSession);
-    }
-  }, [setPageBreadCrumbs, breadcrumbsSession]);
+  const { openNotification } = usePageLayoutProps();
+  const { setBreadcrumb } = useBreadcrumbs();
 
   useEffect(() => {
     if (!bidder) return;
-    setPageBreadCrumbs((prevBreadcrumbs) => {
-      const newBreadcrumb = {
-        title: `Bidder ${bidder.bidder_number}`,
-        path: `bidders/${bidder.bidder_id}`,
-        key: "bidder",
-      };
-      const doesTitleExist = prevBreadcrumbs.find(
-        (item) => item.title === newBreadcrumb.title
-      );
-      if (doesTitleExist) {
-        return prevBreadcrumbs;
-      }
-
-      let filteredBreadcrumbs = prevBreadcrumbs;
-      const previousBidder = prevBreadcrumbs.find(
-        (item) => item.key === "bidder"
-      );
-      if (previousBidder?.title !== newBreadcrumb.title) {
-        filteredBreadcrumbs = filteredBreadcrumbs.filter(
-          (item) => item.key !== "bidder"
-        );
-      }
-      filteredBreadcrumbs = [...filteredBreadcrumbs, newBreadcrumb];
-
-      setBreadcrumbSession(filteredBreadcrumbs);
-      return filteredBreadcrumbs;
+    setBreadcrumb({
+      title: `Bidder ${bidder.bidder_number}`,
+      path: `bidders/${bidder.bidder_id}`,
+      level: 3,
     });
-  }, [bidder, setPageBreadCrumbs, setBreadcrumbSession]);
+  }, [bidder, setBreadcrumb]);
 
   useEffect(() => {
     const { auction_id: auctionId, bidder_id: bidderId } = params;
@@ -109,9 +76,7 @@ const AuctionBidderProfile = () => {
     openNotification,
   ]);
 
-  if (!bidder) {
-    return null;
-  }
+  if (!bidder) return <Skeleton />;
 
   return (
     <div className="w-full">
@@ -204,11 +169,6 @@ const AuctionBidderProfile = () => {
           </Card>
         </div>
       </div>
-      {/* <Modal
-        isOpen={isPaymentSuccessful}
-        title="Payment Successful!"
-        setShowModal={setIsPaymentSuccessful}
-      ></Modal> */}
     </div>
   );
 };

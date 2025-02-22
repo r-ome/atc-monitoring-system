@@ -18,6 +18,7 @@ import {
   ReceiptView,
   AuctionBidderProfile,
   AuctionItemProfile,
+  OfficialReceiptPage,
 } from "./Auctions";
 import { CreateInventory } from "./Inventories";
 
@@ -39,6 +40,7 @@ export {
   SupplierProfile,
   CreateBidder,
   ContainerProfile,
+  OfficialReceiptPage,
   BidderList,
   ReceiptView,
   BidderProfile,

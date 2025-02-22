@@ -5,6 +5,7 @@ import { Tooltip, Space, Button, Table } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
 import { usePageLayoutProps } from "@layouts";
+import { useBreadcrumbs } from "app/hooks";
 
 const BranchList = () => {
   const navigate = useNavigate();
@@ -15,12 +16,13 @@ const BranchList = () => {
     error: ErrorResponse,
     resetCreateBranchResponse,
   } = useBranches();
-  const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
+  const { openNotification } = usePageLayoutProps();
+  const { setBreadcrumb } = useBreadcrumbs();
 
   useEffect(() => {
     resetCreateBranchResponse();
-    setPageBreadCrumbs([{ title: "Branches List", path: "/branches" }]);
-  }, [setPageBreadCrumbs, resetCreateBranchResponse]);
+    setBreadcrumb({ title: "Branches List", path: "/branches" });
+  }, [setBreadcrumb, resetCreateBranchResponse]);
 
   useEffect(() => {
     const fetchInitialData = async () => {

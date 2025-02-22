@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useContainers, useInventories } from "@context";
-import { useSession } from "../../hooks";
+import { useBreadcrumbs } from "../../hooks";
 import { Inventory } from "@types";
-import { usePageLayoutProps, BreadcrumbsType } from "@layouts";
+import { usePageLayoutProps } from "@layouts";
 import {
   Button,
   Card,
@@ -35,43 +35,18 @@ const ContainerProfile = () => {
     isLoading: isFetchingInventories,
     error: InventoryErrorResponse,
   } = useInventories();
-  const { pageBreadcrumbs, openNotification, setPageBreadCrumbs } =
-    usePageLayoutProps();
-  const [breadcrumbsSession, setBreadcrumbsSession] = useSession<
-    BreadcrumbsType[]
-  >("breadcrumbs", pageBreadcrumbs);
+  const { openNotification } = usePageLayoutProps();
+  const { setBreadcrumb } = useBreadcrumbs();
 
   useEffect(() => {
     resetInventory();
-    if (!breadcrumbsSession) return;
-    if (breadcrumbsSession) {
-      setPageBreadCrumbs(breadcrumbsSession);
-    }
-  }, [setPageBreadCrumbs, breadcrumbsSession, resetInventory]);
-
-  useEffect(() => {
     if (!container) return;
-    setPageBreadCrumbs((prevBreadcrumbs) => {
-      const newBreadcrumb = {
-        title: container.barcode,
-        path: `/containers/${container.container_id}`,
-      };
-
-      const doesExist = prevBreadcrumbs.find(
-        (item) => item.title === newBreadcrumb.title
-      );
-      if (doesExist) {
-        return prevBreadcrumbs;
-      }
-
-      const updatedBreadcrumbs = [
-        ...prevBreadcrumbs.filter((item) => item.title !== "Create Container"),
-        newBreadcrumb,
-      ];
-      setBreadcrumbsSession(updatedBreadcrumbs);
-      return updatedBreadcrumbs;
+    setBreadcrumb({
+      title: container.barcode,
+      path: `/containers/${container.container_id}`,
+      level: 3,
     });
-  }, [container, pageBreadcrumbs, setPageBreadCrumbs, setBreadcrumbsSession]);
+  }, [container, setBreadcrumb, resetInventory]);
 
   useEffect(() => {
     const { container_id: containerId, supplier_id: supplierId } = params;

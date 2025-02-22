@@ -6,6 +6,7 @@ export type BreadcrumbsType = {
   title: string;
   path?: string;
   key?: string | number;
+  level?: number;
 };
 
 type NotificationType = "success" | "info" | "warning" | "error";

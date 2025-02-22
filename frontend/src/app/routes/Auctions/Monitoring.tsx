@@ -14,7 +14,6 @@ const MonitoringPage = () => {
   } = useAuction();
   const [dataSource, setDataSource] = useState<MonitoringType[]>(monitoring);
   const [searchValue, setSearchValue] = useState<string>("");
-  const [currentCount, setCurrentCount] = useState<number>(0);
 
   return (
     <div className="flex flex-col gap-2 w-full h-full">
@@ -22,11 +21,6 @@ const MonitoringPage = () => {
         <Typography.Title level={2}>Monitoring</Typography.Title>
 
         <div className="flex items-center gap-4 w-3/6">
-          <div className="flex justify-end w-2/6">
-            <Typography.Text strong className="text-lg">
-              {currentCount} items
-            </Typography.Text>
-          </div>
           <Input
             placeholder="Search by Barcode, Control or Bidder"
             value={searchValue}
@@ -41,7 +35,6 @@ const MonitoringPage = () => {
                   item.bidder.bidder_number.includes(currentValue) ||
                   item.description.includes(currentValue.toUpperCase())
               );
-              setCurrentCount(filteredData.length);
               setDataSource(filteredData);
             }}
           />
@@ -62,13 +55,8 @@ const MonitoringPage = () => {
       <Table
         rowKey={(rowKey) => rowKey.auction_inventory_id}
         dataSource={searchValue ? dataSource : monitoring}
-        // dataSource={dataSource}
         loading={isFetchingMonitoring}
-        scroll={{ y: 300 }}
-        pagination={false}
-        onChange={(pagination, filters, sorter, extra) => {
-          // setCurrentCount(extra.currentDataSource.length);
-        }}
+        scroll={{ y: 400 }}
         columns={[
           {
             title: "Status",

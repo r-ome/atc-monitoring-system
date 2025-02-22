@@ -6,6 +6,7 @@ import { Button, Popconfirm, Space, Table, Tooltip } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { usePageLayoutProps } from "@layouts/PageLayout";
 // import { usePreviousValue } from "app/hooks";
+import { useBreadcrumbs } from "app/hooks";
 
 const AuctionList = () => {
   const navigate = useNavigate();
@@ -19,12 +20,13 @@ const AuctionList = () => {
     // auction: SuccessResponse,
     error: ErrorResponse,
   } = useAuction();
-  const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
+  const { openNotification } = usePageLayoutProps();
+  const { setBreadcrumb } = useBreadcrumbs();
   // const auctionLength = usePreviousValue(auctions.length);
 
   useEffect(() => {
-    setPageBreadCrumbs([{ title: "Auctions List", path: "/auctions" }]);
-  }, [setPageBreadCrumbs]);
+    setBreadcrumb({ title: "Auctions List", path: "/auctions", level: 1 });
+  }, [setBreadcrumb]);
 
   useEffect(() => {
     const fetchInitialData = async () => {

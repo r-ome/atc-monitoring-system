@@ -4,9 +4,10 @@ import { usePayments } from "@context";
 import { AuctionInventory } from "@types";
 import { Button, Card, Descriptions, Space, Table, Tooltip } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
-import { BreadcrumbsType, usePageLayoutProps } from "@layouts/PageLayout";
 import { formatNumberToCurrency } from "@lib/utils";
-import { useSession } from "app/hooks";
+import { useBreadcrumbs } from "app/hooks";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import ReceiptDocument from "./OfficialReceiptPage/ReceiptDocument";
 
 const ReceiptView = () => {
   const params = useParams();
@@ -16,40 +17,16 @@ const ReceiptView = () => {
     fetchPaymentDetails,
     isLoading: isFetchingPayments,
   } = usePayments();
-  const { pageBreadcrumbs, setPageBreadCrumbs } = usePageLayoutProps();
-  const [breadcrumbsSession] = useSession<BreadcrumbsType[]>(
-    "breadcrumbs",
-    pageBreadcrumbs
-  );
-
-  useEffect(() => {
-    if (!breadcrumbsSession) return;
-    if (breadcrumbsSession) {
-      setPageBreadCrumbs(breadcrumbsSession);
-    }
-  }, [setPageBreadCrumbs, breadcrumbsSession]);
+  const { setBreadcrumb } = useBreadcrumbs();
 
   useEffect(() => {
     if (!paymentDetails) return;
-    setPageBreadCrumbs((prevBreadcrumbs) => {
-      const newBreadcrumb = {
-        title: `Transaction`,
-        path: `transactions/${paymentDetails.payment_id}`,
-      };
-      const doesExist = prevBreadcrumbs.find(
-        (item) => item.title === newBreadcrumb.title
-      );
-      if (doesExist) {
-        return prevBreadcrumbs;
-      }
-
-      const updatedBreadcrumbs = [
-        ...prevBreadcrumbs.filter((item) => item.title !== newBreadcrumb.title),
-        newBreadcrumb,
-      ];
-      return updatedBreadcrumbs;
+    setBreadcrumb({
+      title: `Transaction`,
+      path: `transactions/${paymentDetails.payment_id}`,
+      level: 4,
     });
-  }, [paymentDetails, setPageBreadCrumbs]);
+  }, [paymentDetails, setBreadcrumb]);
 
   useEffect(() => {
     const { auction_id: auctionId, payment_id: paymentId } = params;
@@ -74,12 +51,45 @@ const ReceiptView = () => {
               bordered
               extra={
                 paymentDetails.purpose === "PULL_OUT" ? (
-                  <Button type="primary" onClick={() => alert("PRINT RECEIPT")}>
-                    Print Receipt
-                  </Button>
+                  <div className="flex gap-4">
+                    <div>
+                      <PDFDownloadLink
+                        document={
+                          <ReceiptDocument
+                            bidder={paymentDetails}
+                            items={paymentDetails.auction_inventories}
+                          />
+                        }
+                        fileName="Test"
+                      >
+                        {({ loading }) => (
+                          <Button type="primary" loading={loading}>
+                            Print Receipt
+                          </Button>
+                        )}
+                      </PDFDownloadLink>
+                    </div>
+                    <div>
+                      {/* shit. */}
+                      <Button
+                        variant="outlined"
+                        color="cyan"
+                        onClick={() =>
+                          navigate("/auctions/receipt", {
+                            state: {
+                              bidder: paymentDetails,
+                              items: paymentDetails.auction_inventories,
+                            },
+                          })
+                        }
+                      >
+                        View Receipt
+                      </Button>
+                    </div>
+                  </div>
                 ) : null
               }
-              title={`Receipt Number: ${paymentDetails.receipt_number}`}
+              title={`${paymentDetails.receipt_number}`}
               items={[
                 {
                   key: "2",
@@ -129,11 +139,15 @@ const ReceiptView = () => {
                       </span>
                     ),
                   },
-                  { title: "Barcode", dataIndex: "barcode_number" },
-                  { title: "Control", dataIndex: "control_number" },
+                  { title: "Barcode", dataIndex: "barcode" },
+                  { title: "Control", dataIndex: "control" },
                   { title: "Description", dataIndex: "description" },
                   { title: "QTY", dataIndex: "qty" },
-                  { title: "Price", dataIndex: "price" },
+                  {
+                    title: "Price",
+                    dataIndex: "price",
+                    render: (item) => formatNumberToCurrency(item),
+                  },
                   {
                     title: "Action",
                     key: "action",

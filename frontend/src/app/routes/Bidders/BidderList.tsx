@@ -6,6 +6,7 @@ import { Button, Input, Space, Table, Tooltip, Typography } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { usePageLayoutProps } from "@layouts";
 import { formatNumberToCurrency } from "@lib/utils";
+import { useBreadcrumbs } from "app/hooks";
 
 const BidderList = () => {
   const navigate = useNavigate();
@@ -17,14 +18,15 @@ const BidderList = () => {
     isLoading,
     resetCreateBidderResponse,
   } = useBidders();
-  const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
+  const { openNotification } = usePageLayoutProps();
   const [dataSource, setDataSource] = useState<BaseBidder[]>(bidders);
   const [searchValue, setSearchValue] = useState<string>("");
+  const { setBreadcrumb } = useBreadcrumbs();
 
   useEffect(() => {
     resetCreateBidderResponse();
-    setPageBreadCrumbs([{ title: "Bidders List", path: "/bidders" }]);
-  }, [setPageBreadCrumbs, resetCreateBidderResponse]);
+    setBreadcrumb({ title: "Bidders List", path: "/bidders", level: 1 });
+  }, [setBreadcrumb, resetCreateBidderResponse]);
 
   useEffect(() => {
     const fetchInitialData = async () => {

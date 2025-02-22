@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import { usePageLayoutProps, BreadcrumbsType } from "@layouts/PageLayout";
-import { useSession } from "app/hooks";
+import { usePageLayoutProps } from "@layouts/PageLayout";
+import { useBreadcrumbs } from "app/hooks";
 import { Button, Card, Skeleton, Typography } from "antd";
 import { RHFInput, RHFInputNumber, RHFSelect } from "@components";
 import { useAuction } from "@context/index";
@@ -16,10 +16,6 @@ const AddOnPage = () => {
   const methods = useForm<AddOnPayload>();
   const { pageBreadcrumbs, openNotification, setPageBreadCrumbs } =
     usePageLayoutProps();
-  const [breadcrumbsSession] = useSession<BreadcrumbsType[]>(
-    "breadcrumbs",
-    pageBreadcrumbs
-  );
   const {
     registeredBidders,
     auctionItemDetails: SuccessResponse,
@@ -30,13 +26,11 @@ const AddOnPage = () => {
     resetAuctionItem,
   } = useAuction();
 
+  const { setBreadcrumb } = useBreadcrumbs();
+
   useEffect(() => {
-    if (!breadcrumbsSession) return;
-    setPageBreadCrumbs([
-      ...breadcrumbsSession,
-      { title: "Encode Page", path: "/encode" },
-    ]);
-  }, [setPageBreadCrumbs, breadcrumbsSession]);
+    setBreadcrumb({ title: "Encode Page", path: "/encode" });
+  }, []);
 
   useEffect(() => {
     const { auction_id: auctionId } = params;

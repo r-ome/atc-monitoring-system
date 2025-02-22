@@ -5,10 +5,11 @@ import { useSuppliers } from "@context/SupplierProvider/SupplierContext";
 import { usePageLayoutProps } from "@layouts";
 import { Button, Input, Space, Table, Tooltip } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
+import { useBreadcrumbs } from "app/hooks";
 
 const Suppliers = () => {
   const navigate = useNavigate();
-  const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
+  const { openNotification } = usePageLayoutProps();
   const {
     suppliers,
     isLoading,
@@ -18,11 +19,12 @@ const Suppliers = () => {
   } = useSuppliers();
   const [searchValue, setSearchValue] = useState<string>("");
   const [dataSource, setDataSource] = useState<BaseSupplier[]>(suppliers);
+  const { setBreadcrumb } = useBreadcrumbs();
 
   useEffect(() => {
     resetSupplier();
-    setPageBreadCrumbs([{ title: "Suppliers List", path: "/suppliers" }]);
-  }, [setPageBreadCrumbs, resetSupplier]);
+    setBreadcrumb({ title: "Suppliers List", path: "/suppliers", level: 1 });
+  }, [setBreadcrumb, resetSupplier]);
 
   useEffect(() => {
     const fetchInitialData = async () => {

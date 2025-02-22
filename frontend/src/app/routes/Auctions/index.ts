@@ -7,9 +7,10 @@ import AuctionBidders from "./AuctionBidders";
 import ManifestList from "./ManifestList";
 import AuctionBidderProfile from "./AuctionBidderProfile";
 import EncodePage from "./EncodePage";
-import ReceiptView from "./AuctionBidderProfile/ReceiptView";
 import AuctionItemProfile from "./AuctionItemProfile";
 import AddOnPage from "./AddOnPage";
+import ReceiptView from "./AuctionBidderProfile/ReceiptView";
+import OfficialReceiptPage from "./AuctionBidderProfile/OfficialReceiptPage";
 
 export {
   AuctionItemProfile,
@@ -24,4 +25,5 @@ export {
   EncodePage,
   ReceiptView,
   AddOnPage,
+  OfficialReceiptPage,
 };

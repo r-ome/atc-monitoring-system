@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import { usePageLayoutProps, BreadcrumbsType } from "@layouts";
-import { useSession } from "app/hooks";
+import { usePageLayoutProps } from "@layouts";
+import { useBreadcrumbs } from "app/hooks";
 import { useAuction } from "@context";
 import { formatNumberToCurrency } from "@lib/utils";
 import { RHFInputNumber, RHFSelect, RHFTextArea } from "@components";
@@ -29,12 +29,9 @@ const AuctionItemProfile = () => {
     action?: actions;
     title?: string;
   }>({ open: false });
-  const { pageBreadcrumbs, setPageBreadCrumbs, openNotification } =
-    usePageLayoutProps();
-  const [breadcrumbsSession] = useSession<BreadcrumbsType[]>(
-    "breadcrumbs",
-    pageBreadcrumbs
-  );
+  const { setBreadcrumb } = useBreadcrumbs();
+  const { openNotification } = usePageLayoutProps();
+
   const {
     auctionItemDetails,
     registeredBidders,
@@ -50,30 +47,8 @@ const AuctionItemProfile = () => {
   } = useAuction();
 
   useEffect(() => {
-    if (!breadcrumbsSession) return;
-    setPageBreadCrumbs(breadcrumbsSession);
-  }, [breadcrumbsSession, setPageBreadCrumbs]);
-
-  useEffect(() => {
-    setPageBreadCrumbs((prevBreadcrumbs) => {
-      const newBreadcrumb = {
-        title: `Item`,
-        path: ``,
-      };
-      const doesExist = prevBreadcrumbs.find(
-        (item) => item.title === newBreadcrumb.title
-      );
-      if (doesExist) {
-        return prevBreadcrumbs;
-      }
-
-      const updatedBreadcrumbs = [
-        ...prevBreadcrumbs.filter((item) => item.title !== newBreadcrumb.title),
-        newBreadcrumb,
-      ];
-      return updatedBreadcrumbs;
-    });
-  }, [setPageBreadCrumbs]);
+    setBreadcrumb({ title: `Item`, path: ``, level: 4 });
+  }, [setBreadcrumb]);
 
   useEffect(() => {
     const { auction_id: auctionId, auction_inventory_id: auctionInventoryId } =
@@ -328,7 +303,7 @@ const AuctionItemProfile = () => {
                       .toLowerCase()
                       .includes(input.toLowerCase())
                   }
-                  options={registeredBidders.bidders
+                  options={registeredBidders?.bidders
                     .filter(
                       (item) =>
                         item.bidder_id !== auctionItemDetails.bidder.bidder_id

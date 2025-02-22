@@ -1,13 +1,14 @@
 import { useEffect } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { useAuction, useBidders } from "@context";
-import { Card, Descriptions, Skeleton, Tabs } from "antd";
-import { usePageLayoutProps, BreadcrumbsType } from "@layouts";
+import { Card, Skeleton, Statistic, Tabs } from "antd";
+import { usePageLayoutProps } from "@layouts";
 import AuctionBidders from "./AuctionBidders";
 import AuctionPayments from "./AuctionPayments";
 import Monitoring from "./Monitoring";
 import ManifestList from "./ManifestList";
-import { useSession } from "app/hooks";
+import { useBreadcrumbs } from "app/hooks";
+import { UserOutlined, ShoppingCartOutlined } from "@ant-design/icons";
 import { formatNumberToCurrency } from "@lib/utils";
 
 const AuctionProfile = () => {
@@ -28,32 +29,34 @@ const AuctionProfile = () => {
     isLoading: isFetchingBidders,
     error: BidderErrorResponse,
   } = useBidders();
-  const { pageBreadcrumbs, openNotification, setPageBreadCrumbs } =
-    usePageLayoutProps();
-  const [, setBreadcrumbsSession] = useSession<BreadcrumbsType[]>(
-    "breadcrumbs",
-    pageBreadcrumbs
-  );
+  const { openNotification } = usePageLayoutProps();
+  const { setBreadcrumb } = useBreadcrumbs();
 
   useEffect(() => {
     if (!auction) return;
-    const newBreadcrumb = [
-      { title: "Auctions List", path: "/auctions" },
-      { title: auction.auction_date, path: `${auction.auction_id}` },
-    ];
-    setBreadcrumbsSession(newBreadcrumb);
-    setPageBreadCrumbs(newBreadcrumb);
-  }, [auction, setPageBreadCrumbs, setBreadcrumbsSession]);
+    setBreadcrumb({
+      title: auction.auction_date,
+      path: `${auction.auction_id}`,
+      level: 2,
+    });
+  }, [auction, setBreadcrumb]);
 
   useEffect(() => {
     const { auction_id: auctionId } = params;
     if (auctionId) {
       const fetchInitialData = async () => {
-        await fetchBidders();
-        await fetchAuctionDetails(auctionId);
-        await fetchMonitoring(auctionId);
-        await fetchRegisteredBidders(auctionId);
-        await fetchManifestRecords(auctionId);
+        await Promise.all([
+          fetchBidders(),
+          fetchAuctionDetails(auctionId),
+          fetchMonitoring(auctionId),
+          fetchRegisteredBidders(auctionId),
+          fetchManifestRecords(auctionId),
+        ]);
+        // await fetchBidders();
+        // await fetchAuctionDetails(auctionId);
+        // await fetchMonitoring(auctionId);
+        // await fetchRegisteredBidders(auctionId);
+        // await fetchManifestRecords(auctionId);
       };
       fetchInitialData();
     }
@@ -103,44 +106,38 @@ const AuctionProfile = () => {
     <>
       <div className="h-full">
         <div className="flex flex-col gap-2">
-          <div className="flex w-full justify-between h-full">
-            <div className="w-3/6">
-              <Card loading={isFetchingAuctionDetails}>
-                <Descriptions
-                  size="small"
-                  layout="vertical"
-                  title={auction?.auction_date}
-                  bordered
-                  column={4}
-                  items={[
-                    {
-                      key: "1",
-                      label: "Total Bidders",
-                      children: auction?.number_of_bidders,
-                    },
-                    {
-                      key: "2",
-                      label: "Total Items",
-                      children: auction?.total_items,
-                    },
-                    {
-                      key: "3",
-                      label: "Total Sales",
-                      children: formatNumberToCurrency(
-                        auction.total_items_price
-                      ),
-                    },
-                    {
-                      key: "4",
-                      label: "Total Registration Fee",
-                      children: formatNumberToCurrency(
-                        auction.total_registration_fee
-                      ),
-                    },
-                  ]}
-                ></Descriptions>
+          <div className="flex gap-2 w-full justify-evenly h-full">
+            {[
+              {
+                title: "Bidders",
+                value: `${auction.number_of_bidders} Bidders`,
+                prefix: <UserOutlined />,
+              },
+              {
+                title: "Total Items",
+                value: `${auction.total_items} Items`,
+                prefix: <ShoppingCartOutlined />,
+              },
+              {
+                title: "Total Sales",
+                value: formatNumberToCurrency(auction.total_items_price),
+                prefix: null,
+              },
+              {
+                title: "Total Registration Fee",
+                value: formatNumberToCurrency(auction.total_registration_fee),
+                prefix: null,
+              },
+            ].map((item, i) => (
+              <Card key={i} variant="borderless" className="flex-1">
+                <Statistic
+                  title={item.title}
+                  value={item.value}
+                  valueStyle={{ color: "#3f8600" }}
+                  prefix={item.prefix}
+                />
               </Card>
-            </div>
+            ))}
           </div>
 
           <Card>

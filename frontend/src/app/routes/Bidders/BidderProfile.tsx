@@ -7,10 +7,11 @@ import { Button, Card, Descriptions, Skeleton, Table } from "antd";
 import CreateBidderRequirement from "./CreateBidderRequirement";
 import { BIDDERS_402 } from "../errors";
 import { formatNumberToCurrency } from "@lib/utils";
+import { useBreadcrumbs } from "app/hooks";
 
 const BidderProfile = () => {
   const params = useParams();
-  const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
+  const { openNotification } = usePageLayoutProps();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const {
     bidder,
@@ -19,15 +20,13 @@ const BidderProfile = () => {
     error: ErrorResponse,
   } = useBidders();
   const { requirement, resetBidderRequirement } = useBidderRequirement();
+  const { setBreadcrumb } = useBreadcrumbs();
 
   useEffect(() => {
     if (bidder) {
-      setPageBreadCrumbs([
-        { title: "Bidders List", path: "/bidders" },
-        { title: `${bidder.full_name}'S PROFILE` },
-      ]);
+      setBreadcrumb({ title: `${bidder.full_name}'S PROFILE`, level: 2 });
     }
-  }, [bidder, setPageBreadCrumbs]);
+  }, [bidder, setBreadcrumb]);
 
   useEffect(() => {
     const { bidder_id: bidderId } = params;

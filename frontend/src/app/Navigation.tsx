@@ -34,17 +34,15 @@ const lists = [
 
 const Navigation = () => {
   return (
-    <div className="flex flex-shrink-0 flex-col border p-2 mr-2 h-screen  w-1/6">
-      <div className="bg-[#F9FBFC] h-36 p-6 flex justify-center items-center">
+    <div className="flex flex-shrink-0 flex-col mr-2 h-screen w-[260px]">
+      {/* <div className="bg-[#F9FBFC] h-36 p-6 flex justify-center items-center">
         Logo and ATC name here
-      </div>
+      </div> */}
 
       <Menu
-        // onClick={onClick}
-        style={{ width: 256 }}
         defaultSelectedKeys={["1"]}
-        className="w-full"
-        mode="inline"
+        className="w-full h-screen"
+        mode="vertical"
         items={lists}
       />
 

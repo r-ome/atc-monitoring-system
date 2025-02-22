@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useSuppliers } from "@context/SupplierProvider/SupplierContext";
 import { useContainers } from "@context/ContainerProvider/ContainerContext";
 import { BaseContainer } from "@types";
-import { usePageLayoutProps, BreadcrumbsType } from "@layouts/PageLayout";
+import { usePageLayoutProps } from "@layouts/PageLayout";
 import {
   Button,
   Card,
@@ -14,8 +14,8 @@ import {
   Tooltip,
 } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
-import { useSession } from "app/hooks";
 import { SUPPLIERS_403 } from "../errors";
+import { useBreadcrumbs } from "app/hooks";
 
 const SupplierProfile = () => {
   const params = useParams();
@@ -34,27 +34,19 @@ const SupplierProfile = () => {
     error: ContainerErrorResponse,
     resetContainer,
   } = useContainers();
-  const { openNotification, pageBreadcrumbs, setPageBreadCrumbs } =
-    usePageLayoutProps();
-  const [, setBreadcrumbsSession] = useSession<BreadcrumbsType[]>(
-    "breadcrumbs",
-    pageBreadcrumbs
-  );
+  const { setBreadcrumb } = useBreadcrumbs();
+  const { openNotification } = usePageLayoutProps();
 
   useEffect(() => {
     resetContainer();
     if (supplier) {
-      const profileBreadcrumbs = [
-        { title: "Suppliers List", path: "/suppliers" },
-        {
-          title: `${supplier.name}'s Profile`,
-          path: `/${supplier.supplier_id}`,
-        },
-      ];
-      setBreadcrumbsSession(profileBreadcrumbs);
-      setPageBreadCrumbs(profileBreadcrumbs);
+      setBreadcrumb({
+        title: `${supplier.name}'s Profile`,
+        path: `/${supplier.supplier_id}`,
+        level: 2,
+      });
     }
-  }, [supplier, setPageBreadCrumbs, setBreadcrumbsSession, resetContainer]);
+  }, [supplier, setBreadcrumb, resetContainer]);
 
   useEffect(() => {
     const { supplier_id: supplierId } = params;

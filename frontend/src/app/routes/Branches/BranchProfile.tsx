@@ -3,25 +3,24 @@ import { useParams } from "react-router-dom";
 import { useBranches } from "@context";
 import { usePageLayoutProps } from "@layouts";
 import { Button, Card, Descriptions, Skeleton, Table } from "antd";
+import { useBreadcrumbs } from "app/hooks";
 
 const BranchProfile = () => {
   const params = useParams();
-  const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
+  const { openNotification } = usePageLayoutProps();
   const {
     branch,
     fetchBranch,
     isLoading: isFetchingBranch,
     error: ErrorResponse,
   } = useBranches();
+  const { setBreadcrumb } = useBreadcrumbs();
 
   useEffect(() => {
     if (branch) {
-      setPageBreadCrumbs([
-        { title: "Branches List", path: "branches" },
-        { title: `${branch.name} Branch` },
-      ]);
+      setBreadcrumb({ title: `${branch.name} Branch`, level: 2 });
     }
-  }, [branch, setPageBreadCrumbs]);
+  }, [branch, setBreadcrumb]);
 
   useEffect(() => {
     const { branch_id: branchId } = params;

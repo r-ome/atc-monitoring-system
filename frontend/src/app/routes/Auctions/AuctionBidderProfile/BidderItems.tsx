@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { convertToNumber, formatNumberToCurrency } from "@lib/utils";
+import { formatNumberToCurrency } from "@lib/utils";
 import { usePayments, useAuction } from "@context";
 import { BidderAuctionItem, BidderAuctionProfile } from "@types";
 import {
   Button,
   Descriptions,
   Modal,
+  Skeleton,
   Space,
   Table,
   Tag,
@@ -62,9 +63,7 @@ const BidderItems: React.FC = () => {
     setIsPullOut,
   ]);
 
-  if (!bidder) {
-    return <div className="border p-2 flex justify-center">Loading...</div>;
-  }
+  if (!bidder) return <Skeleton />;
 
   const renderDescriptionItems = (bidder: BidderAuctionProfile) => {
     const items = [
@@ -109,11 +108,27 @@ const BidderItems: React.FC = () => {
       <div className="flex justify-between mb-4">
         <h1 className="text-3xl font-bold">Bidder Items</h1>
 
-        {parseInt(bidder.total_unpaid_items, 10) ? (
-          <Button type="primary" onClick={() => setIsPullOut(!isPullOut)}>
-            Pull Out
-          </Button>
-        ) : null}
+        <div className="flex gap-2">
+          {parseInt(bidder.total_unpaid_items, 10) ? (
+            <Button type="primary" onClick={() => setIsPullOut(!isPullOut)}>
+              Pull Out
+            </Button>
+          ) : null}
+
+          {parseInt(bidder.total_unpaid_items, 10) ? (
+            <Button
+              variant="outlined"
+              color="cyan"
+              onClick={() =>
+                navigate("/auctions/receipt", {
+                  state: { bidder, items: bidder.items },
+                })
+              }
+            >
+              View Receipt
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <Modal
@@ -140,8 +155,8 @@ const BidderItems: React.FC = () => {
           <pre className="text-sm my-2">
             Total = {formatNumberToCurrency(bidder.total_unpaid_items_price)} +{" "}
             {formatNumberToCurrency(
-              (convertToNumber(bidder.total_unpaid_items_price) *
-                convertToNumber(bidder.service_charge)) /
+              (parseInt(bidder.total_unpaid_items_price, 10) *
+                parseInt(bidder.service_charge, 10)) /
                 100
             )}{" "}
             {bidder.already_consumed ? "" : `- ${bidder.registration_fee}`}

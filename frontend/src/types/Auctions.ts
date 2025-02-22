@@ -90,7 +90,9 @@ export type BidderAuctionProfile = {
   auction_bidders_id: number;
   bidder_id: number;
   bidder_number: string;
+  auction_date: string;
   full_name: string;
+  receipt_number: number;
   already_consumed: number; // supposed to be boolean
   total_items: number;
   service_charge: string;

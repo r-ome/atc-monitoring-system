@@ -20,9 +20,11 @@ import {
   AuctionBidderProfile,
   ReceiptView,
   AuctionItemProfile,
+  OfficialReceiptPage,
 } from "./app/routes";
 import { PageLayout } from "./layouts";
 import { AddOnPage } from "app/routes/Auctions";
+import { PDFViewer } from "@react-pdf/renderer";
 
 const routes: RouteObject[] = [
   {
@@ -152,6 +154,10 @@ const routes: RouteObject[] = [
           {
             path: ":auction_id/bidders/:bidder_id/transactions/:payment_id",
             element: <ReceiptView />,
+          },
+          {
+            path: "receipt",
+            element: <OfficialReceiptPage />,
           },
         ],
       },
