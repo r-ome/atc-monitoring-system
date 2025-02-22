@@ -295,7 +295,6 @@ export const bulkCreateAuctionInventories = async (auctions_inventories) => {
 
     return;
   } catch (error) {
-    console.log(error);
     throw new DBErrorException("bulkCreateAuctionInventories", error);
   }
 };

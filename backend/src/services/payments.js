@@ -6,6 +6,7 @@ export const getPaymentDetails = async (payment_id) => {
       `
         SELECT
           p.payment_id,
+          DATE_FORMAT(ab.created_at, '%W, %M %d, %Y') AS auction_date,
           IF(p.receipt_number = 0,
             b.bidder_number,
             CONCAT(b.bidder_number, "-", p.receipt_number)
@@ -16,6 +17,7 @@ export const getPaymentDetails = async (payment_id) => {
           b.bidder_number,
           ab.service_charge,
           ab.already_consumed,
+          ab.balance,
           ab.registration_fee,
           DATE_FORMAT(p.created_at, '%b %d, %Y %h:%i%p') AS created_at,
           (
@@ -27,9 +29,10 @@ export const getPaymentDetails = async (payment_id) => {
                 'inventory_id', ai.inventory_id,
                 'inventory_status', i.status,
                 'auction_status', ai.status,
-                'barcode_number', i.barcode,
-                'control_number', i.control_number,
-                'price', CONCAT("₱", FORMAT(ai.price, 2)),
+                'barcode', i.barcode,
+                'bidder', b.bidder_number,
+                'control', i.control_number,
+                'price', ai.price,
                 'qty', ai.qty,
                 'description', i.description,
                 'manifest_number', ai.manifest_number

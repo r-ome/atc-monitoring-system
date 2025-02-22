@@ -172,7 +172,7 @@ export const getMonitoring = async (auction_id) => {
             'bidder_number', b.bidder_number
           ) as bidder,
           ai.qty,
-          CONCAT("₱", FORMAT(ai.price, 2)) as price,
+          ai.price,
           ai.manifest_number
         FROM auctions_inventories ai
         LEFT JOIN inventories i ON i.inventory_id = ai.inventory_id
@@ -297,26 +297,32 @@ export const getBidderAuctionProfile = async (auction_id, bidder_id) => {
           b.bidder_id,
           b.bidder_number,
           CONCAT(b.first_name, " ", b.last_name) AS full_name,
+          ab.created_at AS auction_date,
           ab.already_consumed,
+          IF(MAX(DISTINCT p.receipt_number) = 0,
+            b.bidder_number,
+            CONCAT(b.bidder_number, "-", MAX(DISTINCT p.receipt_number))
+          ) AS receipt_number,
           COUNT(ai.auction_inventory_id) as total_items,
-          CONCAT(ab.service_charge, "%") AS service_charge,
+          ab.service_charge,
           ab.registration_fee,
           IF(SUM(ai.price) = 0,
             0,
             SUM(CASE WHEN ai.status != "CANCELLED" THEN ai.price END)
           ) AS total_item_price,
           SUM(CASE WHEN ai.status = "UNPAID" THEN 1 ELSE 0 END) AS total_unpaid_items,
-          (SUM(CASE WHEN ai.status = "UNPAID" THEN ai.price ELSE 0 END) * ab.service_charge)/100 AS total_unpaid_items_price,
+          SUM(CASE WHEN ai.status = "UNPAID" THEN ai.price ELSE 0 END) AS total_unpaid_items_price,
           ab.balance,
           IF(COUNT(ai.auction_inventory_id) = 0,
             JSON_ARRAY(),
             JSON_ARRAYAGG(JSON_OBJECT(
               'auction_inventory_id', ai.auction_inventory_id,
               'inventory_id', i.inventory_id,
+              'bidder', b.bidder_number,
               'barcode', i.barcode,
               'control', i.control_number,
               'description', i.description,
-              'price', CONCAT("₱", FORMAT(ai.price, 2)),
+              'price', ai.price,
               'qty', ai.qty,
               'manifest_number', ai.manifest_number,
               'status', ai.status,
@@ -327,11 +333,13 @@ export const getBidderAuctionProfile = async (auction_id, bidder_id) => {
         LEFT JOIN auctions_bidders ab ON ab.bidder_id = b.bidder_id
         LEFT JOIN auctions_inventories ai ON ai.auction_bidders_id = ab.auction_bidders_id
         LEFT JOIN inventories i ON i.inventory_id = ai.inventory_id
+        LEFT JOIN payments p ON p.auction_bidders_id = ab.auction_bidders_id
         WHERE b.bidder_id = ? AND ab.auction_id = ?
-        GROUP BY ab.auction_bidders_id
+        GROUP BY ab.auction_bidders_id, p.payment_id
       `,
       [bidder_id, auction_id]
     );
+
     return result;
   } catch (error) {
     throw new DBErrorException("getBidderItems", error);
@@ -658,14 +666,6 @@ export const discountItem = async (auction_inventory_id, new_price) => {
         computed_price +
         (new_price + (new_price * auction_inventory.service_charge) / 100);
 
-      console.log({
-        new_balance,
-        current_balance: auction_inventory.balance,
-        prev_item_computed_price: computed_price,
-        new_price,
-        new_computed_price:
-          new_price + (new_price * auction_inventory.service_charge) / 100,
-      });
       await query(
         `
           UPDATE auctions_bidders
@@ -740,14 +740,6 @@ export const createAuctionInventory = async (auction_id, body) => {
           parseInt(auction_bidder.service_charge, 10)) /
           100);
 
-    console.log({
-      auction_bidder,
-      computed_balance,
-      balance: parseInt(auction_bidder.balance, 10),
-      price: parseInt(body.price, 10),
-      service_charge: parseInt(auction_bidder.service_charge, 10),
-    });
-
     let newly_inserted_auction_inventory = null;
 
     if (inventory) {
@@ -814,7 +806,6 @@ export const createAuctionInventory = async (auction_id, body) => {
       newly_inserted_auction_inventory.insertId
     );
   } catch (error) {
-    console.log(error);
     throw new DBErrorException("createAuctionInventory", error);
   }
 };
