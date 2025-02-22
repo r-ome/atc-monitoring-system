@@ -43,10 +43,6 @@
             <column name="deleted_at" type="datetime"/>
         </createTable>
 
-        <sql>
-            INSERT INTO BRANCHES(name) values ("BIÑAN"), ("TARLAC");
-        </sql>
-
         <createTable tableName="containers">
             <column name="container_id" type="bigint" autoIncrement="true">
                 <constraints primaryKey="true" nullable="false" />
@@ -411,6 +407,10 @@
             <column name="updated_at" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" type="datetime"/>
             <column name="deleted_at" type="datetime"/>
         </createTable>
+
+         <sql>
+            INSERT INTO branches(name) values ("BIÑAN"), ("TARLAC");
+        </sql>
 
         <sql>
             INSERT INTO users(name, username, password, role)
