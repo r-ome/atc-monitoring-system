@@ -48,7 +48,7 @@ router.get("/:container_id", async (req, res) => {
       });
     }
 
-    if (container.supplier.id !== parseInt(supplier_id, 10)) {
+    if (container.supplier.supplier_id !== parseInt(supplier_id, 10)) {
       return renderHttpError(res, {
         log: `Container with ID:${container_id} does not belong to Supplier with ID:${supplier_id}`,
         error: CONTAINERS_403,

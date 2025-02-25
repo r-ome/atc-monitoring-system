@@ -6,6 +6,7 @@ import {
   getBranchByName,
   getBranches,
   createBranch,
+  updateBranch,
 } from "../services/branches.js";
 import { DB_ERROR_EXCEPTION } from "../services/index.js";
 
@@ -94,6 +95,50 @@ router.post("/", async (req, res) => {
 
     const response = await createBranch(req.body);
     const branch = await getBranch(response.insertId);
+    return res.status(200).json({ data: branch });
+  } catch (error) {
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? BRANCHES_501 : BRANCHES_503,
+    });
+  }
+});
+
+router.put("/:branch_id", async (req, res) => {
+  try {
+    const { branch_id } = req.params;
+    const { body } = req;
+    const doesExist = await getBranch(branch_id);
+    if (!doesExist) {
+      return renderHttpError(res, {
+        log: `Branch with ID ${branch_id} does not exist.`,
+        error: BRANCHES_403,
+      });
+    }
+
+    const schema = Joi.object({
+      name: Joi.string()
+        .pattern(/^[a-zA-Z0-9Ññ\- ]+$/)
+        .min(3)
+        .max(255)
+        .required(),
+    });
+    const { error } = schema.validate(body);
+    if (error) {
+      const errorDetails = error.details.map((err) => {
+        return {
+          field: err.context.key,
+          message: err.message,
+        };
+      });
+
+      return renderHttpError(res, {
+        log: JSON.stringify(errorDetails, null, 2),
+        error: BRANCHES_401,
+      });
+    }
+
+    const branch = await updateBranch(branch_id, body.name);
     return res.status(200).json({ data: branch });
   } catch (error) {
     return renderHttpError(res, {

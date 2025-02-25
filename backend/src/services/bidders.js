@@ -12,11 +12,14 @@ export const getBidder = async (bidder_id) => {
           b.last_name,
           birthdate,
           status,
-          registration_fee,
-          service_charge,
+          b.registration_fee,
+          b.service_charge,
+          b.contact_number,
+          registered_at,
           CONCAT(b.first_name, " ", b.last_name) as full_name,
-          DATE_FORMAT(b.created_at, '%b %d, %Y %h:%i%p') AS created_at,
-          DATE_FORMAT(b.updated_at, '%b %d, %Y %h:%i%p') AS updated_at,
+          b.created_at,
+          b.updated_at,
+          b.remarks,
           IF (COUNT(br.requirement_id) = 0,
             JSON_ARRAY(),
             JSON_ARRAYAGG(JSON_OBJECT(
@@ -27,6 +30,7 @@ export const getBidder = async (bidder_id) => {
           ) AS requirements
         FROM bidders b
         LEFT JOIN bidder_requirements br ON br.bidder_id = b.bidder_id
+        LEFT JOIN auctions_bidders ab ON ab.bidder_id = b.bidder_id
         WHERE b.bidder_id = ?
         AND b.deleted_at IS NULL
         GROUP BY b.bidder_id
@@ -71,7 +75,6 @@ export const getMultipleBiddersByBidderNumber = async (
 
     return result;
   } catch (error) {
-    console.error(error);
     throw new DBErrorException("getMultipleBiddersByBidderNumber", error);
   }
 };
@@ -81,20 +84,30 @@ export const getBidders = async () => {
     return await query(
       `
         SELECT
-          bidder_id,
-          bidder_number,
-          first_name,
-          middle_name,
-          last_name,
-          status,
-          registration_fee,
-          service_charge,
-          CONCAT(first_name, " ", last_name) as full_name,
-          DATE_FORMAT(created_at, '%b %d, %Y %h:%i%p') AS created_at,
-          DATE_FORMAT(updated_at, '%b %d, %Y %h:%i%p') AS updated_at
-        FROM bidders
-        WHERE deleted_at IS NULL
-        ORDER BY bidder_id
+          b.bidder_id,
+          b.bidder_number,
+          b.first_name,
+          b.middle_name,
+          b.last_name,
+          b.status,
+          b.registration_fee,
+          b.service_charge,
+          CONCAT(b.first_name, " ", b.last_name) as full_name,
+          b.created_at,
+          b.updated_at,
+          (
+            SELECT JSON_OBJECT(
+              'auction_id', ab.auction_id,
+              'auction_date', ab.created_at,
+              'balance', ab.balance
+            )
+            FROM auctions_bidders ab
+            WHERE ab.bidder_id = b.bidder_id
+            AND ab.balance != 0
+          ) as has_balance
+        FROM bidders b
+        WHERE b.deleted_at IS NULL
+        GROUP BY b.bidder_id
       `
     );
   } catch (error) {
@@ -106,8 +119,8 @@ export const createBidder = async (bidder) => {
   try {
     const result = await query(
       `
-        INSERT INTO bidders(first_name, middle_name, last_name, bidder_number, birthdate, status, registration_fee, service_charge)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+        INSERT INTO bidders(first_name, middle_name, last_name, bidder_number, birthdate, status, registration_fee, service_charge, registered_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         bidder.first_name,
         bidder.middle_name,
@@ -117,26 +130,26 @@ export const createBidder = async (bidder) => {
         bidder.status,
         bidder.registration_fee,
         bidder.service_charge,
+        bidder.registered_at,
       ]
     );
 
-    return result;
+    return await getBidder(result.insertId);
   } catch (error) {
     throw new DBErrorException("createBidder", error);
   }
 };
 
-export const updateBidder = async (id, bidder) => {
+export const updateBidder = async (bidder_id, bidder) => {
   try {
     await query(
       `
-        UPDATE bidders
-        SET ?
+        UPDATE bidders SET ?
         WHERE bidder_id = ? AND deleted_at IS NULL;
         `,
-      [bidder, id]
+      [bidder, bidder_id]
     );
-    return { bidder_id: id, ...bidder };
+    return await getBidder(bidder_id);
   } catch (error) {
     throw new DBErrorException("updateBidder", error);
   }

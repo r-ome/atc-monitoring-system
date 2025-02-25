@@ -10,6 +10,7 @@ import {
 import { formatNumberPadding } from "../utils/index.js";
 import {
   INVENTORIES_401,
+  INVENTORIES_402,
   INVENTORIES_403,
   INVENTORIES_501,
   INVENTORIES_503,
@@ -94,14 +95,18 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const inventory = await createContainerInventory(container_id, {
-      ...body,
-      description: body.description.toUpperCase(),
-      barcode_number:
-        container.barcode + "-" + formatNumberPadding(body.barcode),
-      // barcode_number: sanitizeBarcode(body.barcode),
-      control_number: formatNumberPadding(body.control_number, 4),
-    });
+    const containerInventories = await getContainerInventories(container_id);
+    const doesExist = containerInventories.find(
+      (item) => item.barcode === body.barcode
+    );
+    if (doesExist) {
+      return renderHttpError(res, {
+        log: `Inventory with barcode ${body.barcode} already exists!`,
+        error: INVENTORIES_402,
+      });
+    }
+
+    const inventory = await createContainerInventory(container_id, body);
     return res.status(200).json({ data: inventory });
   } catch (error) {
     return renderHttpError(res, {

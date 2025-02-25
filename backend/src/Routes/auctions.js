@@ -27,6 +27,7 @@ import {
   bulkCreateContainerInventory,
   bulkCreateAuctionInventories,
   checkDuplicateInventory,
+  getContainerInventories,
 } from "../services/inventories.js";
 import { getBarcodesFromContainers } from "../services/containers.js";
 import {
@@ -35,9 +36,11 @@ import {
   AUCTIONS_403,
   AUCTIONS_501,
   AUCTIONS_503,
+  BIDDERS_403,
   renderHttpError,
   INVALID_ROW,
   VALID_ROW,
+  BIDDERS_402,
 } from "./error_infos.js";
 import {
   formatNumberPadding,
@@ -237,7 +240,9 @@ router.post("/:auction_id/encode", uploadMulterMiddleware, async (req, res) => {
       // validate if bidders in sheet is registered
       // get registered bidders in the auction
 
-      const registered_bidders = bidders.map((bidder) => bidder.bidder_number);
+      const registered_bidders = bidders
+        .filter((bidder) => !bidder.remarks)
+        .map((bidder) => bidder.bidder_number);
 
       // get bidders in sheet/manifest
       const sheet_bidders = [...new Set(sheet_data.map((item) => item.BIDDER))];
@@ -531,6 +536,7 @@ router.post(
           error: AUCTIONS_403,
         });
       }
+
       if (inventory.auction_status === AUCTION_STATUS.CANCELLED) {
         return renderHttpError(res, {
           log: `Auction Item with ID:${auction_inventory_id} is already CANCELLED`,
@@ -564,6 +570,17 @@ router.post(
     }
   }
 );
+
+router.post("/:auction_id/void-item/:auction_inventory_id", (req, res) => {
+  try {
+    const { auction_id, auction_inventory_id } = req.params;
+  } catch (error) {
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? AUCTIONS_501 : AUCTIONS_503,
+    });
+  }
+});
 
 // REASSIGN ITEM FROM ONE BIDDER TO ANOTHER BIDDER
 router.post(
@@ -723,29 +740,47 @@ router.post("/:auction_id/add-on", async (req, res) => {
       });
     }
 
-    let registered_bidders = await getRegisteredBidders(auction_id);
-    registered_bidders = registered_bidders.bidders.map(
-      (item) => item.bidder_id
+    const registered_bidders = await getRegisteredBidders(auction_id);
+    const registered_bidder = registered_bidders.bidders.find(
+      (item) => item.bidder_id === parseInt(body.bidder_id) && !item.remarks
     );
 
-    if (!registered_bidders.includes(parseInt(body.bidder, 10))) {
+    if (!registered_bidder) {
       return renderHttpError(res, {
         log: `Bidder with ID: ${body.bidder} is not registered in auction`,
-        error: AUCTIONS_403,
+        error: BIDDERS_403,
       });
     }
+
     let container_barcodes = await getBarcodesFromContainers();
-    container_barcodes = container_barcodes.map((item) => item.barcode);
     let item_container_barcode = body.barcode.split("-");
     item_container_barcode =
       item_container_barcode.length === 3
         ? item_container_barcode.slice(0, -1).join("-")
         : body.barcode;
+    const container = container_barcodes.find(
+      (container) => container.barcode === item_container_barcode
+    );
 
-    if (!container_barcodes.includes(item_container_barcode)) {
+    if (!container) {
       return renderHttpError(res, {
         log: `Container with Barcode:${item_container_barcode} does not exist. Please create container first!`,
         error: AUCTIONS_403,
+      });
+    }
+
+    // check if rebid | unsold
+    const container_inventories = await getContainerInventories(
+      container.container_id
+    );
+    const inventory = container_inventories.find(
+      (inventory) =>
+        inventory.barcode === body.barcode && inventory.status === "SOLD"
+    );
+    if (inventory) {
+      return renderHttpError(res, {
+        log: `Inventory with barcode:${inventory.barcode} already in SOLD`,
+        error: AUCTIONS_402,
       });
     }
 
@@ -759,4 +794,5 @@ router.post("/:auction_id/add-on", async (req, res) => {
     });
   }
 });
+
 export default router;

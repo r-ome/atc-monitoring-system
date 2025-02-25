@@ -1,0 +1,8 @@
+changeLogFile=atc_monitoring_system.xml
+liquibase.command.url=jdbc:mysql://q3vtafztappqbpzn.cbetxkdyhwsb.us-east-1.rds.amazonaws.com/vrjr8a5l8ppuuh1l
+liquibase.command.username: gs9ral6pkznnm8oe
+liquibase.command.password: vqy16e36yn60r7f4 
+liquibase.command.referenceUrl: jdbc:mysql://q3vtafztappqbpzn.cbetxkdyhwsb.us-east-1.rds.amazonaws.com/vrjr8a5l8ppuuh1l
+liquibase.command.referenceUsername: gs9ral6pkznnm8oe
+liquibase.command.referencePassword: vqy16e36yn60r7f4
+liquibase.command.classpath: ./lib/mysql-connector-j-9.0.0

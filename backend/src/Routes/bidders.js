@@ -19,8 +19,9 @@ import {
   renderHttpError,
   BIDDERS_501,
   BIDDERS_503,
-  BIDDERS_402,
   BIDDERS_401,
+  BIDDERS_402,
+  BIDDERS_403,
   BIDDER_REQUIREMENT_401,
   BIDDER_REQUIREMENT_501,
   BIDDER_REQUIREMENT_503,
@@ -96,6 +97,7 @@ router.post("/", async (req, res) => {
       status: Joi.string().required(),
       registration_fee: Joi.number().required(),
       service_charge: Joi.number().required(),
+      registered_at: Joi.string().required(),
     });
 
     const { error } = schema.validate(body);
@@ -124,8 +126,7 @@ router.post("/", async (req, res) => {
         error: BIDDERS_402,
       });
     }
-    const response = await createBidder(body);
-    const bidder = await getBidder(response.insertId);
+    const bidder = await createBidder(body);
     return res.status(200).json({ data: bidder });
   } catch (error) {
     return renderHttpError(res, {
@@ -135,64 +136,55 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:bidder_id", async (req, res) => {
   try {
-    const bidderExists = await getBidder(req.params.id);
-    if (!bidderExists) {
-      res.status(404).json({ status: "fail", message: "Bidder not found" });
+    const { bidder_id } = req.params;
+    const { body } = req;
+
+    const doesExists = await getBidder(bidder_id);
+    if (!doesExists) {
+      return renderHttpError(res, {
+        log: `Bidder with ID ${bidder_id} does not exist!`,
+        error: BIDDERS_403,
+      });
     }
+
     const schema = Joi.object({
-      bidder_number: Joi.number()
-        .required()
-        .messages({ "number.base": "Bidder Number is required" }),
       first_name: Joi.string()
-        .pattern(/^[a-zA-Z\- ]+$/)
-        .min(3)
+        .pattern(/^[a-zA-Z\-ñÑ ]+$/)
         .max(255)
-        .required()
-        .messages({
-          "string.pattern.base": "Invalid characters",
-          "string.empty": "Supplier Name is required",
-          "string.min": "Must be at least 3 characters ",
-        }),
+        .required(),
       middle_name: Joi.string()
-        .pattern(/^[a-zA-Z\- ]+$/)
+        .pattern(/^[a-zA-Z\-ñÑ ]+$/)
         .allow(""),
       last_name: Joi.string()
-        .pattern(/^[a-zA-Z\- ]+$/)
-        .min(3)
+        .pattern(/^[a-zA-Z\-ñÑ]+$/)
         .max(255)
-        .required()
-        .messages({
-          "string.pattern.base": "Invalid characters",
-          "string.empty": "Supplier Name is required",
-          "string.min": "Must be at least 3 characters ",
-        }),
-      old_number: Joi.number().valid(""),
+        .required(),
+      birthdate: Joi.string().required(),
+      service_charge: Joi.number().required(),
+      registration_fee: Joi.number().required(),
+      contact_number: Joi.string().required(),
+      status: Joi.string().required(),
+      remarks: Joi.string(),
     });
 
-    const { error } = schema.validate(req.body);
+    const { error } = schema.validate(body);
     if (error) {
-      const errorDetails = error.details.map((err) => {
-        return {
-          field: err.context.key,
-          message: err.message,
-        };
-      });
+      const errorDetails = error.details.map((err) => ({
+        field: err.context.key,
+        message: err.message,
+      }));
 
-      logger.error(JSON.stringify(errorDetails, null, 2));
-      return res.status(400).json({
-        status: "fail",
-        code: 400,
-        errors: errorDetails,
-      });
+      return renderHttpError(res, { log: errorDetails, error: BIDDERS_401 });
     }
-
-    const bidder = await updateBidder(req.params.id, req.body);
-    res.status(200).json({ status: "success", data: bidder });
+    const bidder = await updateBidder(bidder_id, body);
+    return res.status(200).json({ data: bidder });
   } catch (error) {
-    logger.error(error);
-    res.status(500).json({ status: "fail", error });
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION] ? BIDDERS_501 : BIDDERS_503,
+    });
   }
 });
 

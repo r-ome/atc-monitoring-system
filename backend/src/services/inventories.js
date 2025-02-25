@@ -1,5 +1,5 @@
 import { query, DBErrorException } from "./index.js";
-import { logger } from "../logger.js";
+import { AUCTION_STATUS, INVENTORY_STATUS } from "../Routes/constants.js";
 
 export const getContainerInventories = async (container_id) => {
   try {
@@ -12,10 +12,11 @@ export const getContainerInventories = async (container_id) => {
           control_number,
           url,
           status,
-          DATE_FORMAT(created_at, '%b %d, %Y %h:%i%p') AS created_at,
-          DATE_FORMAT(updated_at, '%b %d, %Y %h:%i%p') as updated_at
+          created_at,
+          updated_at
         FROM inventories
-        WHERE container_id = ?;
+        WHERE container_id = ?
+        ORDER BY barcode;
       `,
       [container_id]
     );
@@ -35,7 +36,7 @@ export const createContainerInventory = async (container_id, inventory) => {
         `,
       [
         container_id,
-        inventory.barcode_number,
+        inventory.barcode,
         inventory.description,
         inventory.control_number,
         inventory.url,
@@ -234,7 +235,7 @@ export const bulkCreateAuctionInventories = async (auctions_inventories) => {
     const formatted_auctions_inventories = auctions_inventories.map((item) => [
       item.auction_bidders_id,
       item.inventory_id,
-      "UNPAID",
+      AUCTION_STATUS.UNPAID,
       parseInt(item.PRICE),
       item.QTY,
       item.MANIFEST,
@@ -281,7 +282,7 @@ export const bulkCreateAuctionInventories = async (auctions_inventories) => {
     );
 
     await query(
-      `UPDATE inventories SET status = "SOLD" WHERE inventory_id in (?)`,
+      `UPDATE inventories SET status = "${INVENTORY_STATUS.SOLD}" WHERE inventory_id in (?)`,
       [inventory_ids]
     );
 

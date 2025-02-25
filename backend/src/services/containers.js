@@ -1,5 +1,6 @@
 import { query, DBErrorException } from "./index.js";
 import { formatNumberPadding, formatToReadableDate } from "../utils/index.js";
+import { INVENTORY_STATUS } from "../Routes/constants.js";
 
 export const getBarcodesFromContainers = async () => {
   try {
@@ -19,35 +20,32 @@ export const getContainer = async (container_id) => {
             c.container_id,
             c.barcode,
             JSON_OBJECT(
-              'id', s.supplier_id,
+              'supplier_id', s.supplier_id,
               'name', s.name,
               'code', s.supplier_code
             ) AS supplier,
-            JSON_OBJECT(
-              'id', c.branch_id,
-              'name', b.name
-            ) AS branch,
-            SUM(CASE WHEN i.status = "SOLD" THEN i.inventory_id END) AS total_sold_item_price,
+            SUM(CASE WHEN i.status = "${INVENTORY_STATUS.SOLD}" THEN ai.price END) AS total_sold_item_price,
+            COUNT(CASE WHEN i.status = "${INVENTORY_STATUS.SOLD}" THEN 1 END) AS sold_items,
             c.container_num,
             c.bill_of_lading_number,
             c.port_of_landing,
             c.carrier,
             c.vessel,
             c.num_of_items,
-            DATE_FORMAT(c.departure_date_from_japan, '%b %d, %Y') AS departure_date_from_japan,
-            DATE_FORMAT(c.eta_to_ph, '%b %d, %Y') AS eta_to_ph,
-            DATE_FORMAT(c.arrival_date_warehouse_ph, '%b %d, %Y') AS arrival_date_warehouse_ph,
-            DATE_FORMAT(c.sorting_date, '%b %d, %Y') AS sorting_date,
-            DATE_FORMAT(c.auction_date, '%b %d, %Y') AS auction_date,
-            DATE_FORMAT(c.payment_date, '%b %d, %Y') AS payment_date,
-            DATE_FORMAT(c.telegraphic_transferred, '%b %d, %Y') AS telegraphic_transferred,
-            DATE_FORMAT(c.vanning_date, '%b %d, %Y') AS vanning_date,
-            DATE_FORMAT(c.devanning_date, '%b %d, %Y') AS devanning_date,
+            c.departure_date_from_japan,
+            c.eta_to_ph,
+            c.arrival_date_warehouse_ph,
+            c.sorting_date,
+            c.auction_date,
+            c.payment_date,
+            c.telegraphic_transferred,
+            c.vanning_date,
+            c.devanning_date,
             c.invoice_num,
             c.gross_weight,
             c.auction_or_sell,
-            DATE_FORMAT(c.created_at, '%b %d, %Y') AS created_at,
-            DATE_FORMAT(c.updated_at, '%b %d, %Y') AS updated_at
+            c.created_at,
+            c.updated_at
           FROM containers c
           LEFT JOIN suppliers s ON s.supplier_id = c.supplier_id
           LEFT JOIN branches b ON b.branch_id = c.branch_id
@@ -83,13 +81,18 @@ export const getContainersBySupplier = async (supplier_id) => {
     return await query(
       `
         SELECT
-          container_id,
-          barcode,
-          container_num,
-          num_of_items
-        FROM containers
+          c.container_id,
+          c.barcode,
+          c.container_num,
+          c.num_of_items,
+          JSON_OBJECT(
+            'branch_id', b.branch_id,
+            'name', b.name
+          ) AS branch
+        FROM containers c
+        LEFT JOIN branches b ON b.branch_id = c.branch_id
         WHERE supplier_id = ?
-        AND deleted_at IS NULL;
+        AND c.deleted_at IS NULL;
       `,
       [supplier_id]
     );

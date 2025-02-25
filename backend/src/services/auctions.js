@@ -1,5 +1,6 @@
 import {
   AUCTION_STATUS,
+  INVENTORY_STATUS,
   PAYMENT_PURPOSE,
   PAYMENT_TYPE,
 } from "../Routes/constants.js";
@@ -13,7 +14,8 @@ export const getAuctionDetails = async (auction_id) => {
         SELECT
           a.auction_id,
           DATE_FORMAT(a.created_at, '%M %d, %Y %W') AS auction_date,
-          COUNT(DISTINCT ab.auction_bidders_id) AS number_of_bidders,
+          COUNT(DISTINCT CASE WHEN ab.remarks is null THEN ab.auction_bidders_id END) AS number_of_bidders,
+          COUNT(DISTINCT CASE WHEN ab.balance > 0 THEN ab.auction_bidders_id END) AS number_of_unpaid_bidders,
           COUNT(ai.auction_inventory_id) AS total_items,
           (
             SELECT SUM(registration_fee)
@@ -22,7 +24,7 @@ export const getAuctionDetails = async (auction_id) => {
           ) AS total_registration_fee,
           IF(SUM(ai.price) IS null,
             0,
-            SUM(CASE WHEN ai.status != "CANCELLED" THEN ai.price END)
+            SUM(CASE WHEN ai.status != "${AUCTION_STATUS.CANCELLED}" THEN ai.price END)
           ) AS total_items_price
         FROM auctions a
         LEFT JOIN auctions_bidders ab ON ab.auction_id = a.auction_id
@@ -36,6 +38,7 @@ export const getAuctionDetails = async (auction_id) => {
     );
     return auction;
   } catch (error) {
+    console.error(error);
     throw new DBErrorException("getAuctionDetails", error);
   }
 };
@@ -47,7 +50,7 @@ export const getAuctions = async () => {
         SELECT
           a.auction_id,
           DATE_FORMAT(a.created_at, '%M %d, %Y, %W') AS auction_date,
-          COUNT(DISTINCT ab.auction_bidders_id) AS total_bidders,
+          COUNT(DISTINCT ab.auction_bidders_id) AS number_of_bidders,
           COUNT(ai.auction_inventory_id) AS total_items
         FROM auctions a
         LEFT JOIN auctions_bidders ab ON ab.auction_id = a.auction_id
@@ -261,7 +264,8 @@ export const getRegisteredBidders = async (auction_id) => {
                       'service_charge', ab.service_charge,
                       'registration_fee', ab.registration_fee,
                       'total_items', COALESCE(ai_counts.total_items, 0),
-                      'balance',  ab.balance
+                      'balance',  ab.balance,
+                      'remarks', ab.remarks
                   )
               )
           ) AS bidders
@@ -308,10 +312,10 @@ export const getBidderAuctionProfile = async (auction_id, bidder_id) => {
           ab.registration_fee,
           IF(SUM(ai.price) = 0,
             0,
-            SUM(CASE WHEN ai.status != "CANCELLED" THEN ai.price END)
+            SUM(CASE WHEN ai.status != "${AUCTION_STATUS.CANCELLED}" THEN ai.price END)
           ) AS total_item_price,
-          SUM(CASE WHEN ai.status = "UNPAID" THEN 1 ELSE 0 END) AS total_unpaid_items,
-          SUM(CASE WHEN ai.status = "UNPAID" THEN ai.price ELSE 0 END) AS total_unpaid_items_price,
+          SUM(CASE WHEN ai.status = "${AUCTION_STATUS.UNPAID}" THEN 1 ELSE 0 END) AS total_unpaid_items,
+          SUM(CASE WHEN ai.status = "${AUCTION_STATUS.UNPAID}" THEN ai.price ELSE 0 END) AS total_unpaid_items_price,
           ab.balance,
           IF(COUNT(ai.auction_inventory_id) = 0,
             JSON_ARRAY(),
@@ -342,6 +346,7 @@ export const getBidderAuctionProfile = async (auction_id, bidder_id) => {
 
     return result;
   } catch (error) {
+    console.log(error);
     throw new DBErrorException("getBidderItems", error);
   }
 };
@@ -394,7 +399,7 @@ export const cancelItem = async (auction_id, auction_inventory_id, reason) => {
           LEFT JOIN auctions_bidders ab ON ab.auction_bidders_id = ai.auction_bidders_id
           LEFT JOIN payments p ON p.payment_id = ai.payment_id
           WHERE ab.auction_id = ? AND ai.auction_inventory_id = ?
-          AND ai.status IN ("PAID", "UNPAID");
+          AND ai.status IN ("${AUCTION_STATUS.PAID}", "${AUCTION_STATUS.UNPAID}");
         `,
       [auction_id, auction_inventory_id]
     );
@@ -425,14 +430,14 @@ export const cancelItem = async (auction_id, auction_inventory_id, reason) => {
       `,
       [
         auction_inventory.auction_inventory_id,
-        "CANCELLED",
+        AUCTION_STATUS.CANCELLED,
         reason ? reason : "NO REASON GIVEN",
       ]
     );
 
     // update inventory status from SOLD to REBID
     await query(
-      `UPDATE inventories SET status = "REBID" WHERE inventory_id = ?`,
+      `UPDATE inventories SET status = "${INVENTORY_STATUS.REBID}" WHERE inventory_id = ?`,
       [auction_inventory.inventory_id]
     );
 
@@ -454,7 +459,7 @@ export const cancelItem = async (auction_id, auction_inventory_id, reason) => {
       await query(
         `
           UPDATE auctions_inventories
-          SET status = "CANCELLED", payment_id = ?
+          SET status = "${AUCTION_STATUS.CANCELLED}", payment_id = ?
           WHERE auction_inventory_id = ?
         `,
         [payment.insertId, auction_inventory.auction_inventory_id]
@@ -463,7 +468,7 @@ export const cancelItem = async (auction_id, auction_inventory_id, reason) => {
       await query(
         `
           UPDATE auctions_inventories
-          SET status = "CANCELLED"
+          SET status = "${AUCTION_STATUS.CANCELLED}"
           WHERE auction_inventory_id = ?
         `,
         [auction_inventory.auction_inventory_id]
@@ -535,7 +540,7 @@ export const reassignAuctionItem = async (auction_inventory_id, new_bidder) => {
     await query(
       `
         UPDATE auctions_inventories
-        SET auction_bidders_id = ?, status = "UNPAID"
+        SET auction_bidders_id = ?, status = "${AUCTION_STATUS.UNPAID}"
         WHERE auction_inventory_id = ?
       `,
       [new_bidder.auction_bidders_id, auction_inventory.auction_inventory_id]
@@ -545,7 +550,7 @@ export const reassignAuctionItem = async (auction_inventory_id, new_bidder) => {
     await query(
       `
         UPDATE inventories
-        SET status = "SOLD"
+        SET status = "${INVENTORY_STATUS.SOLD}"
         WHERE inventory_id = ?
       `,
       [auction_inventory.inventory_id]
@@ -708,13 +713,10 @@ export const createAuctionInventory = async (auction_id, body) => {
       [auction_id, body.bidder]
     );
 
-    // if inventory exists
+    // if inventory already exists
     let [inventory] = await query(
       `
-        SELECT
-          inventory_id,
-          barcode,
-          control_number
+        SELECT inventory_id, barcode, control_number
         FROM inventories
         WHERE barcode = ? AND status in ("UNSOLD", "REBID")
       `,
@@ -747,7 +749,7 @@ export const createAuctionInventory = async (auction_id, body) => {
       await query(
         `
           UPDATE inventories
-          SET status = "SOLD"
+          SET status = "${INVENTORY_STATUS.SOLD}"
           WHERE inventory_id = ?
         `,
         [inventory.inventory_id]
@@ -795,7 +797,7 @@ export const createAuctionInventory = async (auction_id, body) => {
       [
         auction_bidder.auction_bidders_id,
         inventory.insertId ? inventory.insertId : inventory.inventory_id,
-        "UNPAID",
+        AUCTION_STATUS.UNPAID,
         body.price,
         body.qty,
         "ADD_ON",

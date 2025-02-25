@@ -34,7 +34,8 @@ app.use(morganMiddleware);
 
 app.use(
   cors({
-    origin: "https://atc-monitoring-system.netlify.app",
+    origin: "http://localhost:3000",
+    // origin: "https://atc-monitoring-system-5b87daf27294.herokuapp.com/"
     methods: "GET,POST,PUT,DELETE",
     allowedHeaders: "Content-Type,Authorization,Cache-Control,Pragma,Expires",
   })
@@ -101,7 +102,7 @@ app.use((req, res, next) => {
   }
 });
 
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 3001;
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });

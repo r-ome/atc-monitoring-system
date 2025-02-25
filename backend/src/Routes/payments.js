@@ -6,10 +6,13 @@ import {
   getAuctionPayments,
   handleBidderPullout,
   getBidderAuctionTransactions,
+  refundRegistrationFee,
+  settlePartialPayment,
 } from "../services/payments.js";
 import {
   renderHttpError,
   AUCTION_PAYMENTS_401,
+  AUCTION_PAYMENTS_402,
   AUCTION_PAYMENTS_501,
   AUCTION_PAYMENTS_503,
   AUCTION_PAYMENTS_403,
@@ -17,7 +20,7 @@ import {
 import { DB_ERROR_EXCEPTION } from "../services/index.js";
 
 const router = express.Router({ mergeParams: true });
-// THIS ROUTE IS /auctions/{auction_id}/payments
+// THIS ROUTE IS /auctions/:auction_id/payments
 
 router.get("/:payment_id", async (req, res) => {
   try {
@@ -71,6 +74,7 @@ router.get("/", async (req, res) => {
   }
 });
 
+// HANDLE PULL OUT PAYMENT
 router.post("/pull-out", async (req, res) => {
   try {
     const schema = Joi.object({
@@ -81,6 +85,7 @@ router.post("/pull-out", async (req, res) => {
       auction_inventory_ids: Joi.array()
         .items(Joi.number().required())
         .required(),
+      amount_paid: Joi.number().allow(null),
     });
 
     const { body } = req;
@@ -99,10 +104,12 @@ router.post("/pull-out", async (req, res) => {
         error: AUCTION_PAYMENTS_401,
       });
     }
-    const { auction_bidders_id, auction_inventory_ids } = body;
+
+    const { auction_bidders_id, auction_inventory_ids, amount_paid } = body;
     const payment = await handleBidderPullout(
       auction_bidders_id,
-      auction_inventory_ids
+      auction_inventory_ids,
+      amount_paid
     );
     return res.status(200).json({ data: payment });
   } catch (error) {
@@ -115,6 +122,7 @@ router.post("/pull-out", async (req, res) => {
   }
 });
 
+// GET BIDDER-AUCTION TRANSACTIONS
 router.get("/:auction_bidders_id/transactions", async (req, res) => {
   try {
     const { auction_bidders_id } = req.params;
@@ -123,6 +131,44 @@ router.get("/:auction_bidders_id/transactions", async (req, res) => {
     return res.status(200).json({
       data: transactions,
     });
+  } catch (error) {
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION]
+        ? AUCTION_PAYMENTS_501
+        : AUCTION_PAYMENTS_503,
+    });
+  }
+});
+
+// REFUND REGISTRATION_FEE
+router.post("/:auction_bidders_id/refund-registration", async (req, res) => {
+  try {
+    const { auction_bidders_id } = req.params;
+    const result = await refundRegistrationFee(auction_bidders_id);
+    if (!result) {
+      return renderHttpError(res, {
+        log: "Bidder already refunded his/her registration fee!",
+        error: AUCTION_PAYMENTS_402,
+      });
+    }
+
+    return res.status(200).json({ data: result });
+  } catch (error) {
+    return renderHttpError(res, {
+      log: error,
+      error: error[DB_ERROR_EXCEPTION]
+        ? AUCTION_PAYMENTS_501
+        : AUCTION_PAYMENTS_503,
+    });
+  }
+});
+
+router.post("/:payment_id/settle-partial-payment", async (req, res) => {
+  try {
+    const { payment_id } = req.params;
+    const result = await settlePartialPayment(payment_id);
+    return res.status(200).json({ data: result });
   } catch (error) {
     return renderHttpError(res, {
       log: error,

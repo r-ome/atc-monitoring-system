@@ -79,12 +79,14 @@ export const createBranch = async ({ name }) => {
   }
 };
 
-export const updateBranch = async (id, branch) => {
+export const updateBranch = async (branch_id, name) => {
   try {
-    return await query(
+    await query(
       `UPDATE branches SET name = ? WHERE branch_id = ? AND deleted_at IS NULL; `,
-      [branch.name, id]
+      [name, branch_id]
     );
+
+    return await getBranch(branch_id);
   } catch (error) {
     throw new DBErrorException("updateBranch", error);
   }
