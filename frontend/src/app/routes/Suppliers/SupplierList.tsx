@@ -81,6 +81,12 @@ const Suppliers = () => {
       <Table
         rowKey={(record) => record.supplier_id}
         dataSource={searchValue ? dataSource : suppliers}
+        className="h-[600px]"
+        pagination={{
+          position: ["topRight"],
+          showTotal: (total, range) =>
+            `${range[0]}-${range[1]} of ${total} items`,
+        }}
         columns={[
           {
             title: "Name",

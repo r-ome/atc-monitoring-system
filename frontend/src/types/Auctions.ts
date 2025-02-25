@@ -15,6 +15,7 @@ export type BaseAuction = {
 
 export type AuctionDetails = BaseAuction & {
   total_items: number;
+  number_of_unpaid_bidders: number;
   total_items_price: string;
   total_registration_fee: string;
 };
@@ -100,14 +101,14 @@ export type BidderAuctionProfile = {
   total_item_price: string;
   total_unpaid_items: string; // supposed to be number
   total_unpaid_items_price: string;
-  balance: string;
+  balance: number;
   items: BidderAuctionItem[];
 };
 
 export type RegisterBidderPayload = {
   bidder_id: number;
-  registration_fee: string;
-  service_charge: string;
+  registration_fee: number;
+  service_charge: number;
 };
 
 export type RegisterBidderResponse = {
@@ -119,6 +120,7 @@ export type RegisterBidderResponse = {
   total_items: number;
   registration_fee: string;
   auction_bidders_id: number;
+  remarks?: string;
 };
 
 type AuctionItemHistory = {

@@ -1,21 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { formatNumberToCurrency } from "@lib/utils";
 import { usePayments, useAuction } from "@context";
-import { BidderAuctionItem, BidderAuctionProfile } from "@types";
-import {
-  Button,
-  Descriptions,
-  Modal,
-  Skeleton,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-  Typography,
-} from "antd";
+import { BidderAuctionItem } from "@types";
+import { Button, Skeleton, Space, Table, Tag, Tooltip } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { usePageLayoutProps } from "@layouts/PageLayout";
+import PullOutModal from "./PullOutModal";
 
 const BidderItems: React.FC = () => {
   const params = useParams();
@@ -24,25 +14,11 @@ const BidderItems: React.FC = () => {
   const {
     payment: SuccessResponse,
     isLoading: isPayingBidderItems,
-    payBidderItems,
     error: ErrorResponse,
     resetPaymentState,
   } = usePayments();
   const { bidder, isLoading: isFetchingBidderItems } = useAuction();
   const { openNotification } = usePageLayoutProps();
-
-  const handlePullOutItems = async () => {
-    const { auction_id: auctionId } = params;
-    if (bidder) {
-      const { auction_bidders_id: auctionBiddersId } = bidder;
-      const inventoryIds = bidder?.items
-        .filter((item: any) => item.status === "UNPAID")
-        .map((item: any) => item.auction_inventory_id);
-      if (auctionId) {
-        await payBidderItems(auctionId, auctionBiddersId, inventoryIds);
-      }
-    }
-  };
 
   useEffect(() => {
     if (ErrorResponse && !isPayingBidderItems) {
@@ -64,44 +40,6 @@ const BidderItems: React.FC = () => {
   ]);
 
   if (!bidder) return <Skeleton />;
-
-  const renderDescriptionItems = (bidder: BidderAuctionProfile) => {
-    const items = [
-      {
-        label: "Total Number of Items",
-        children: `${bidder.total_unpaid_items} items`,
-        span: 3,
-      },
-      {
-        label: "Total Item Price",
-        children: formatNumberToCurrency(bidder.total_unpaid_items_price),
-        span: 3,
-      },
-      {
-        label: "Registration Fee",
-        children: formatNumberToCurrency(bidder.registration_fee),
-        span: 3,
-      },
-      {
-        label: "Service Charge",
-        children: bidder.service_charge,
-        span: 3,
-      },
-      {
-        label: "Total",
-        children: (
-          <Typography.Title className="font-bold" level={5}>
-            {formatNumberToCurrency(bidder.balance)}
-          </Typography.Title>
-        ),
-        span: 3,
-      },
-    ];
-
-    return bidder.already_consumed
-      ? [...items.slice(0, 2), ...items.slice(2 + 1)]
-      : items;
-  };
 
   return (
     <>
@@ -131,48 +69,11 @@ const BidderItems: React.FC = () => {
         </div>
       </div>
 
-      <Modal
+      <PullOutModal
+        bidder={bidder}
         open={isPullOut}
         onCancel={() => setIsPullOut(false)}
-        onOk={handlePullOutItems}
-        confirmLoading={isPayingBidderItems}
-        okText="CONFIRM PULLOUT"
-        title={<Typography.Title level={3}>COMPUTATION</Typography.Title>}
-        width={1000}
-        className="w-full"
-      >
-        <div className="mb-4 bg-gray-100 p-2 rounded">
-          <pre className="text-sm">
-            Total = Total Item Price + (Total Item Price x Service Charge){" "}
-            {bidder.already_consumed ? "" : "- Registration Fee"}
-          </pre>
-          <pre className="text-sm my-2">
-            Total = {formatNumberToCurrency(bidder.total_unpaid_items_price)} +
-            ({formatNumberToCurrency(bidder.total_unpaid_items_price)} x{" "}
-            {bidder.service_charge}){" "}
-            {bidder.already_consumed ? "" : `- ${bidder.registration_fee}`}
-          </pre>
-          <pre className="text-sm my-2">
-            Total = {formatNumberToCurrency(bidder.total_unpaid_items_price)} +{" "}
-            {formatNumberToCurrency(
-              (parseInt(bidder.total_unpaid_items_price, 10) *
-                parseInt(bidder.service_charge, 10)) /
-                100
-            )}{" "}
-            {bidder.already_consumed ? "" : `- ${bidder.registration_fee}`}
-          </pre>
-          <pre className="text-sm">
-            Total = {formatNumberToCurrency(bidder?.balance)}
-          </pre>
-        </div>
-
-        <Typography.Title level={3}>Breakdown</Typography.Title>
-        <Descriptions
-          bordered
-          size="default"
-          items={renderDescriptionItems(bidder)}
-        ></Descriptions>
-      </Modal>
+      />
 
       <Table
         rowKey={(rowKey) => rowKey.auction_inventory_id}
@@ -182,15 +83,22 @@ const BidderItems: React.FC = () => {
           {
             title: "Status",
             dataIndex: "status",
-            render: (item) => (
-              <Tag color={item === "PAID" ? "green" : "red"} bordered={false}>
-                {item}
-              </Tag>
-            ),
+            width: "10%",
+            render: (item) => {
+              let color = "green";
+              if (item === "PAID") color = "green";
+              if (item === "PARTIAL") color = "orange";
+              if (["CANCELLED", "UNPAID"].includes(item)) color = "red";
+              return (
+                <Tag color={color} bordered={false}>
+                  {item}
+                </Tag>
+              );
+            },
           },
-          { title: "Barcode", dataIndex: "barcode" },
-          { title: "Control", dataIndex: "control" },
-          { title: "Description", dataIndex: "description" },
+          { title: "Barcode", dataIndex: "barcode", width: "15%" },
+          { title: "Control", dataIndex: "control", width: "15%" },
+          { title: "Description", dataIndex: "description", width: "20%" },
           { title: "QTY", dataIndex: "qty" },
           { title: "Price", dataIndex: "price" },
           {

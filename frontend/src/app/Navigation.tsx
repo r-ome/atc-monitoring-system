@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { Menu } from "antd";
+import ATCLogo from "@assets/atc_receipt_logo.png";
 
 const lists = [
   {
@@ -29,44 +30,30 @@ const lists = [
   },
 ].map((item) => ({
   ...item,
-  label: <NavLink to={`${item.path}`}>{item.label}</NavLink>,
+  label: (
+    <NavLink
+      to={`${item.path}`}
+      className={`
+    text-3xl`}
+    >
+      {item.label}
+    </NavLink>
+  ),
 }));
 
 const Navigation = () => {
   return (
-    <div className="flex flex-shrink-0 flex-col mr-2 h-screen w-[260px]">
-      {/* <div className="bg-[#F9FBFC] h-36 p-6 flex justify-center items-center">
-        Logo and ATC name here
-      </div> */}
+    <div className="flex bg-[#F9FBFC] flex-shrink-0 flex-col mr-2 h-screen w-[300px]">
+      <div className="border-b-gray-200 p-2">
+        <img src={ATCLogo} alt="atc-logo" className="h-40 object-contain" />
+      </div>
 
       <Menu
         defaultSelectedKeys={["1"]}
-        className="w-full h-screen"
+        className="w-full h-screen flex gap-2 flex-col"
         mode="vertical"
         items={lists}
       />
-
-      {/* <ul className="flex flex-col p-4">
-        {lists.map((item) => {
-          return (
-            <li
-              key={item.name}
-              className="w-full hover:text-white hover:bg-[#4E5BA6] hover:rounded mb-2"
-            >
-              <NavLink
-                to={item.path}
-                className={({ isActive }) =>
-                  `${
-                    isActive ? "text-white bg-[#4E5BA6] w-full" : ""
-                  } w-full flex items-center h-10 rounded pl-2`
-                }
-              >
-                {item.name}
-              </NavLink>
-            </li>
-          );
-        })}
-      </ul> */}
     </div>
   );
 };

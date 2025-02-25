@@ -74,13 +74,13 @@ const CreateSupplier = () => {
 
   return (
     <Card
-      className="py-4"
+      className="py-4 w-1/2"
       title={<h1 className="text-3xl">Create Supplier</h1>}
     >
       {/* NOTE: CHECK WHETHER YOU NEED TO ADD NUM_OF_CONTAINERS */}
       <form
         id="create_bidder"
-        className="flex flex-col gap-4 w-2/4"
+        className="flex flex-col gap-4 w-full"
         onSubmit={(e) => e.preventDefault()}
       >
         <div>

@@ -7,6 +7,7 @@ import {
   Skeleton,
   Space,
   Table,
+  Tag,
   Tooltip,
   Typography,
 } from "antd";
@@ -61,6 +62,17 @@ const AuctionBidders = () => {
           {
             title: "Bidder Number",
             dataIndex: "bidder_number",
+            width: "15%",
+            render: (value, record) => {
+              return (
+                <div className="flex gap-2">
+                  {record?.remarks ? (
+                    <Tag color="red">{record?.remarks}</Tag>
+                  ) : null}
+                  {value}
+                </div>
+              );
+            },
           },
           {
             title: "Full Name",
@@ -86,7 +98,7 @@ const AuctionBidders = () => {
             render: (item) => (
               <span
                 className={`${
-                  parseInt(item, 10) < 0 ? "text-red-500" : "text-green-500"
+                  parseInt(item, 10) > 0 ? "text-red-500" : "text-green-500"
                 }`}
               >
                 {item < 0

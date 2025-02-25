@@ -1,13 +1,14 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import { RHFInput } from "@components";
-import { useInventories } from "@context";
+import { RHFInput, RHFInputNumber } from "@components";
+import { useContainers, useInventories } from "@context";
 import { CreateInventoryPayload } from "@types";
-import { Button, Card, Typography } from "antd";
+import { Button, Card, Skeleton, Typography } from "antd";
 import { usePageLayoutProps, BreadcrumbsType } from "@layouts";
-import { useSession } from "app/hooks";
-import { INVENTORIES_401, INVENTORIES_403 } from "../errors";
+import { useBreadcrumbs, useSession } from "app/hooks";
+import { INVENTORIES_401, INVENTORIES_402, INVENTORIES_403 } from "../errors";
+import { formatNumberPadding } from "@lib/utils";
 
 const CreateInventory = () => {
   const navigate = useNavigate();
@@ -20,42 +21,37 @@ const CreateInventory = () => {
     error: ErrorResponse,
     resetInventory,
   } = useInventories();
-  const { pageBreadcrumbs, openNotification, setPageBreadCrumbs } =
-    usePageLayoutProps();
-  const [breadcrumbsSession, setBreadcrumbsSession] = useSession<
-    BreadcrumbsType[]
-  >("breadcrumbs", pageBreadcrumbs);
+  const {
+    fetchContainer,
+    container,
+    error: ContainerErrorResponse,
+    isLoading: isFetchingContainer,
+  } = useContainers();
+  const { openNotification } = usePageLayoutProps();
+  const { setBreadcrumb } = useBreadcrumbs();
 
   useEffect(() => {
-    if (!breadcrumbsSession) return;
-    if (breadcrumbsSession) {
-      setPageBreadCrumbs(breadcrumbsSession);
-    }
-  }, [setPageBreadCrumbs, breadcrumbsSession]);
+    setBreadcrumb({ title: "Add Inventory", level: 4 });
+  }, [setBreadcrumb]);
 
   useEffect(() => {
-    setPageBreadCrumbs((prevBreadcrumbs) => {
-      const newBreadcrumb = {
-        title: "Add Inventory",
-        path: "inventory/create",
+    const { supplier_id: supplierId, container_id: containerId } = params;
+    if (supplierId && containerId) {
+      const fetchInitialData = async () => {
+        await fetchContainer(supplierId, containerId);
       };
-
-      const doesExist = prevBreadcrumbs.find(
-        (item) => item.title === newBreadcrumb.title
-      );
-      if (doesExist) {
-        return prevBreadcrumbs;
-      }
-
-      const updatedBreadcrumbs = [...prevBreadcrumbs, newBreadcrumb];
-      setBreadcrumbsSession(updatedBreadcrumbs);
-      return updatedBreadcrumbs;
-    });
-  }, [pageBreadcrumbs, setPageBreadCrumbs, setBreadcrumbsSession]);
+      fetchInitialData();
+    }
+  }, [fetchContainer, params]);
 
   const handleSubmitCreateInventory = methods.handleSubmit(async (data) => {
     const { supplier_id: supplierId, container_id: containerId } = params;
-    if (supplierId && containerId) {
+    if (supplierId && containerId && container) {
+      data.barcode = `${container.barcode}-${formatNumberPadding(
+        data.barcode,
+        3
+      )}`;
+      data.control_number = formatNumberPadding(data.control_number, 4);
       await createInventory(supplierId, containerId, data);
     }
   });
@@ -65,7 +61,6 @@ const CreateInventory = () => {
       if (SuccessResponse) {
         methods.reset();
         openNotification("Successfully Added Inventory!");
-        navigate(-1);
       }
 
       if (ErrorResponse) {
@@ -75,6 +70,14 @@ const CreateInventory = () => {
             "There might be problems in the server. Please contact your admin.";
         if (ErrorResponse.error === INVENTORIES_401)
           message = "Please double check your inputs!";
+        if (ErrorResponse.error === INVENTORIES_402)
+          message = `Inventory with BARCODE ${
+            container?.barcode
+          }-${formatNumberPadding(
+            methods.getValues("barcode"),
+            3
+          )} already exists!`;
+        methods.setError("barcode", { type: "string", message });
         if (ErrorResponse.error === INVENTORIES_403)
           message =
             "Container does not exist. Please check your Container Profile";
@@ -87,11 +90,14 @@ const CreateInventory = () => {
     ErrorResponse,
     SuccessResponse,
     methods,
+    container,
     isLoading,
     openNotification,
     navigate,
     resetInventory,
   ]);
+
+  if (!container) return <Skeleton />;
 
   return (
     <>
@@ -102,14 +108,13 @@ const CreateInventory = () => {
         <form id="create_inventory" className="flex flex-col gap-4 w-2/4">
           <div>
             <Typography.Title level={5}>Barcode:</Typography.Title>
-            <RHFInput
+            <RHFInputNumber
               control={methods.control}
               name="barcode"
+              prefix={`${container.barcode}-`}
               disabled={isLoading}
               placeholder="Barcode"
-              onChange={(e) =>
-                methods.setValue("barcode", e.target.value.toUpperCase())
-              }
+              controls={false}
               rules={{
                 required: "This field is required!",
                 pattern: {
@@ -142,25 +147,17 @@ const CreateInventory = () => {
 
           <div>
             <Typography.Title level={5}>Control Number:</Typography.Title>
-            <RHFInput
+            <RHFInputNumber
               control={methods.control}
               name="control_number"
               disabled={isLoading}
               placeholder="Control Number"
-              onChange={(e) =>
-                methods.setValue("control_number", e.target.value.toUpperCase())
-              }
-              rules={{
-                pattern: {
-                  value: /^[0-9]+$/,
-                  message: "Invalid characters!",
-                },
-              }}
+              controls={false}
             />
           </div>
 
           <div className="flex gap-2 w-full justify-end">
-            <Button onClick={() => navigate("/branches")} disabled={isLoading}>
+            <Button onClick={() => navigate(-1)} disabled={isLoading}>
               Cancel
             </Button>
             <Button

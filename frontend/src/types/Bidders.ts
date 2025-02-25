@@ -1,3 +1,5 @@
+export type BidderStatus = "BANNED" | "ACTIVE" | "INACTIVE";
+
 export type BaseBidder = {
   bidder_id: number;
   bidder_number: string;
@@ -5,9 +7,14 @@ export type BaseBidder = {
   middle_name?: string;
   last_name: string;
   full_name: string;
-  status: "BANNED" | "ACTIVE" | "INACTIVE";
+  status: BidderStatus;
   registration_fee: number;
-  service_charge: number | null;
+  service_charge: number;
+  has_balance?: {
+    balance: number;
+    auction_id: number;
+    auction_date: string;
+  };
   created_at: string;
   updated_at: string;
 };
@@ -33,7 +40,10 @@ export type BidderRequirementPayload = {
 };
 
 export type Bidder = BaseBidder & {
-  birthdate: string | null;
+  birthdate: string;
+  contact_number: string;
+  registered_at: string;
+  remarks: string;
   requirements: BaseBidderRequirement[];
 };
 
@@ -42,8 +52,22 @@ export type CreateBidderPayload = {
   first_name: string;
   middle_name?: string;
   last_name: string;
-  status: "ACTIVE" | "INACTIVE" | "BANNED";
+  status: BidderStatus;
   registration_fee: number;
   service_charge: number;
   birthdate: string;
+  registered_at: string;
+  contact_number: string;
+};
+
+export type UpdateBidderPayload = {
+  first_name: string;
+  middle_name?: string;
+  last_name: string;
+  status: BidderStatus;
+  registration_fee: number;
+  service_charge: number;
+  contact_number: string;
+  birthdate: any;
+  remarks?: string;
 };

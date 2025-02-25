@@ -8,7 +8,11 @@ import AuctionPayments from "./AuctionPayments";
 import Monitoring from "./Monitoring";
 import ManifestList from "./ManifestList";
 import { useBreadcrumbs } from "app/hooks";
-import { UserOutlined, ShoppingCartOutlined } from "@ant-design/icons";
+import {
+  UsergroupAddOutlined,
+  UsergroupDeleteOutlined,
+  ShoppingCartOutlined,
+} from "@ant-design/icons";
 import { formatNumberToCurrency } from "@lib/utils";
 
 const AuctionProfile = () => {
@@ -111,29 +115,39 @@ const AuctionProfile = () => {
               {
                 title: "Bidders",
                 value: `${auction.number_of_bidders} Bidders`,
-                prefix: <UserOutlined />,
+                prefix: <UsergroupAddOutlined />,
+                color: "#3f8600",
+              },
+              {
+                title: "Unpaid Bidders",
+                value: `${auction.number_of_unpaid_bidders} UNPAID Bidders`,
+                prefix: <UsergroupDeleteOutlined />,
+                color: "red",
               },
               {
                 title: "Total Items",
                 value: `${auction.total_items} Items`,
                 prefix: <ShoppingCartOutlined />,
+                color: "#3f8600",
               },
               {
-                title: "Total Sales",
+                title: "Total Sales (PHP)",
                 value: formatNumberToCurrency(auction.total_items_price),
                 prefix: null,
+                color: "#3f8600",
               },
               {
-                title: "Total Registration Fee",
+                title: "Total Registration Fee (PHP)",
                 value: formatNumberToCurrency(auction.total_registration_fee),
                 prefix: null,
+                color: "#3f8600",
               },
             ].map((item, i) => (
               <Card key={i} variant="borderless" className="flex-1">
                 <Statistic
                   title={item.title}
                   value={item.value}
-                  valueStyle={{ color: "#3f8600" }}
+                  valueStyle={{ color: item.color }}
                   prefix={item.prefix}
                 />
               </Card>

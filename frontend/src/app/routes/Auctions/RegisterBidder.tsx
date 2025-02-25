@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import moment from "moment";
 import { useParams } from "react-router-dom";
 
 import { useAuction, useBidders } from "@context";
 import { RHFInputNumber, RHFSelect } from "@components";
 import { BaseBidder, RegisterBidderPayload } from "@types";
 import { AUCTIONS_401, AUCTIONS_402, AUCTIONS_403 } from "../errors";
-import { Modal, Typography } from "antd";
+import { Modal, Tooltip, Typography } from "antd";
 import { usePageLayoutProps } from "@layouts";
+import { formatNumberToCurrency } from "@lib/utils";
 
 interface RegisterBidderProps {
   open: boolean;
@@ -20,7 +22,7 @@ const RegisterBidderModal: React.FC<RegisterBidderProps> = ({
 }) => {
   const params = useParams();
   const methods = useForm<RegisterBidderPayload>({
-    defaultValues: { service_charge: "12", registration_fee: "3000" },
+    defaultValues: { service_charge: 12, registration_fee: 3000 },
   });
   const [unregisteredBidders, setUnregisteredBidders] = useState<BaseBidder[]>(
     []
@@ -41,7 +43,9 @@ const RegisterBidderModal: React.FC<RegisterBidderProps> = ({
     methods.reset();
     onCancel();
     resetRegisteredBidder();
+    setSelectedBidder(null);
   }, [methods, onCancel, resetRegisteredBidder]);
+  const [selectedBidder, setSelectedBidder] = useState<BaseBidder | null>(null);
 
   useEffect(() => {
     if (bidders && registeredBidders?.bidders) {
@@ -101,27 +105,65 @@ const RegisterBidderModal: React.FC<RegisterBidderProps> = ({
     openNotification,
   ]);
 
+  useEffect(() => {
+    // set service charge and registration fee
+    // when bidder is selected
+    if (!selectedBidder) return;
+    methods.setValue("registration_fee", selectedBidder.registration_fee);
+    methods.setValue("service_charge", selectedBidder.service_charge);
+  }, [selectedBidder, methods]);
+
   const handleSubmitRegisterBidder = methods.handleSubmit(async (data) => {
     const { auction_id: auctionId } = params;
     if (auctionId) {
       // ORIGINAL
       // await registerBidderAtAuction(auctionId, data);
+      // MODIFIED
       const bidderIds = [
         217, 746, 741, 739, 720, 12, 579, 687, 674, 525, 513, 647, 474, 389,
         218, 187, 360, 168, 152, 205, 232, 27, 40, 43, 42, 58, 75, 166,
       ];
 
-      bidders.forEach(async (item) => {
+      unregisteredBidders.forEach(async (item) => {
         if (bidderIds.includes(item.bidder_id)) {
           await registerBidderAtAuction(auctionId, {
             bidder_id: item.bidder_id,
-            registration_fee: "3000",
-            service_charge: "12",
+            registration_fee: item.registration_fee,
+            service_charge: item.service_charge,
           });
         }
       });
     }
   });
+
+  const renderUnregisteredBiddersLabel = (bidder: BaseBidder) => {
+    if (bidder.status === "BANNED") {
+      return (
+        <span className="text-red-500">
+          {bidder.bidder_number} - {bidder.full_name} - BANNED
+        </span>
+      );
+    }
+
+    if (!!bidder.has_balance) {
+      return (
+        <Tooltip
+          placement="right"
+          title={`Bidder still has ${formatNumberToCurrency(
+            bidder.has_balance.balance
+          )} unpaid balance from ${moment(
+            bidder.has_balance.auction_date
+          ).format("MMMM DD, YYYY")} auction`}
+        >
+          <span className="text-red-500">
+            {bidder.bidder_number} - {bidder.full_name} - HAS UNPAID ITEMS
+          </span>
+        </Tooltip>
+      );
+    }
+
+    return `${bidder.bidder_number} - ${bidder.full_name}`;
+  };
 
   return (
     <Modal
@@ -136,9 +178,9 @@ const RegisterBidderModal: React.FC<RegisterBidderProps> = ({
         </div>
       }
     >
-      <form id="create_branch" className="flex flex-col gap-4 w-full">
+      <form id="register_bidder" className="flex flex-col gap-4 w-full">
         <div>
-          <Typography.Title level={5}>Branch Name:</Typography.Title>
+          <Typography.Title level={5}>Bidder:</Typography.Title>
           <RHFSelect
             showSearch
             control={methods.control}
@@ -146,43 +188,58 @@ const RegisterBidderModal: React.FC<RegisterBidderProps> = ({
             disabled={isLoading}
             placeholder="Select a Bidder"
             filterOption={(input: string, option: any) =>
-              (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+              (option?.search ?? "").toLowerCase().includes(input.toLowerCase())
             }
             options={unregisteredBidders.map((bidder) => ({
-              value: bidder?.bidder_id.toString(),
-              label: `${bidder.bidder_number} - ${bidder.full_name}`,
+              value: bidder?.bidder_id,
+              disabled: bidder.status === "BANNED" || !!bidder.has_balance,
+              search: `${bidder.bidder_number} - ${bidder.full_name} ${bidder.status}`,
+              label: renderUnregisteredBiddersLabel(bidder),
             }))}
+            onChange={(bidderId: number) => {
+              const selected = bidders.find(
+                (bidder) => bidder.bidder_id === bidderId
+              );
+              if (selected) {
+                setSelectedBidder(selected);
+              }
+              methods.setValue("bidder_id", bidderId);
+            }}
             rules={{ required: "This field is required!" }}
           />
         </div>
 
-        <div>
-          <Typography.Title level={5}>Service Charge</Typography.Title>
-          <RHFInputNumber
-            control={methods.control}
-            name="service_charge"
-            disabled={isLoading || !methods.watch("bidder_id")}
-            placeholder="Service Charge"
-            addonAfter="%"
-            rules={{
-              required: "This field is required!",
-            }}
-          />
-        </div>
+        {selectedBidder ? (
+          <div className="flex gap-4">
+            <div>
+              <Typography.Title level={5}>Service Charge</Typography.Title>
+              <RHFInputNumber
+                control={methods.control}
+                name="service_charge"
+                disabled={isLoading || !methods.watch("bidder_id")}
+                placeholder="Service Charge"
+                addonAfter="%"
+                rules={{
+                  required: "This field is required!",
+                }}
+              />
+            </div>
 
-        <div>
-          <Typography.Title level={5}>Registration Fee</Typography.Title>
-          <RHFInputNumber
-            control={methods.control}
-            name="registration_fee"
-            disabled={isLoading || !methods.watch("bidder_id")}
-            addonBefore="₱"
-            placeholder="Registration Fee"
-            rules={{
-              required: "This field is required!",
-            }}
-          />
-        </div>
+            <div>
+              <Typography.Title level={5}>Registration Fee</Typography.Title>
+              <RHFInputNumber
+                control={methods.control}
+                name="registration_fee"
+                disabled={isLoading || !methods.watch("bidder_id")}
+                addonBefore="₱"
+                placeholder="Registration Fee"
+                rules={{
+                  required: "This field is required!",
+                }}
+              />
+            </div>
+          </div>
+        ) : null}
       </form>
     </Modal>
   );

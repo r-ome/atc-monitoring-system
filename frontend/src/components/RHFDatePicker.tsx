@@ -7,6 +7,7 @@ interface RHFDatePickerProps {
   rules?: RegisterOptions;
   placeholder?: string;
   disabled?: boolean;
+  defaultValue?: string;
 }
 
 const RHFDatePicker: React.FC<RHFDatePickerProps> = ({
@@ -14,13 +15,16 @@ const RHFDatePicker: React.FC<RHFDatePickerProps> = ({
   control,
   rules,
   placeholder,
+  defaultValue,
   disabled = false,
+  ...rest
 }) => {
   return (
     <Controller
       control={control}
       name={name}
       rules={rules}
+      defaultValue={defaultValue}
       render={({ field, fieldState: { invalid, error } }) => (
         <div>
           <Controller

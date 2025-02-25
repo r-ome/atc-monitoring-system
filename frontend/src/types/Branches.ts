@@ -20,6 +20,6 @@ export type Branch = BaseBranch & {
   containers: BranchContainers[];
 };
 
-export type CreateBranchPayload = {
+export type BranchPayload = {
   name: string;
 };

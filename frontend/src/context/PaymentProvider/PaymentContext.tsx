@@ -24,13 +24,22 @@ interface PaymentContextType extends PaymentState {
   payBidderItems: (
     auctionId: string,
     auctionBiddersId: number,
-    inventoryIds: number[]
+    inventoryIds: number[],
+    amountPaid: number
   ) => Promise<void>;
   fetchBidderAuctionTransactions: (
     auctionId: string,
     auctionBidderId: number
   ) => Promise<void>;
   fetchPaymentDetails: (auctionId: string, paymentId: string) => Promise<void>;
+  refundRegistrationFee: (
+    auctionId: string | number,
+    auctionBiddersId: string | number
+  ) => Promise<void>;
+  settlePartialPayment: (
+    auctionId: string | number,
+    paymentId: string | number
+  ) => Promise<void>;
 }
 
 export type PaymentAction =
@@ -58,7 +67,19 @@ export type PaymentAction =
     }
   | { type: "FETCH_PAYMENT_DETAILS" }
   | { type: "FETCH_PAYMENT_DETAILS_SUCCESS"; payload: { data: PaymentDetails } }
-  | { type: "FETCH_PAYMENT_DETAILS_FAILED"; payload: APIError };
+  | { type: "FETCH_PAYMENT_DETAILS_FAILED"; payload: APIError }
+  | { type: "REFUND_REGISTRATION_FEE" }
+  | {
+      type: "REFUND_REGISTRATION_FEE_SUCCESS";
+      payload: { data: PaymentDetails };
+    }
+  | { type: "REFUND_REGISTRATION_FEE_FAILED"; payload: APIError }
+  | { type: "SETTLE_PARTIAL_PAYMENT" }
+  | {
+      type: "SETTLE_PARTIAL_PAYMENT_SUCCESS";
+      payload: { data: PaymentDetails };
+    }
+  | { type: "SETTLE_PARTIAL_PAYMENT_FAILED"; payload: APIError };
 
 const initialState: PaymentState = {
   payment: null,
@@ -76,6 +97,8 @@ const PaymentContext = createContext<PaymentContextType>({
   resetPaymentState: () => {},
   fetchBidderAuctionTransactions: async () => {},
   fetchPaymentDetails: async () => {},
+  refundRegistrationFee: async () => {},
+  settlePartialPayment: async () => {},
 });
 
 const paymentsReducer = (
@@ -84,9 +107,11 @@ const paymentsReducer = (
 ): PaymentState => {
   switch (action.type) {
     case PaymentActions.FETCH_PAYMENT_DETAILS:
+    case PaymentActions.REFUND_REGISTRATION_FEE:
     case PaymentActions.FETCH_AUCTION_PAYMENT:
     case PaymentActions.FETCH_BIDDER_AUCTION_TRANSACTIONS:
     case PaymentActions.BIDDER_PULLOUT_PAYMENT:
+    case PaymentActions.SETTLE_PARTIAL_PAYMENT:
       return { ...state, isLoading: true };
 
     case PaymentActions.FETCH_BIDDER_AUCTION_TRANSACTIONS_SUCCESS:
@@ -108,6 +133,9 @@ const paymentsReducer = (
         isLoading: false,
         error: undefined,
       };
+
+    case PaymentActions.SETTLE_PARTIAL_PAYMENT_SUCCESS:
+    case PaymentActions.REFUND_REGISTRATION_FEE_SUCCESS:
     case PaymentActions.FETCH_PAYMENT_DETAILS_SUCCESS:
       return {
         ...state,
@@ -117,6 +145,8 @@ const paymentsReducer = (
       };
 
     case PaymentActions.FETCH_PAYMENT_DETAILS_FAILED:
+    case PaymentActions.SETTLE_PARTIAL_PAYMENT_FAILED:
+    case PaymentActions.REFUND_REGISTRATION_FEE_FAILED:
     case PaymentActions.FETCH_BIDDER_AUCTION_TRANSACTIONS_FAILED:
     case PaymentActions.BIDDER_PULLOUT_PAYMENT_FAILED:
     case PaymentActions.FETCH_AUCTION_PAYMENT_FAILED:
@@ -153,7 +183,8 @@ export const PaymentProvider = ({
   const payBidderItems = async (
     auctionId: string,
     auctionBiddersId: number,
-    inventoryIds: number[]
+    inventoryIds: number[],
+    amountPaid: number
   ) => {
     dispatch({ type: PaymentActions.BIDDER_PULLOUT_PAYMENT });
     try {
@@ -162,6 +193,7 @@ export const PaymentProvider = ({
         {
           auction_bidders_id: auctionBiddersId,
           auction_inventory_ids: inventoryIds,
+          amount_paid: amountPaid,
         }
       );
       setTimeout(() => {
@@ -228,6 +260,53 @@ export const PaymentProvider = ({
     []
   );
 
+  const refundRegistrationFee = async (
+    auctionId: string | number,
+    auctionBiddersId: string | number
+  ) => {
+    dispatch({ type: PaymentActions.REFUND_REGISTRATION_FEE });
+    try {
+      const response = await axios.post(
+        `/auctions/${auctionId}/payments/${auctionBiddersId}/refund-registration`
+      );
+      dispatch({
+        type: PaymentActions.REFUND_REGISTRATION_FEE_SUCCESS,
+        payload: response.data,
+      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: PaymentActions.REFUND_REGISTRATION_FEE_FAILED,
+          payload: error.response.data,
+        });
+      }
+    }
+  };
+
+  const settlePartialPayment = async (
+    auctionId: number | string,
+    paymentId: number | string
+  ) => {
+    dispatch({ type: PaymentActions.SETTLE_PARTIAL_PAYMENT });
+    try {
+      const response = await axios.post(
+        `/auctions/${auctionId}/payments/${paymentId}/settle-partial-payment`
+      );
+
+      dispatch({
+        type: PaymentActions.SETTLE_PARTIAL_PAYMENT_SUCCESS,
+        payload: response.data,
+      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: PaymentActions.SETTLE_PARTIAL_PAYMENT_FAILED,
+          payload: error.response.data,
+        });
+      }
+    }
+  };
+
   const resetPaymentState = async () => {
     dispatch({ type: PaymentActions.RESET_PAYMENT_STATE });
   };
@@ -241,6 +320,8 @@ export const PaymentProvider = ({
         payBidderItems,
         resetPaymentState,
         fetchBidderAuctionTransactions,
+        refundRegistrationFee,
+        settlePartialPayment,
       }}
     >
       {children}

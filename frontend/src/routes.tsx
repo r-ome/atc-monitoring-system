@@ -18,7 +18,7 @@ import {
   AuctionProfile,
   EncodePage,
   AuctionBidderProfile,
-  ReceiptView,
+  BidderTransaction,
   AuctionItemProfile,
   OfficialReceiptPage,
 } from "./app/routes";
@@ -152,7 +152,7 @@ const routes: RouteObject[] = [
           },
           {
             path: ":auction_id/bidders/:bidder_id/transactions/:payment_id",
-            element: <ReceiptView />,
+            element: <BidderTransaction />,
           },
           {
             path: "receipt",

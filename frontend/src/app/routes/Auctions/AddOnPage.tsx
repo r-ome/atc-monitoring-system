@@ -6,7 +6,12 @@ import { useBreadcrumbs } from "app/hooks";
 import { Button, Card, Skeleton, Typography } from "antd";
 import { RHFInput, RHFInputNumber, RHFSelect } from "@components";
 import { useAuction } from "@context/index";
-import { AUCTIONS_401, AUCTIONS_403 } from "../errors";
+import {
+  AUCTIONS_401,
+  AUCTIONS_402,
+  AUCTIONS_403,
+  BIDDERS_403,
+} from "../errors";
 import { AddOnPayload } from "@types";
 import { formatNumberPadding } from "@lib/utils";
 
@@ -28,7 +33,7 @@ const AddOnPage = () => {
   const { setBreadcrumb } = useBreadcrumbs();
 
   useEffect(() => {
-    setBreadcrumb({ title: "Encode Page", path: "/encode" });
+    setBreadcrumb({ title: "Encode Page", path: "/encode", level: 3 });
   }, [setBreadcrumb]);
 
   useEffect(() => {
@@ -45,6 +50,7 @@ const AddOnPage = () => {
     if (!isLoading) {
       if (ErrorResponse) {
         let message = "Server Error";
+        const barcode = methods.getValues("barcode");
         if (ErrorResponse.httpStatus === 500) {
           message =
             "There might be problems in the server. Please contact your admin.";
@@ -53,8 +59,34 @@ const AddOnPage = () => {
         if (ErrorResponse.error === AUCTIONS_401) {
           message = "Please double check your inputs!";
         }
+
+        if (ErrorResponse.error === BIDDERS_403) {
+          message = `Bidder not registered in Auction. Please double check!`;
+          methods.setError("bidder", {
+            type: "string",
+            message: `Bidder not registered in Auction!`,
+          });
+          message = "Please double check the Barcode!";
+        }
+
+        if (ErrorResponse.error === AUCTIONS_402) {
+          message = `Inventory with barcode ${barcode} already exists!`;
+          methods.setError("barcode", {
+            type: "string",
+            message: `Barcode ${barcode} already exist!`,
+          });
+        }
         if (ErrorResponse.error === AUCTIONS_403) {
-          message = "Please double check the Bidder and Barcode!";
+          let combination =
+            barcode.split("-").length === 3
+              ? barcode.split("-").slice(0, -1).join("-")
+              : barcode;
+
+          methods.setError("barcode", {
+            type: "string",
+            message: `Barcode ${combination} doesn't exist.`,
+          });
+          message = "Please double check the Barcode!";
         }
         openNotification(message, "error", "Error");
       }
@@ -94,9 +126,9 @@ const AddOnPage = () => {
   if (!registeredBidders) return <Skeleton />;
 
   return (
-    <Card>
+    <Card className="w-1/2">
       <Typography.Title level={3}>Additional Item</Typography.Title>
-      <form className="flex w-1/2 flex-col gap-2">
+      <form className="flex w-full flex-col gap-2">
         <div>
           <Typography.Text>BARCODE:</Typography.Text>
           <RHFInput
@@ -146,7 +178,10 @@ const AddOnPage = () => {
             }
             options={registeredBidders.bidders.map((bidder) => ({
               value: bidder?.bidder_id.toString(),
-              label: `${bidder.bidder_number} - ${bidder.full_name}`,
+              label: `${bidder.bidder_number} - ${bidder.full_name} ${
+                !!bidder.remarks ? "- WITHDRAWN FROM THE AUCTION" : ""
+              }`,
+              disabled: !!bidder.remarks,
             }))}
             disabled={isLoading}
             rules={{ required: "This field is required!" }}

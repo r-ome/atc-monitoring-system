@@ -20,7 +20,7 @@ const MonitoringPage = () => {
       <div className="flex justify-between items-center">
         <Typography.Title level={2}>Monitoring</Typography.Title>
 
-        <div className="flex items-center gap-4 w-3/6">
+        <div className="flex items-center justify-end gap-4 w-3/6">
           <div className="w-1/6 justify-end flex">
             <Typography.Text strong>
               {searchValue ? dataSource.length : monitoring.length} Items
@@ -38,7 +38,8 @@ const MonitoringPage = () => {
                   item.barcode.includes(currentValue) ||
                   item.control_number.includes(currentValue) ||
                   item.bidder.bidder_number.includes(currentValue) ||
-                  item.description.includes(currentValue.toUpperCase())
+                  item.description.includes(currentValue.toUpperCase()) ||
+                  item.auction_status.includes(currentValue.toUpperCase())
               );
               setDataSource(filteredData);
             }}
@@ -64,9 +65,9 @@ const MonitoringPage = () => {
         scroll={{ y: 400 }}
         columns={[
           {
-            title: "Status",
+            title: "STATUS",
             dataIndex: "inventory_status",
-            width: "15%",
+            width: "12%",
             filters: [
               { text: "REBID", value: "REBID" },
               { text: "CANCELLED", value: "CANCELLED" },
@@ -98,18 +99,18 @@ const MonitoringPage = () => {
               </>
             ),
           },
-          { title: "Barcode", dataIndex: "barcode", width: "15%" },
+          { title: "BARCODE", dataIndex: "barcode", width: "8%" },
           {
-            title: "Control Number",
+            title: "CONTROL",
             dataIndex: "control_number",
             sortDirections: ["ascend", "descend"],
-            width: "12%",
+            width: "8%",
             sorter: (a, b) => a.control_number.localeCompare(b.control_number),
           },
-          { title: "Description", dataIndex: "description", width: "20%" },
+          { title: "DESCRIPTION", dataIndex: "description", width: "15%" },
           {
-            title: "Bidder",
-            width: "12%",
+            title: "BIDDER",
+            width: "8%",
             filters: registeredBidders?.bidders
               .map((item) => ({
                 text: item.bidder_number,
@@ -120,8 +121,8 @@ const MonitoringPage = () => {
               record.bidder.bidder_number.indexOf(value as string) === 0,
             render: (_, row) => row.bidder.bidder_number,
           },
-          { title: "QTY", dataIndex: "qty", width: "10%" },
-          { title: "Price", dataIndex: "price", width: "10%" },
+          { title: "QTY", dataIndex: "qty", width: "5%" },
+          { title: "PRICE", dataIndex: "price", width: "5%" },
           {
             title: "Manifest",
             dataIndex: "manifest_number",

@@ -2,7 +2,12 @@ import { AuctionItemStatus } from "./Auctions";
 import { InventoryStatus } from "./Inventories";
 
 export type PaymentType = "CASH" | "CHEQUE" | "BANK_TRANSFER";
-export type PaymentPurpose = "PULL_OUT" | "REGISTRATION" | "REFUNDED" | "LESS";
+export type PaymentPurpose =
+  | "PULL_OUT"
+  | "REGISTRATION"
+  | "REFUNDED"
+  | "LESS"
+  | "PARTIAL";
 
 export type AuctionPayment = {
   purpose: PaymentPurpose;
@@ -42,7 +47,7 @@ export type BidderAuctionTransaction = {
 
 export type AuctionInventory = {
   qty: string;
-  price: string;
+  price: number;
   description: string;
   inventory_id: number;
   auction_status: AuctionItemStatus;
@@ -55,14 +60,16 @@ export type AuctionInventory = {
 
 export type PaymentDetails = {
   payment_id: number;
+  auction_bidders_id: number;
   receipt_number: string;
   amount_paid: string;
+  balance: number;
   purpose: PaymentPurpose;
   full_name: string;
   bidder_number: string;
   service_charge: number;
   already_consumed: number;
-  registration_fee: string;
+  registration_fee: number;
   created_at: string;
   total_items: number;
   auction_inventories: AuctionInventory[];

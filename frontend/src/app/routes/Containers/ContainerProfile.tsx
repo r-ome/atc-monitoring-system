@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import moment from "moment";
 import { useNavigate, useParams } from "react-router-dom";
 import { useContainers, useInventories } from "@context";
 import { useBreadcrumbs } from "../../hooks";
@@ -107,6 +108,9 @@ const ContainerProfile = () => {
     resetInventory,
   ]);
 
+  const formatDate = (date: string) =>
+    moment(new Date(date)).format("MMMM DD, YYYY");
+
   if (!container) return <Skeleton />;
 
   return (
@@ -130,7 +134,20 @@ const ContainerProfile = () => {
                     Edit
                   </Button>
                 }
-                title={`Container ${container.barcode}`}
+                title={
+                  <>
+                    <Tag
+                      color={`${
+                        container.auction_or_sell === "AUCTION"
+                          ? "green"
+                          : "blue"
+                      }`}
+                    >
+                      {container.auction_or_sell}
+                    </Tag>
+                    Container {container.barcode}
+                  </>
+                }
                 items={[
                   {
                     key: "1",
@@ -146,11 +163,28 @@ const ContainerProfile = () => {
                   },
                   {
                     key: "20",
-                    label: "Total SOLD items",
-                    span: 4,
+                    label: (
+                      <>
+                        Total{" "}
+                        <span className="font-bold text-green-500">SOLD</span>{" "}
+                        items Price
+                      </>
+                    ),
+                    span: 2,
                     children: formatNumberToCurrency(
                       container.total_sold_item_price
                     ),
+                  },
+                  {
+                    key: "21",
+                    label: (
+                      <>
+                        <span className="text-green-500 font-bold">SOLD</span>{" "}
+                        items
+                      </>
+                    ),
+                    span: 2,
+                    children: container.sold_items,
                   },
                   {
                     key: "16",
@@ -184,55 +218,55 @@ const ContainerProfile = () => {
                     key: "7",
                     label: "Departure Date From Japan",
                     span: 3,
-                    children: container.departure_date_from_japan,
+                    children: formatDate(container.departure_date_from_japan),
                   },
                   {
                     key: "8",
                     label: "ETA to PH",
                     span: 1,
-                    children: container.eta_to_ph,
+                    children: formatDate(container.eta_to_ph),
                   },
                   {
                     key: "9",
                     label: "Arrival date to PH Warehouse",
                     span: 4,
-                    children: container.arrival_date_warehouse_ph,
+                    children: formatDate(container.arrival_date_warehouse_ph),
                   },
                   {
                     key: "10",
                     label: "Sorting Date",
                     span: 2,
-                    children: container.sorting_date,
+                    children: formatDate(container.sorting_date),
                   },
                   {
                     key: "11",
                     label: "Auction Date",
                     span: 2,
-                    children: container.auction_date,
+                    children: formatDate(container.auction_date),
                   },
                   {
                     key: "12",
                     label: "Payment Date",
                     span: 2,
-                    children: container.payment_date,
+                    children: formatDate(container.payment_date),
                   },
                   {
                     key: "13",
                     label: "Telegraphic Transferred",
                     span: 2,
-                    children: container.telegraphic_transferred,
+                    children: formatDate(container.telegraphic_transferred),
                   },
                   {
                     key: "14",
                     label: "Vanning Date",
                     span: 2,
-                    children: container.vanning_date,
+                    children: formatDate(container.vanning_date),
                   },
                   {
                     key: "15",
                     label: "Devanning Date",
                     span: 2,
-                    children: container.devanning_date,
+                    children: formatDate(container.devanning_date),
                   },
                   {
                     key: "17",
@@ -241,16 +275,10 @@ const ContainerProfile = () => {
                     children: container.gross_weight,
                   },
                   {
-                    key: "18",
-                    label: "AUCTION or SELL",
-                    span: 2,
-                    children: container.auction_or_sell,
-                  },
-                  {
                     key: "19",
                     label: "Date Added",
                     span: 4,
-                    children: container.created_at,
+                    children: formatDate(container.created_at),
                   },
                 ]}
               ></Descriptions>
@@ -261,7 +289,9 @@ const ContainerProfile = () => {
             className="w-4/6 py-4 h-full"
             title={
               <div className="flex justify-between items-center w-full p-2">
-                <h1 className="text-3xl font-bold">Inventories</h1>
+                <h1 className="text-3xl font-bold">
+                  Inventories ({inventoriesByContainer.length} items)
+                </h1>
                 <Button
                   type="primary"
                   onClick={() => navigate("inventory/create")}
@@ -276,7 +306,6 @@ const ContainerProfile = () => {
               loading={isFetchingInventories}
               rowKey={(row) => row.inventory_id}
               dataSource={inventoriesByContainer}
-              pagination={false}
               columns={[
                 {
                   title: "Barcode",
@@ -287,14 +316,25 @@ const ContainerProfile = () => {
                 {
                   title: "Status",
                   dataIndex: "status",
-                  render: (item) => (
-                    <Tag
-                      color={item === "SOLD" ? "green" : "red"}
-                      bordered={false}
-                    >
-                      {item}
-                    </Tag>
-                  ),
+                  filters: [
+                    { text: "REBID", value: "REBID" },
+                    { text: "SOLD", value: "SOLD" },
+                    { text: "UNSOLD", value: "UNSOLD" },
+                  ],
+                  onFilter: (value, record) =>
+                    record.status.indexOf(value as string) === 0,
+                  render: (item) => {
+                    let color = "green";
+                    if (item === "SOLD") color = "green";
+                    if (item === "UNSOLD") color = "red";
+                    if (item === "REBID") color = "orange";
+
+                    return (
+                      <Tag color={color} bordered={false}>
+                        {item}
+                      </Tag>
+                    );
+                  },
                 },
                 {
                   title: "Action",

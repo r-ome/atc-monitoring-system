@@ -108,6 +108,7 @@ const EncodePage = () => {
               rowKey={(rowKey) => `${rowKey.barcode}-${rowKey.control_number}`}
               dataSource={SuccessResponse?.manifest || []}
               loading={isLoading}
+              scroll={{ y: 450 }}
               columns={[
                 { title: "BARCODE", dataIndex: "barcode" },
                 { title: "CONTROL", dataIndex: "control_number" },
@@ -116,7 +117,11 @@ const EncodePage = () => {
                 { title: "QTY", dataIndex: "qty" },
                 { title: "PRICE", dataIndex: "price" },
                 { title: "MANIFEST", dataIndex: "manifest_number" },
-                { title: "ERROR", dataIndex: "error_messages" },
+                {
+                  title: "ERROR",
+                  dataIndex: "error_messages",
+                  render: (val) => <span className="text-red-500">{val}</span>,
+                },
               ]}
             />
           </div>

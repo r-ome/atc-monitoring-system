@@ -183,6 +183,11 @@ const SupplierProfile = () => {
                   title: "Barcode",
                   dataIndex: "barcode",
                 },
+                {
+                  title: "Branch",
+                  dataIndex: "branch",
+                  render: (val, item) => item.branch.name,
+                },
                 { title: "Number of Items", dataIndex: "num_of_items" },
 
                 {

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
 import { useForm } from "react-hook-form";
@@ -8,11 +8,12 @@ import {
   RHFDatePicker,
   RHFSelect,
 } from "@components";
-import { useBidders } from "@context/BidderProvider/BidderContext";
+import { useBidders, useBranches } from "@context";
 import { CreateBidderPayload } from "@types";
 import { BIDDERS_402 } from "../errors";
-import { Button, Card, Typography } from "antd";
+import { Alert, Button, Card, Checkbox, Skeleton, Typography } from "antd";
 import { usePageLayoutProps } from "@layouts";
+import { useBreadcrumbs } from "app/hooks";
 
 const CreateSupplier = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ const CreateSupplier = () => {
     defaultValues: {
       service_charge: 12,
       registration_fee: 3000,
+      status: "ACTIVE",
     },
   });
   const {
@@ -28,14 +30,48 @@ const CreateSupplier = () => {
     error: ErrorResponse,
     bidder: SuccessResponse,
   } = useBidders();
-  const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
+  const {
+    branches,
+    fetchBranches,
+    error: BranchErrorResponse,
+    isLoading: isFetchingBranches,
+  } = useBranches();
+  const { openNotification } = usePageLayoutProps();
+  const { setBreadcrumb } = useBreadcrumbs();
+  const [hasBusiness, setHasBusiness] = useState<boolean>(false);
 
   useEffect(() => {
-    setPageBreadCrumbs([
-      { title: "Bidders List", path: "/bidders" },
-      { title: "Create Bidder" },
-    ]);
-  }, [setPageBreadCrumbs]);
+    setBreadcrumb({ title: "Create Bidder" });
+  }, [setBreadcrumb]);
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      await fetchBranches();
+    };
+    fetchInitialData();
+  }, [fetchBranches]);
+
+  useEffect(() => {
+    if (hasBusiness) {
+      methods.setValue("service_charge", 10);
+    } else {
+      methods.setValue("service_charge", 12);
+    }
+  }, [hasBusiness, methods]);
+
+  useEffect(() => {
+    if (!isFetchingBranches) {
+      if (BranchErrorResponse) {
+        if (BranchErrorResponse.httpStatus === 500) {
+          openNotification(
+            "Error encounted when fetching branches",
+            "error",
+            "Error"
+          );
+        }
+      }
+    }
+  }, [isFetchingBranches, BranchErrorResponse, openNotification]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -79,9 +115,14 @@ const CreateSupplier = () => {
     methods.setValue(fieldName, e.target.value.toUpperCase());
   };
 
+  if (!branches.length) return <Skeleton />;
+
   return (
-    <Card className="py-4" title={<h1 className="text-3xl">Create Bidder</h1>}>
-      <form id="create_bidder" className="flex flex-col gap-4 w-2/4">
+    <Card
+      className="py-4 w-1/2"
+      title={<h1 className="text-3xl">Create Bidder</h1>}
+    >
+      <form id="create_bidder" className="flex flex-col gap-4 w-full">
         <div>
           <Typography.Title level={5}>Bidder Number:</Typography.Title>
           <RHFInputNumber
@@ -94,8 +135,8 @@ const CreateSupplier = () => {
           />
         </div>
 
-        <div className="flex gap-4">
-          <div>
+        <div className="flex gap-4 w-full">
+          <div className="w-1/3">
             <Typography.Title level={5}>First Name:</Typography.Title>
             <RHFInput
               control={methods.control}
@@ -111,14 +152,14 @@ const CreateSupplier = () => {
                   message: "Maximum of 255 characters!",
                 },
                 pattern: {
-                  value: /^[a-zA-Z0-9Ññ\- ]+$/,
+                  value: /^[a-zA-ZÑñ\- ]+$/,
                   message: "Invalid characters!",
                 },
               }}
             />
           </div>
 
-          <div>
+          <div className="w-1/3">
             <Typography.Title level={5}>Middle Name:</Typography.Title>
             <RHFInput
               control={methods.control}
@@ -128,14 +169,14 @@ const CreateSupplier = () => {
               onChange={(e) => handleFieldUpperCase("middle_name", e)}
               rules={{
                 pattern: {
-                  value: /^[a-zA-Z0-9Ññ\- ]+$/,
+                  value: /^[a-zA-ZÑñ\- ]+$/,
                   message: "Invalid characters!",
                 },
               }}
             />
           </div>
 
-          <div>
+          <div className="w-1/3">
             <Typography.Title level={5}>Last Name:</Typography.Title>
             <RHFInput
               control={methods.control}
@@ -151,7 +192,7 @@ const CreateSupplier = () => {
                   message: "Maximum of 255 characters!",
                 },
                 pattern: {
-                  value: /^[a-zA-Z0-9Ññ\- ]+$/,
+                  value: /^[a-zA-ZÑñ\- ]+$/,
                   message: "Invalid characters!",
                 },
               }}
@@ -159,17 +200,32 @@ const CreateSupplier = () => {
           </div>
         </div>
 
-        <div>
-          <Typography.Title level={5}>Birthdate</Typography.Title>
-          <RHFDatePicker
-            control={methods.control}
-            name="birthdate"
-            disabled={isLoading}
-            rules={{ required: "This field is required!" }}
-          />
+        <div className="flex gap-4 w-full">
+          <div className="w-1/2">
+            <Typography.Title level={5}>Birthdate</Typography.Title>
+            <RHFDatePicker
+              control={methods.control}
+              name="birthdate"
+              disabled={isLoading}
+              rules={{ required: "This field is required!" }}
+            />
+          </div>
+
+          <div className="w-1/2">
+            <Typography.Title level={5}>Contact Number:</Typography.Title>
+            <RHFInputNumber
+              control={methods.control}
+              prefix="+63"
+              name="contact_number"
+              disabled={isLoading}
+              controls={false}
+              placeholder="Contact Number"
+              rules={{ required: "Contact Number is required!" }}
+            />
+          </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
           <div className="w-1/3">
             <Typography.Title level={5}>Status:</Typography.Title>
             <RHFSelect
@@ -181,11 +237,44 @@ const CreateSupplier = () => {
                 { title: "Inactive", value: "INACTIVE" },
                 { title: "Banned", value: "BANNED" },
               ]}
-              defaultValue="ACTIVE"
             />
           </div>
+          <div className="w-2/3">
+            <Typography.Title level={5}>Registered Branch:</Typography.Title>
+            <RHFSelect
+              control={methods.control}
+              name="registered_at"
+              placeholder="Please select current branch"
+              defaultValue={branches[0].name}
+              options={branches.map((item) => ({
+                title: item.name,
+                value: item.name,
+              }))}
+            />
+          </div>
+        </div>
 
-          <div className="w-1/3">
+        <div>
+          <Checkbox onChange={() => setHasBusiness(!hasBusiness)}>
+            Does Bidder have business permits?
+          </Checkbox>
+          <Alert
+            message={
+              <>
+                If Bidder have Business Permits. You can upload the{" "}
+                <Typography.Text strong>Validity Date</Typography.Text> of the
+                Bidder's DTI, Mayor's Permit after the bidder is registered in
+                the system
+              </>
+            }
+            type="info"
+            className="mt-2"
+            showIcon
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <div className="w-1/2">
             <Typography.Title level={5}>Registration Fee:</Typography.Title>
             <RHFInputNumber
               control={methods.control}
@@ -199,7 +288,7 @@ const CreateSupplier = () => {
             />
           </div>
 
-          <div className="w-1/3">
+          <div className="w-1/2">
             <Typography.Title level={5}>Service Charge:</Typography.Title>
             <RHFInputNumber
               control={methods.control}

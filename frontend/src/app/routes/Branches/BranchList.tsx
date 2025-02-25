@@ -14,15 +14,15 @@ const BranchList = () => {
     branches,
     isLoading,
     error: ErrorResponse,
-    resetCreateBranchResponse,
+    resetBranchResponse,
   } = useBranches();
   const { openNotification } = usePageLayoutProps();
   const { setBreadcrumb } = useBreadcrumbs();
 
   useEffect(() => {
-    resetCreateBranchResponse();
+    resetBranchResponse();
     setBreadcrumb({ title: "Branches List", path: "/branches", level: 1 });
-  }, [setBreadcrumb, resetCreateBranchResponse]);
+  }, [setBreadcrumb, resetBranchResponse]);
 
   useEffect(() => {
     const fetchInitialData = async () => {

@@ -24,8 +24,17 @@ export const AUCTIONS_403 = "AUCTIONS_403";
 export const AUCTIONS_501 = "AUCTIONS_501";
 export const AUCTIONS_503 = "AUCTIONS_503";
 
+export const AUCTION_PAYMENTS_402 = "AUCTION_PAYMENTS_402";
+export const AUCTION_PAYMENTS_501 = "AUCTION_PAYMENTS_501";
+export const AUCTION_PAYMENTS_503 = "AUCTION_PAYMENTS_503";
+
+export const BIDDERS_401 = "BIDDERS_401";
 export const BIDDERS_402 = "BIDDERS_402";
+export const BIDDERS_403 = "BIDDERS_403";
 export const BIDDERS_501 = "BIDDERS_501";
 export const BIDDERS_503 = "BIDDERS_503";
 
 export const BIDDER_REQUIREMENT_401 = "BIDDER_REQUIREMENT_401";
+
+export const SERVER_ERROR_MESSAGE =
+  "There might be problems in the server. Please contact your admin.";

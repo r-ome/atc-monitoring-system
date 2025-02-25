@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import moment from "moment";
 import { BaseBidder } from "@types";
 import { useBidders } from "@context";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Button, Input, Space, Table, Tooltip, Typography } from "antd";
+import { Button, Input, Space, Table, Tag, Tooltip, Typography } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { usePageLayoutProps } from "@layouts";
 import { formatNumberToCurrency } from "@lib/utils";
@@ -72,11 +73,22 @@ const BidderList = () => {
               onChange={(e) => {
                 const currentValue = e.target.value;
                 setSearchValue(currentValue);
-                const filteredData = bidders.filter(
-                  (item) =>
-                    item.bidder_number.includes(currentValue) ||
-                    item.full_name.includes(currentValue.toUpperCase())
+
+                let filteredData = [];
+
+                filteredData = bidders.filter(
+                  (bidder) =>
+                    bidder.bidder_number.includes(currentValue) ||
+                    bidder.full_name.includes(currentValue.toUpperCase()) ||
+                    bidder.status.includes(currentValue.toUpperCase())
                 );
+
+                if (currentValue.toUpperCase() === "UNPAID") {
+                  filteredData = bidders.filter(
+                    (bidder) => !!bidder.has_balance
+                  );
+                }
+
                 setDataSource(filteredData);
               }}
             />
@@ -91,14 +103,14 @@ const BidderList = () => {
           {
             title: "Bidder Number",
             dataIndex: "bidder_number",
-            width: "15%",
+            width: "10%",
             sorter: (a, b) =>
               parseInt(b.bidder_number, 10) - parseInt(a.bidder_number, 10),
           },
           {
             title: "Full Name",
             dataIndex: "full_name",
-            width: "20%",
+            width: "25%",
             sortDirections: ["ascend", "descend"],
             sorter: (a, b) => a.full_name.localeCompare(b.full_name),
           },
@@ -109,17 +121,30 @@ const BidderList = () => {
               { text: "BANNED", value: "BANNED" },
               { text: "ACTIVE", value: "ACTIVE" },
               { text: "INACTIVE", value: "INACTIVE" },
+              { text: "UNPAID", value: "UNPAID" },
             ],
-            onFilter: (value, record) =>
-              record.status.indexOf(value as string) === 0,
-            render: (item) => (
-              <span
-                className={`${
-                  item === "BANNED" ? "text-red-500" : "text-green-500"
-                }`}
-              >
-                {item}
-              </span>
+            onFilter: (value, record) => {
+              if (value === "UNPAID") {
+                return record.has_balance !== null;
+              } else {
+                return record.status.indexOf(value as string) === 0;
+              }
+            },
+            render: (item, record) => (
+              <>
+                <Tag color={item === "BANNED" ? "red" : "green"}>{item}</Tag>
+                {record?.has_balance ? (
+                  <Tooltip
+                    title={`Bidder still has ${formatNumberToCurrency(
+                      record?.has_balance?.balance
+                    )} UNPAID balance from ${moment(
+                      record?.has_balance?.auction_date
+                    ).format("MMMM DD, YYYY")}`}
+                  >
+                    <Tag color="red">UNPAID</Tag>
+                  </Tooltip>
+                ) : null}
+              </>
             ),
           },
           {
@@ -144,6 +169,7 @@ const BidderList = () => {
             title: "Date Joined",
             dataIndex: "created_at",
             width: "20%",
+            render: (value) => moment(value).format("MMMM DD, YYYY"),
           },
           {
             title: "Action",

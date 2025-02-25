@@ -3,17 +3,18 @@ export type BaseContainer = {
   barcode: string;
   num_of_items: number;
   branch: {
-    id: number;
+    branch_id: number;
     name: string;
   };
 };
 
 export type Container = BaseContainer & {
   supplier: {
-    id: string;
+    supplier_id: string;
     code: string;
     name: string;
   };
+  sold_items: string;
   container_num: number;
   bill_of_lading_number: string;
   total_sold_item_price: string;

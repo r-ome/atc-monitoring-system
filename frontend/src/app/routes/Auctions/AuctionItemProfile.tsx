@@ -140,6 +140,16 @@ const AuctionItemProfile = () => {
 
     return (
       <div className="flex gap-4">
+        <Button
+          color="red"
+          variant="solid"
+          onClick={
+            () => console.log("VOID ITEM")
+            // handleVoidItem(auctionInventory.auction_inventory_id)
+          }
+        >
+          Void Item
+        </Button>
         {auctionStatus === "CANCELLED" ? (
           <Button
             color="blue"

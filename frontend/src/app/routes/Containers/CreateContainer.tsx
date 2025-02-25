@@ -97,7 +97,7 @@ const CreateContainer = () => {
 
         openNotification("Successfully Added Container");
         navigate(
-          `/suppliers/${SuccessResponse.supplier.id}/containers/${SuccessResponse.container_id}`
+          `/suppliers/${SuccessResponse.supplier.supplier_id}/containers/${SuccessResponse.container_id}`
         );
       }
     }

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useAuction, usePayments } from "@context";
-import TransactionsTable from "./TransactionsTable";
+import BidderTransactions from "./BidderTransactions";
 import BidderItems from "./BidderItems";
 import { Card, Descriptions, Skeleton, Tabs } from "antd";
 import { usePageLayoutProps } from "@layouts/PageLayout";
@@ -103,12 +103,10 @@ const AuctionBidderProfile = () => {
                   children: (
                     <span
                       className={`${
-                        parseInt(bidder.balance, 10) < 0
-                          ? "text-red-500"
-                          : "text-green-500"
+                        bidder.balance > 0 ? "text-red-500" : "text-green-500"
                       }`}
                     >
-                      {parseInt(bidder.balance, 10) < 0
+                      {bidder.balance < 0
                         ? `(${formatNumberToCurrency(bidder.balance).replace(
                             "-",
                             ""
@@ -140,7 +138,7 @@ const AuctionBidderProfile = () => {
                   key: "3",
                   label: "Service Charge",
                   span: 2,
-                  children: bidder.service_charge,
+                  children: `${bidder.service_charge}%`,
                 },
                 {
                   key: "4",
@@ -161,8 +159,8 @@ const AuctionBidderProfile = () => {
                 { key: "1", label: "ITEMS", children: <BidderItems /> },
                 {
                   key: "2",
-                  label: "Transactions",
-                  children: <TransactionsTable />,
+                  label: "TRANSACTIONS",
+                  children: <BidderTransactions />,
                 },
               ]}
             />

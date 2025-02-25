@@ -39,6 +39,7 @@ const Monitoring = () => {
           rowKey={(rowkey) => rowkey.manifest_id}
           dataSource={searchValue ? dataSource : manifestRecords}
           loading={isFetchingManifestRecords}
+          scroll={{ y: 450 }}
           columns={[
             {
               title: "BARCODE",

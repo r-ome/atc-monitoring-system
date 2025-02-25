@@ -1,6 +1,12 @@
 import { createContext, useContext, useReducer, useCallback } from "react";
 import axios, { isAxiosError } from "axios";
-import { BaseBidder, Bidder, CreateBidderPayload, APIError } from "@types";
+import {
+  BaseBidder,
+  Bidder,
+  CreateBidderPayload,
+  APIError,
+  UpdateBidderPayload,
+} from "@types";
 import * as BidderActions from "./actions";
 
 interface BidderState {
@@ -14,6 +20,10 @@ interface BidderStateContextType extends BidderState {
   fetchBidder: (id: string | number) => Promise<void>;
   fetchBidders: () => Promise<void>;
   createBidder: (body: CreateBidderPayload) => Promise<void>;
+  updateBidder: (
+    bidderId: string | number,
+    body: UpdateBidderPayload
+  ) => Promise<void>;
   resetCreateBidderResponse: () => void;
   resetError: () => void;
 }
@@ -29,7 +39,10 @@ export type BidderAction =
   | { type: "FETCH_BIDDERS_FAILED"; payload: APIError }
   | { type: "CREATE_BIDDER" }
   | { type: "CREATE_BIDDER_SUCCESS"; payload: { data: Bidder } }
-  | { type: "CREATE_BIDDER_FAILED"; payload: APIError };
+  | { type: "CREATE_BIDDER_FAILED"; payload: APIError }
+  | { type: "UPDATE_BIDDER" }
+  | { type: "UPDATE_BIDDER_SUCCESS"; payload: { data: Bidder } }
+  | { type: "UPDATE_BIDDER_FAILED"; payload: APIError };
 
 const initialState = {
   bidder: null,
@@ -46,6 +59,7 @@ const BidderContext = createContext<BidderStateContextType>({
   fetchBidder: async () => {},
   fetchBidders: async () => {},
   createBidder: async () => {},
+  updateBidder: async () => {},
   resetCreateBidderResponse: () => {},
   resetError: () => {},
 });
@@ -58,6 +72,7 @@ const bidderReducer = (
     case BidderActions.FETCH_BIDDER:
     case BidderActions.FETCH_BIDDERS:
     case BidderActions.CREATE_BIDDER:
+    case BidderActions.UPDATE_BIDDER:
       return { ...state, isLoading: true };
 
     case BidderActions.FETCH_BIDDER_SUCCESS:
@@ -74,6 +89,8 @@ const bidderReducer = (
         bidders: action.payload.data,
         error: undefined,
       };
+
+    case BidderActions.UPDATE_BIDDER_SUCCESS:
     case BidderActions.CREATE_BIDDER_SUCCESS:
       return {
         ...state,
@@ -85,6 +102,7 @@ const bidderReducer = (
     case BidderActions.FETCH_BIDDER_FAILED:
     case BidderActions.FETCH_BIDDERS_FAILED:
     case BidderActions.CREATE_BIDDER_FAILED:
+    case BidderActions.UPDATE_BIDDER_FAILED:
       return { ...state, isLoading: false, error: action.payload };
 
     case BidderActions.RESET_CREATE_BIDDER_RESPONSE:
@@ -133,7 +151,7 @@ export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
-  const createBidder = async (body: any) => {
+  const createBidder = async (body: CreateBidderPayload) => {
     dispatch({ type: BidderActions.CREATE_BIDDER });
     try {
       const response = await axios.post("/bidders", body);
@@ -146,6 +164,29 @@ export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
         dispatch({
           type: BidderActions.CREATE_BIDDER_FAILED,
           payload: error.response?.data,
+        });
+      }
+    }
+  };
+
+  const updateBidder = async (
+    bidderId: string | number,
+    body: UpdateBidderPayload
+  ) => {
+    dispatch({ type: BidderActions.UPDATE_BIDDER });
+    try {
+      const response = await axios.put(`/bidders/${bidderId}`, body);
+      setTimeout(() => {
+        dispatch({
+          type: BidderActions.UPDATE_BIDDER_SUCCESS,
+          payload: response.data,
+        });
+      }, 2000);
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: BidderActions.UPDATE_BIDDER_FAILED,
+          payload: error.response.data,
         });
       }
     }
@@ -167,6 +208,7 @@ export const BidderProvider = ({ children }: { children: React.ReactNode }) => {
         fetchBidder,
         fetchBidders,
         createBidder,
+        updateBidder,
         resetCreateBidderResponse,
         resetError,
       }}

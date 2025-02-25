@@ -1,7 +1,6 @@
 import { useParams } from "react-router-dom";
 import { Button, ProfileDetails } from "@components";
 import { AuctionInventory } from "@types";
-// import { useAuction } from "@context/index";
 
 interface ItemProfileProps {
   auctionInventory: AuctionInventory;

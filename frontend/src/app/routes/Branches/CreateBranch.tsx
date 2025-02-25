@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
-import { CreateBranchPayload } from "@types";
+import { BranchPayload } from "@types";
 import { useBranches } from "@context";
 import { RHFInput } from "@components";
 import { BRANCHES_402 } from "../errors";
@@ -10,13 +10,13 @@ import { usePageLayoutProps } from "@layouts";
 
 const CreateBranch = () => {
   const navigate = useNavigate();
-  const methods = useForm<CreateBranchPayload>();
+  const methods = useForm<BranchPayload>();
   const {
     createBranch,
     isLoading,
     branch: SuccessResponse,
     error: ErrorResponse,
-    resetCreateBranchResponse,
+    resetBranchResponse,
   } = useBranches();
   const { openNotification, setPageBreadCrumbs } = usePageLayoutProps();
 
@@ -33,7 +33,7 @@ const CreateBranch = () => {
         methods.reset();
         openNotification("Successfully Added Branch!");
         navigate("/branches");
-        resetCreateBranchResponse();
+        resetBranchResponse();
       }
 
       if (ErrorResponse) {
@@ -58,7 +58,7 @@ const CreateBranch = () => {
     SuccessResponse,
     methods,
     isLoading,
-    resetCreateBranchResponse,
+    resetBranchResponse,
     openNotification,
     navigate,
   ]);
