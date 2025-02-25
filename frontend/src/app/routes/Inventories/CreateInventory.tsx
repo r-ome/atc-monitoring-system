@@ -5,9 +5,14 @@ import { RHFInput, RHFInputNumber } from "@components";
 import { useContainers, useInventories } from "@context";
 import { CreateInventoryPayload } from "@types";
 import { Button, Card, Skeleton, Typography } from "antd";
-import { usePageLayoutProps, BreadcrumbsType } from "@layouts";
-import { useBreadcrumbs, useSession } from "app/hooks";
-import { INVENTORIES_401, INVENTORIES_402, INVENTORIES_403 } from "../errors";
+import { usePageLayoutProps } from "@layouts";
+import { useBreadcrumbs } from "app/hooks";
+import {
+  INVENTORIES_401,
+  INVENTORIES_402,
+  INVENTORIES_403,
+  SERVER_ERROR_MESSAGE,
+} from "../errors";
 import { formatNumberPadding } from "@lib/utils";
 
 const CreateInventory = () => {
@@ -43,6 +48,14 @@ const CreateInventory = () => {
       fetchInitialData();
     }
   }, [fetchContainer, params]);
+
+  useEffect(() => {
+    if (!isFetchingContainer) {
+      if (ContainerErrorResponse && ContainerErrorResponse.httpStatus === 500) {
+        openNotification(SERVER_ERROR_MESSAGE, "error", "Error");
+      }
+    }
+  }, [isFetchingContainer, ContainerErrorResponse, openNotification]);
 
   const handleSubmitCreateInventory = methods.handleSubmit(async (data) => {
     const { supplier_id: supplierId, container_id: containerId } = params;

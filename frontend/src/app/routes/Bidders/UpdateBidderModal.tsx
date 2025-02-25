@@ -68,7 +68,15 @@ const UpdateBidderModal: React.FC<UpdateBidderModalProps> = ({
         }
       }
     }
-  }, [isLoading, SuccessResponse, ErrorResponse, openNotification, onCancel]);
+  }, [
+    isLoading,
+    SuccessResponse,
+    ErrorResponse,
+    openNotification,
+    onCancel,
+    bidderState.updated_at,
+    bidder,
+  ]);
 
   const handleFieldUpperCase = (
     fieldName: "first_name" | "middle_name" | "last_name",

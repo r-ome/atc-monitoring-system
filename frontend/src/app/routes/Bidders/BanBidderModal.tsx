@@ -8,7 +8,6 @@ import { RHFTextArea } from "@components";
 import { usePageLayoutProps } from "@layouts/PageLayout";
 import { BIDDERS_401, BIDDERS_403, SERVER_ERROR_MESSAGE } from "../errors";
 import { WarningOutlined } from "@ant-design/icons";
-import dayjs from "dayjs";
 
 interface BadBidderModalProps {
   open: boolean;
@@ -71,7 +70,15 @@ const BanBidderModal: React.FC<BadBidderModalProps> = ({
         }
       }
     }
-  }, [isLoading, SuccessResponse, ErrorResponse, openNotification, onCancel]);
+  }, [
+    isLoading,
+    SuccessResponse,
+    ErrorResponse,
+    openNotification,
+    onCancel,
+    bidder,
+    bidderState.updated_at,
+  ]);
 
   const handleFieldUpperCase = (
     fieldName: "remarks",
