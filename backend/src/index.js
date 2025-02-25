@@ -35,7 +35,8 @@ app.use(morganMiddleware);
 app.use(
   cors({
     // origin: "http://localhost:3000",
-    origin: "https://atc-monitoring-system-5b87daf27294.herokuapp.com/",
+    // origin: "https://atc-monitoring-system-5b87daf27294.herokuapp.com/",
+    origin: "https://atc-monitoring-system.netlify.app",
     methods: "GET,POST,PUT,DELETE",
     allowedHeaders: "Content-Type,Authorization,Cache-Control,Pragma,Expires",
   })
