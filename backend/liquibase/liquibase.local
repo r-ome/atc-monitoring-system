@@ -1,7 +1,0 @@
-changeLogFile=atc_monitoring_system.xml
-liquibase.command.url=jdbc:mysql://localhost:3306/atc_monitoring_system
-liquibase.command.username: root
-liquibase.command.password:helloworld
-liquibase.command.referenceUrl: jdbc:mysql://localhost:3306/atc_monitoring_system
-liquibase.command.referenceUsername: root
-liquibase.command.referencePassword:
