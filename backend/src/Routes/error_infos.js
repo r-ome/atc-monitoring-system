@@ -93,6 +93,7 @@ export const INVENTORIES_502 = "INVENTORIES_502";
 export const INVENTORIES_503 = "INVENTORIES_503";
 export const USERS_401 = "USERS_401";
 export const USERS_402 = "USERS_402";
+export const USERS_403 = "USERS_403";
 export const USERS_501 = "USERS_501";
 export const USERS_502 = "USERS_502";
 export const USERS_503 = "USERS_503";

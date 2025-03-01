@@ -164,7 +164,7 @@ router.put("/:bidder_id", async (req, res) => {
       birthdate: Joi.string().required(),
       service_charge: Joi.number().required(),
       registration_fee: Joi.number().required(),
-      contact_number: Joi.string().required(),
+      contact_number: Joi.string().allow(""),
       status: Joi.string().required(),
       remarks: Joi.string(),
     });

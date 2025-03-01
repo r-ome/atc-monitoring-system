@@ -1,5 +1,6 @@
 import {
   AUCTION_STATUS,
+  INVENTORY_STATUS,
   PAYMENT_PURPOSE,
   PAYMENT_TYPE,
 } from "../Routes/constants.js";
@@ -25,19 +26,20 @@ export const getPaymentDetails = async (payment_id) => {
           ab.already_consumed,
           ab.balance,
           ab.registration_fee,
-          p.created_at,
+          p.created_at AS payment_date,
           (
             SELECT
             JSON_ARRAYAGG(
               JSON_OBJECT(
                 'payment_id', ih.payment_id,
+                'remarks', ih.remarks,
                 'auction_inventory_id', ai.auction_inventory_id,
                 'inventory_id', ai.inventory_id,
                 'inventory_status', i.status,
                 'auction_status', ai.status,
                 'barcode', i.barcode,
                 'bidder', b.bidder_number,
-                'control', i.control_number,
+                'control', i.control,
                 'price', ai.price,
                 'qty', ai.qty,
                 'description', i.description,
@@ -69,7 +71,6 @@ export const getAuctionPayments = async (auction_id) => {
         SELECT
           a.auction_id,
           a.created_at AS auction_date,
-          p.updated_at,
           IF(COUNT(ab.auction_bidders_id) = 0,
             JSON_ARRAY(),
             JSON_ARRAYAGG(JSON_OBJECT(
@@ -215,13 +216,14 @@ export const handleBidderPullout = async (
         item,
         payment_result.payment_id,
         is_partial_payment ? AUCTION_STATUS.PARTIAL : AUCTION_STATUS.PAID,
+        INVENTORY_STATUS.SOLD,
       ]
     );
 
     // update inventory_histories
     await query(
       `
-        INSERT INTO inventory_histories (auction_inventory_id, payment_id, auction_status)
+        INSERT INTO inventory_histories (auction_inventory_id, payment_id, auction_status, inventory_status)
         VALUES ?
       `,
       [bulk_insert_inventory_histories]
@@ -394,12 +396,17 @@ export const settlePartialPayment = async (payment_id) => {
 
     const bulk_insert_inventory_histories = auction_inventory_ids
       .split(",")
-      .map((item) => [item, settled_payment.insertId, AUCTION_STATUS.PAID]);
+      .map((item) => [
+        item,
+        settled_payment.insertId,
+        AUCTION_STATUS.PAID,
+        INVENTORY_STATUS.SOLD,
+      ]);
 
     // bulk create to inventory_histories
     await query(
       `
-        INSERT INTO inventory_histories (auction_inventory_id, payment_id, auction_status)
+        INSERT INTO inventory_histories (auction_inventory_id, payment_id, auction_status, inventory_status)
         VALUES ?
       `,
       [bulk_insert_inventory_histories]

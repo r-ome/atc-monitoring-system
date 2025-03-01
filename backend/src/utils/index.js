@@ -1,9 +1,10 @@
 import moment from "moment";
 import multer from "multer";
+import jwt from "jsonwebtoken";
 import path from "path";
 import * as fs from "fs";
 import * as XLSX from "xlsx/xlsx.mjs";
-import { renderHttpError } from "../Routes/error_infos.js";
+import { AUTH_401, renderHttpError } from "../Routes/error_infos.js";
 XLSX.set_fs(fs);
 
 export const formatNumberPadding = (num, padding = 3) =>
@@ -162,4 +163,27 @@ export const readXLSXfile = (filePath) => {
 
   deleteFile(filePath);
   return sanitizedData;
+};
+
+export const authenticateToken = (req, res, next) => {
+  const token = req.cookies.token;
+
+  if (!token) {
+    return renderHttpError(res, {
+      log: "Token doesn't exist!",
+      error: AUTH_401,
+    });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      return renderHttpError(res, {
+        log: "Invalid token!",
+        error: AUTH_401,
+      });
+    }
+
+    req.user = user;
+    next();
+  });
 };

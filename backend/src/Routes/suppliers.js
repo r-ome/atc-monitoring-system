@@ -1,6 +1,6 @@
 import express from "express";
 import Joi from "joi";
-
+import supplierContainers from "./supplierContainers.js";
 import {
   getSupplierByNameCode,
   getSupplier,
@@ -17,9 +17,9 @@ import {
 } from "./error_infos.js";
 import { DB_ERROR_EXCEPTION } from "../services/index.js";
 
-const router = express.Router();
+const suppliers = express.Router();
 
-router.get("/:supplier_id", async (req, res) => {
+suppliers.get("/:supplier_id", async (req, res) => {
   try {
     const { supplier_id } = req.params;
     const supplier = await getSupplier(supplier_id);
@@ -39,7 +39,7 @@ router.get("/:supplier_id", async (req, res) => {
   }
 });
 
-router.get("/", async (req, res) => {
+suppliers.get("/", async (req, res) => {
   try {
     const suppliers = await getSuppliers();
     return res.status(200).json({ data: suppliers });
@@ -51,7 +51,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+suppliers.post("/", async (req, res) => {
   try {
     const schema = Joi.object({
       name: Joi.string()
@@ -113,4 +113,13 @@ router.post("/", async (req, res) => {
   }
 });
 
-export default router;
+suppliers.use(
+  "/:supplier_id/containers",
+  (req, res, next) => {
+    req.supplier_id = req.params.supplier_id;
+    next();
+  },
+  supplierContainers
+);
+
+export default suppliers;

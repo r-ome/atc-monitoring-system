@@ -26,6 +26,7 @@ export const getContainer = async (container_id) => {
             ) AS supplier,
             SUM(CASE WHEN i.status = "${INVENTORY_STATUS.SOLD}" THEN ai.price END) AS total_sold_item_price,
             COUNT(CASE WHEN i.status = "${INVENTORY_STATUS.SOLD}" THEN 1 END) AS sold_items,
+            COUNT(CASE WHEN i.status in ("${INVENTORY_STATUS.UNSOLD}", "${INVENTORY_STATUS.REBID}") THEN i.inventory_id END) AS unsold_items,
             c.container_num,
             c.bill_of_lading_number,
             c.port_of_landing,
@@ -51,12 +52,14 @@ export const getContainer = async (container_id) => {
           LEFT JOIN branches b ON b.branch_id = c.branch_id
           LEFT JOIN inventories i ON i.container_id = c.container_id
           LEFT JOIN auctions_inventories ai ON ai.inventory_id = i.inventory_id
-          WHERE c.container_id = ?;
+          WHERE c.container_id = ?
+          group by i.container_id;
         `,
       [container_id]
     );
     return container;
   } catch (error) {
+    console.log(error);
     throw new DBErrorException("getContainer", error);
   }
 };
@@ -65,10 +68,25 @@ export const getContainers = async () => {
   try {
     return await query(`
         SELECT
-          c.*,
-          s.name
+          c.container_id,
+          c.barcode,
+          c.container_num,
+          JSON_OBJECT(
+            'supplier_id', s.supplier_id,
+            'name', s.name,
+            'supplier_code', s.supplier_code
+          ) AS supplier,
+          JSON_OBJECT(
+            'branch_id', b.branch_id,
+            'name', b.name
+          ) AS branch,
+          c.num_of_items,
+          c.auction_or_sell,
+          c.created_at,
+          c.updated_at
         FROM containers c
-        LEFT JOIN suppliers s on s.supplier_id = c.supplier_id
+        LEFT JOIN suppliers s ON s.supplier_id = c.supplier_id
+        LEFT JOIN branches b ON b.branch_id = c.branch_id
         WHERE c.deleted_at IS NULL
       `);
   } catch (error) {
@@ -85,18 +103,28 @@ export const getContainersBySupplier = async (supplier_id) => {
           c.barcode,
           c.container_num,
           c.num_of_items,
+          c.auction_or_sell,
+          c.created_at,
+          c.updated_at,
+          JSON_OBJECT(
+            'supplier_id', s.supplier_id,
+            'name', s.name,
+            'supplier_code', s.supplier_code
+          ) AS supplier,
           JSON_OBJECT(
             'branch_id', b.branch_id,
             'name', b.name
           ) AS branch
         FROM containers c
+        LEFT JOIN suppliers s ON s.supplier_id = c.supplier_id
         LEFT JOIN branches b ON b.branch_id = c.branch_id
-        WHERE supplier_id = ?
+        WHERE c.supplier_id = ?
         AND c.deleted_at IS NULL;
       `,
       [supplier_id]
     );
   } catch (error) {
+    console.log(error);
     throw new DBErrorException("getContainersBySupplier", error);
   }
 };

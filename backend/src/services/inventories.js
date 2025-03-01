@@ -1,20 +1,83 @@
 import { query, DBErrorException } from "./index.js";
 import { AUCTION_STATUS, INVENTORY_STATUS } from "../Routes/constants.js";
 
+export const getInventory = async (inventory_id) => {
+  try {
+    const [inventory] = await query(
+      `
+        SELECT
+          JSON_OBJECT(
+            'inventory_id', i.inventory_id,
+            'barcode', i.barcode,
+            'control', i.control,
+            'description', i.description,
+            'status', i.status,
+            'created_at', i.created_at,
+            'updated_at', i.updated_at
+          ) AS inventory,
+          JSON_OBJECT(
+            'auction_inventory_id', ai.auction_inventory_id,
+            'auction_id', ab.auction_id,
+            'price', ai.price,
+            'qty', ai.qty,
+            'status', ai.status,
+            'manifest_number', ai.manifest_number,
+            'created_at', ai.created_at,
+            'updated_at', ai.updated_at,
+            'payment_id', ai.payment_id,
+            'bidder', JSON_OBJECT(
+              'service_charge', ab.service_charge,
+              'bidder_id', ab.bidder_id,
+              'full_name', CONCAT(b.first_name, " ", b.last_name),
+              'bidder_number', b.bidder_number
+            )
+          ) AS auction_inventory,
+          (
+            SELECT
+              IF (COUNT(ih.inventory_history_id) = 0,
+                JSON_ARRAY(),
+                JSON_ARRAYAGG(JSON_OBJECT(
+                  'inventory_history_id', ih.inventory_history_id,
+                  'payment_id', ih.payment_id,
+                  'status', ih.auction_status,
+                  'remarks', ih.remarks,
+                  'created_at', ih.created_at
+                )))
+            FROM inventory_histories ih
+            WHERE ih.auction_inventory_id = ai.auction_inventory_id
+          ) as histories
+        FROM inventories i
+        LEFT JOIN auctions_inventories ai ON ai.inventory_id = i.inventory_id
+        LEFT JOIN auctions_bidders ab ON ab.auction_bidders_id = ai.auction_bidders_id
+        LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
+        WHERE i.inventory_id = ?
+        GROUP BY ai.auction_inventory_id
+      `,
+      [inventory_id]
+    );
+
+    return inventory;
+  } catch (error) {
+    console.log(error);
+    throw new DBErrorException("getInventory", error);
+  }
+};
+
 export const getContainerInventories = async (container_id) => {
   try {
     const inventories = await query(
       `
         SELECT
-          inventory_id,
-          barcode,
-          description,
-          control_number,
-          url,
-          status,
-          created_at,
-          updated_at
-        FROM inventories
+          i.inventory_id,
+          i.barcode,
+          i.description,
+          i.control,
+          ai.price,
+          i.status,
+          i.created_at,
+          i.updated_at
+        FROM inventories i
+        LEFT JOIN auctions_inventories ai ON ai.inventory_id = i.inventory_id
         WHERE container_id = ?
         ORDER BY barcode;
       `,
@@ -31,14 +94,14 @@ export const createContainerInventory = async (container_id, inventory) => {
   try {
     const inventoryResult = await query(
       `
-        INSERT INTO inventories(container_id, barcode, description, control_number, url)
+        INSERT INTO inventories(container_id, barcode, description, control, url)
         VALUES (?, ?, ?, ?, ?);
         `,
       [
         container_id,
         inventory.barcode,
         inventory.description,
-        inventory.control_number,
+        inventory.control,
         inventory.url,
       ]
     );
@@ -60,7 +123,7 @@ export const createContainerInventory = async (container_id, inventory) => {
             container_id,
             barcode,
             description,
-            control_number,
+            control,
             url,
             status,
             DATE_FORMAT(created_at, '%b %d, %Y %h:%i%p') AS created_at,
@@ -78,11 +141,7 @@ export const createContainerInventory = async (container_id, inventory) => {
   }
 };
 
-export const updateContainerInventory = async (
-  container_id,
-  inventory_id,
-  inventory
-) => {
+export const updateContainerInventory = async (inventory_id, inventory) => {
   return await query(
     `
       UPDATE inventories
@@ -119,7 +178,7 @@ export const getInventoryByBarcode = async (barcodes) => {
       `
           SELECT
             i.inventory_id,
-            i.control_number,
+            i.control,
             i.barcode
           FROM inventories i
           JOIN TEMP_INVENTORIES temp
@@ -137,11 +196,11 @@ export const getInventoryByBarcode = async (barcodes) => {
 
 export const checkDuplicateInventory = async (auction_id) => {
   try {
-    const something = await query(
+    const duplicates = await query(
       `
         SELECT
           i.barcode AS BARCODE,
-          i.control_number AS CONTROL,
+          i.control AS CONTROL,
           i.description AS DESCRIPTION,
           b.bidder_number AS BIDDER,
           ai.qty AS QTY,
@@ -154,7 +213,7 @@ export const checkDuplicateInventory = async (auction_id) => {
       `,
       [auction_id]
     );
-    return something;
+    return duplicates;
   } catch (error) {
     throw new DBErrorException("checkDuplicateInventory", error);
   }
@@ -173,7 +232,7 @@ export const bulkCreateContainerInventory = async (inventories) => {
 
     await query(
       `
-        INSERT INTO inventories (container_id, description, control_number, barcode, status, v4_identifier)
+        INSERT INTO inventories (container_id, description, control, barcode, status, v4_identifier)
         VALUES ?
       `,
       [formattedInventories]
@@ -187,7 +246,7 @@ export const bulkCreateContainerInventory = async (inventories) => {
       }, {});
 
     container_inventories = Object.entries(container_inventories).map(
-      ([container_id, count]) => [Number(container_id), count]
+      ([container_id, count]) => [parseInt(container_id, 10), count]
     );
 
     const update_cases = container_inventories
@@ -236,7 +295,7 @@ export const bulkCreateAuctionInventories = async (auctions_inventories) => {
       item.auction_bidders_id,
       item.inventory_id,
       AUCTION_STATUS.UNPAID,
-      parseInt(item.PRICE),
+      parseInt(item.PRICE, 10),
       item.QTY,
       item.MANIFEST,
     ]);

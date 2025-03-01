@@ -80,21 +80,32 @@ export const getAuctionItemDetails = async (auction_inventory_id) => {
     const [result] = await query(
       `
         SELECT
-          ai.auction_inventory_id,
-          ab.auction_id,
-          ai.price,
-          i.status AS inventory_status,
-          ai.status AS auction_status,
-          ai.qty,
-          i.description,
-          i.control_number,
-          i.barcode AS barcode_number,
-          ab.service_charge,
           JSON_OBJECT(
-            'bidder_id', b.bidder_id,
-            'bidder_number', b.bidder_number,
-            'full_name', CONCAT(b.first_name, " ", b.last_name)
-          ) AS bidder,
+            'inventory_id', i.inventory_id,
+            'barcode', i.barcode,
+            'control', i.control,
+            'description', i.description,
+            'status', i.status,
+            'created_at', i.created_at,
+            'updated_at', i.updated_at
+          ) AS inventory,
+          JSON_OBJECT(
+            'auction_inventory_id', ai.auction_inventory_id,
+            'auction_id', ab.auction_id,
+            'price', ai.price,
+            'qty', ai.qty,
+            'status', ai.status,
+            'created_at', ai.created_at,
+            'updated_at', ai.updated_at,
+            'manifest_number', ai.manifest_number,
+            'payment_id', ai.payment_id,
+            'bidder', JSON_OBJECT(
+              'bidder_id', b.bidder_id,
+              'bidder_number', b.bidder_number,
+              'full_name', CONCAT(b.first_name, " ", b.last_name),
+              'service_charge', ab.service_charge
+            )
+          ) AS auction_inventory,
           IF (COUNT(ih.auction_inventory_id) = 0,
             JSON_ARRAY(),
             JSON_ARRAYAGG(JSON_OBJECT(
@@ -165,8 +176,9 @@ export const getMonitoring = async (auction_id) => {
       `
         SELECT
           ai.auction_inventory_id,
+          i.inventory_id,
           i.barcode,
-          i.control_number,
+          i.control,
           i.description,
           i.status AS inventory_status,
           ai.status AS auction_status,
@@ -197,8 +209,8 @@ export const createManifestRecords = async (manifest) => {
         INSERT INTO
           manifest_records(
             auction_id,
-            barcode_number,
-            control_number,
+            barcode,
+            control,
             description,
             price,
             bidder_number,
@@ -224,8 +236,8 @@ export const getManifestRecords = async (auction_id) => {
         SELECT
           manifest_id,
           remarks,
-          barcode_number,
-          control_number,
+          barcode,
+          control,
           description,
           price,
           bidder_number,
@@ -252,22 +264,21 @@ export const getRegisteredBidders = async (auction_id) => {
         SELECT
           a.auction_id,
           DATE_FORMAT(a.created_at, '%M %d, %Y, %W') AS auction_date,
-          IF(
-              COUNT(ab.auction_bidders_id) = 0,
-              JSON_ARRAY(),
-              JSON_ARRAYAGG(
-                  JSON_OBJECT(
-                      'auction_bidders_id', ab.auction_bidders_id,
-                      'bidder_id', ab.bidder_id,
-                      'full_name', CONCAT(b.first_name, " ", b.last_name),
-                      'bidder_number', b.bidder_number,
-                      'service_charge', ab.service_charge,
-                      'registration_fee', ab.registration_fee,
-                      'total_items', COALESCE(ai_counts.total_items, 0),
-                      'balance',  ab.balance,
-                      'remarks', ab.remarks
-                  )
-              )
+          IF(COUNT(ab.auction_bidders_id) = 0,
+            JSON_ARRAY(),
+            JSON_ARRAYAGG(
+                JSON_OBJECT(
+                    'auction_bidders_id', ab.auction_bidders_id,
+                    'bidder_id', ab.bidder_id,
+                    'full_name', CONCAT(b.first_name, " ", b.last_name),
+                    'bidder_number', b.bidder_number,
+                    'service_charge', ab.service_charge,
+                    'registration_fee', ab.registration_fee,
+                    'total_items', COALESCE(ai_counts.total_items, 0),
+                    'balance',  ab.balance,
+                    'remarks', ab.remarks
+                )
+            )
           ) AS bidders
         FROM auctions a
         LEFT JOIN auctions_bidders ab ON ab.auction_id = a.auction_id
@@ -303,9 +314,9 @@ export const getBidderAuctionProfile = async (auction_id, bidder_id) => {
           CONCAT(b.first_name, " ", b.last_name) AS full_name,
           ab.created_at AS auction_date,
           ab.already_consumed,
-          IF(MAX(DISTINCT p.receipt_number) = 0,
+          IF(MAX(p.receipt_number) IS NULL,
             b.bidder_number,
-            CONCAT(b.bidder_number, "-", MAX(DISTINCT p.receipt_number))
+            CONCAT(b.bidder_number, "-", MAX(p.receipt_number))
           ) AS receipt_number,
           COUNT(ai.auction_inventory_id) as total_items,
           ab.service_charge,
@@ -324,7 +335,7 @@ export const getBidderAuctionProfile = async (auction_id, bidder_id) => {
               'inventory_id', i.inventory_id,
               'bidder', b.bidder_number,
               'barcode', i.barcode,
-              'control', i.control_number,
+              'control', i.control,
               'description', i.description,
               'price', ai.price,
               'qty', ai.qty,
@@ -337,9 +348,9 @@ export const getBidderAuctionProfile = async (auction_id, bidder_id) => {
         LEFT JOIN auctions_bidders ab ON ab.bidder_id = b.bidder_id
         LEFT JOIN auctions_inventories ai ON ai.auction_bidders_id = ab.auction_bidders_id
         LEFT JOIN inventories i ON i.inventory_id = ai.inventory_id
-        LEFT JOIN payments p ON p.auction_bidders_id = ab.auction_bidders_id
+        LEFT JOIN payments p ON p.payment_id = ai.payment_id
         WHERE b.bidder_id = ? AND ab.auction_id = ?
-        GROUP BY ab.auction_bidders_id, p.payment_id
+        GROUP BY ab.auction_bidders_id
       `,
       [bidder_id, auction_id]
     );
@@ -382,7 +393,12 @@ export const getAuctionItemHistories = async (auction_inventory_id) => {
   }
 };
 
-export const cancelItem = async (auction_id, auction_inventory_id, reason) => {
+export const cancelOrVoidItem = async (
+  action,
+  auction_id,
+  auction_inventory_id,
+  reason
+) => {
   try {
     const [auction_inventory] = await query(
       `
@@ -392,10 +408,12 @@ export const cancelItem = async (auction_id, auction_inventory_id, reason) => {
             ai.auction_bidders_id,
             ai.price,
             ai.status,
+            i.status AS inventory_status,
             ab.service_charge,
             p.receipt_number,
             p.payment_id
           FROM auctions_inventories ai
+          LEFT JOIN inventories i ON i.inventory_id = ai.inventory_id
           LEFT JOIN auctions_bidders ab ON ab.auction_bidders_id = ai.auction_bidders_id
           LEFT JOIN payments p ON p.payment_id = ai.payment_id
           WHERE ab.auction_id = ? AND ai.auction_inventory_id = ?
@@ -411,41 +429,33 @@ export const cancelItem = async (auction_id, auction_inventory_id, reason) => {
       // record current status
       await query(
         `
-        INSERT INTO inventory_histories(auction_inventory_id, auction_status, payment_id)
-        VALUES (?,?,?)
+        INSERT INTO inventory_histories(auction_inventory_id, auction_status, inventory_status, payment_id)
+        VALUES (?,?,?,?)
       `,
         [
           auction_inventory.auction_inventory_id,
           auction_inventory.status,
+          auction_inventory.inventory_status,
           auction_inventory.payment_id,
         ]
       );
     }
 
-    // record proposed status
-    await query(
-      `
-        INSERT INTO inventory_histories(auction_inventory_id, auction_status, remarks)
-        VALUES (?,?,?)
-      `,
-      [
-        auction_inventory.auction_inventory_id,
-        AUCTION_STATUS.CANCELLED,
-        reason ? reason : "NO REASON GIVEN",
-      ]
-    );
+    const proposed_inventory_status =
+      action === "VOID" ? INVENTORY_STATUS.VOID : INVENTORY_STATUS.REBID;
 
     // update inventory status from SOLD to REBID
-    await query(
-      `UPDATE inventories SET status = "${INVENTORY_STATUS.REBID}" WHERE inventory_id = ?`,
-      [auction_inventory.inventory_id]
-    );
+    await query(`UPDATE inventories SET status = ? WHERE inventory_id = ?`, [
+      proposed_inventory_status,
+      auction_inventory.inventory_id,
+    ]);
 
     const computed_price =
       auction_inventory.price +
       (auction_inventory.price * auction_inventory.service_charge) / 100;
+    let payment = null;
     if (auction_inventory.status === AUCTION_STATUS.PAID) {
-      const payment = await query(
+      payment = await query(
         `INSERT INTO payments (auction_bidders_id, purpose, amount_paid, receipt_number)
         VALUES (?, ?,?,?)`,
         [
@@ -483,6 +493,21 @@ export const cancelItem = async (auction_id, auction_inventory_id, reason) => {
       );
     }
 
+    // record proposed status
+    await query(
+      `
+        INSERT INTO inventory_histories(auction_inventory_id, payment_id, auction_status, inventory_status, remarks)
+        VALUES (?,?,?,?,?)
+      `,
+      [
+        auction_inventory.auction_inventory_id,
+        payment ? payment.insertId : null,
+        AUCTION_STATUS.CANCELLED,
+        proposed_inventory_status,
+        reason ? reason : "NO REASON GIVEN",
+      ]
+    );
+
     return auction_inventory;
   } catch (error) {
     throw new DBErrorException("cancelItem", error);
@@ -498,10 +523,12 @@ export const reassignAuctionItem = async (auction_inventory_id, new_bidder) => {
           ab.auction_bidders_id,
           ai.inventory_id,
           ai.status,
+          i.status AS inventory_status,
           ai.price,
           ab.service_charge,
           b.bidder_number
         FROM auctions_inventories ai
+        LEFT JOIN inventories i ON i.inventory_id = ai.inventory_id
         LEFT JOIN auctions_bidders ab ON ab.auction_bidders_id = ai.auction_bidders_id
         LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
         WHERE auction_inventory_id = ?
@@ -516,22 +543,28 @@ export const reassignAuctionItem = async (auction_inventory_id, new_bidder) => {
       // record current auction_inventory
       await query(
         `
-          INSERT INTO inventory_histories(auction_inventory_id, auction_status, remarks)
-          VALUES(?,?,?)
+          INSERT INTO inventory_histories(auction_inventory_id, auction_status,inventory_status, remarks)
+          VALUES(?,?,?,?)
         `,
-        [auction_inventory.auction_inventory_id, auction_inventory.status, null]
+        [
+          auction_inventory.auction_inventory_id,
+          auction_inventory.status,
+          auction_inventory.inventory_status,
+          null,
+        ]
       );
     }
 
     // record proposed auction_inventory
     await query(
       `
-        INSERT INTO inventory_histories(auction_inventory_id, auction_status, remarks)
-        VALUES(?,?,?)
+        INSERT INTO inventory_histories(auction_inventory_id, auction_status, inventory_status, remarks)
+        VALUES(?,?,?,?)
       `,
       [
         auction_inventory.auction_inventory_id,
         AUCTION_STATUS.DISCREPANCY,
+        auction_inventory.inventory_status,
         `TRANSFER FROM BIDDER ${auction_inventory.bidder_number} TO BIDDER ${new_bidder.bidder_number}`,
       ]
     );
@@ -585,6 +618,7 @@ export const discountItem = async (auction_inventory_id, new_price) => {
           ai.auction_inventory_id,
           ai.auction_bidders_id,
           ai.status,
+          i.status AS inventory_status,
           ai.price,
           ab.service_charge,
           ab.balance,
@@ -592,6 +626,7 @@ export const discountItem = async (auction_inventory_id, new_price) => {
           p.receipt_number
         FROM auctions_inventories ai
         LEFT JOIN auctions_bidders ab ON ab.auction_bidders_id = ai.auction_bidders_id
+        LEFT JOIN inventories i ON i.inventory_id = ai.inventory_id
         LEFT JOIN bidders b ON b.bidder_id = ab.bidder_id
         LEFT JOIN payments p ON p.payment_id = ai.payment_id
         WHERE auction_inventory_id = ?
@@ -606,12 +641,13 @@ export const discountItem = async (auction_inventory_id, new_price) => {
       // record current auction_inventory
       await query(
         `
-          INSERT INTO inventory_histories(auction_inventory_id, auction_status, remarks)
-          VALUES(?,?,?);
+          INSERT INTO inventory_histories(auction_inventory_id, auction_status, inventory_status, remarks)
+          VALUES(?,?,?,?);
         `,
         [
           auction_inventory.auction_inventory_id,
           auction_inventory.status,
+          auction_inventory.inventory_status,
           `CURRENT MONITORING PRICE: ${formatNumberToCurrency(
             auction_inventory.price
           )}`,
@@ -624,34 +660,12 @@ export const discountItem = async (auction_inventory_id, new_price) => {
       (auction_inventory.price * auction_inventory.service_charge) / 100;
 
     let payment = null;
+    const is_paid = auction_inventory.status === AUCTION_STATUS.PAID;
     const remarks_price = `${formatNumberToCurrency(
-      auction_inventory.status === AUCTION_STATUS.PAID
-        ? computed_price
-        : auction_inventory.price
-    )} ${
-      auction_inventory.status === AUCTION_STATUS.PAID
-        ? "(service charge included)"
-        : ""
-    }`;
+      is_paid ? computed_price : auction_inventory.price
+    )} ${is_paid ? "(service charge included)" : ""}.`;
 
-    const inventory_history = [
-      auction_inventory.auction_inventory_id,
-      auction_inventory.status === AUCTION_STATUS.PAID
-        ? AUCTION_STATUS.REFUNDED
-        : AUCTION_STATUS.LESS,
-      `UPDATED PRICE FROM ${remarks_price} to ${formatNumberToCurrency(
-        new_price
-      )}`,
-    ];
-    await query(
-      `
-        INSERT INTO inventory_histories(auction_inventory_id, auction_status, remarks)
-        VALUES (?,?,?);
-      `,
-      inventory_history
-    );
-
-    if (auction_inventory.status === AUCTION_STATUS.PAID) {
+    if (is_paid) {
       payment = await query(
         `
           INSERT INTO payments(auction_bidders_id, purpose, amount_paid, receipt_number, payment_type)
@@ -660,7 +674,7 @@ export const discountItem = async (auction_inventory_id, new_price) => {
         [
           auction_inventory.auction_bidders_id,
           AUCTION_STATUS.REFUNDED,
-          computed_price * -1,
+          (computed_price - new_price) * -1,
           auction_inventory.receipt_number,
           PAYMENT_TYPE.CASH,
         ]
@@ -680,6 +694,37 @@ export const discountItem = async (auction_inventory_id, new_price) => {
         [auction_inventory.auction_bidders_id]
       );
     }
+
+    let auction_history_status = "";
+    if (auction_inventory.status === AUCTION_STATUS.PAID) {
+      auction_history_status = AUCTION_STATUS.REFUNDED;
+    } else {
+      auction_history_status = AUCTION_STATUS.LESS;
+    }
+    if (new_price > computed_price)
+      auction_history_status = AUCTION_STATUS.DISCREPANCY;
+    const inventory_history = [
+      auction_inventory.auction_inventory_id,
+      payment ? payment.insertId : null,
+      auction_history_status,
+      auction_inventory.inventory_status,
+      `UPDATED PRICE FROM ${remarks_price} to ${formatNumberToCurrency(
+        new_price
+      )} ${
+        is_paid
+          ? `REFUNDED: ${formatNumberToCurrency(
+              computed_price - new_price
+            )} to Bidder`
+          : ""
+      }`,
+    ];
+    await query(
+      `
+        INSERT INTO inventory_histories(auction_inventory_id, payment_id, auction_status, inventory_status, remarks)
+        VALUES (?,?,?,?,?);
+      `,
+      inventory_history
+    );
 
     // update auction_inventories
     await query(
@@ -716,7 +761,7 @@ export const createAuctionInventory = async (auction_id, body) => {
     // if inventory already exists
     let [inventory] = await query(
       `
-        SELECT inventory_id, barcode, control_number
+        SELECT inventory_id, barcode, control, status
         FROM inventories
         WHERE barcode = ? AND status in ("UNSOLD", "REBID")
       `,
@@ -758,7 +803,7 @@ export const createAuctionInventory = async (auction_id, body) => {
       // insert new inventory
       inventory = await query(
         `
-          INSERT INTO inventories (container_id, description, control_number, barcode, status)
+          INSERT INTO inventories (container_id, description, control, barcode, status)
           VALUES (?, ?, ?, ?, ?)
         `,
         [

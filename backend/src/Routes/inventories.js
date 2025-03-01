@@ -55,7 +55,7 @@ router.post("/", async (req, res) => {
           "string.pattern.base": "Invalid characters",
           "string.empty": "Barcode is required",
         }),
-      control_number: Joi.string()
+      control: Joi.string()
         .pattern(/^[0-9 ]+$/)
         .allow("")
         .messages({
@@ -111,7 +111,7 @@ router.post("/", async (req, res) => {
   } catch (error) {
     return renderHttpError(res, {
       log: error,
-      error: error[DB_ERROR_EXCEPTION] ? INVENTORIES_501 : INVENTORIES_501,
+      error: error[DB_ERROR_EXCEPTION] ? INVENTORIES_501 : INVENTORIES_503,
     });
   }
 });

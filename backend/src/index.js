@@ -1,21 +1,24 @@
 import express from "express";
 import dotenv from "dotenv";
-dotenv.config();
+dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
 const app = express();
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import bodyParser from "body-parser";
 import { logger, morganMiddleware } from "./logger.js";
 import {
   auctions,
   suppliers,
-  containers,
   branches,
-  inventories,
+  containers,
   bidders,
-  payments,
   users,
+  auth,
 } from "./Routes/index.js";
-import { FILE_UPLOAD_ERROR_EXCEPTION } from "./utils/index.js";
+import {
+  authenticateToken,
+  FILE_UPLOAD_ERROR_EXCEPTION,
+} from "./utils/index.js";
 import {
   renderHttpError,
   FILE_UPLOAD_401,
@@ -24,6 +27,7 @@ import {
 
 logger.info("STARTING APPLICATION");
 
+app.use(cookieParser());
 app.use(bodyParser.json({ limit: "50mb" }));
 app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 app.use(function (req, res, next) {
@@ -34,57 +38,21 @@ app.use(morganMiddleware);
 
 app.use(
   cors({
-    // origin: "http://localhost:3000",
-    // origin: "https://atc-monitoring-system-5b87daf27294.herokuapp.com/",
-    origin: "https://atc-monitoring-system.netlify.app",
+    credentials: true,
+    origin: "http://localhost:3000",
+    // origin: "https://atc-monitoring-system.netlify.app",
     methods: "GET,POST,PUT,DELETE",
     allowedHeaders: "Content-Type,Authorization,Cache-Control,Pragma,Expires",
   })
 );
 
-suppliers.use(
-  "/:supplier_id/containers",
-  (req, res, next) => {
-    req.supplier_id = req.params.supplier_id;
-    next();
-  },
-  containers
-);
-
-containers.use(
-  "/:container_id/inventories",
-  (req, res, next) => {
-    req.container_id = req.params.container_id;
-    next();
-  },
-  inventories
-);
-
-auctions.use(
-  "/:auction_id/payments",
-  (req, res, next) => {
-    req.auction_id = req.params.auction_id;
-    next();
-  },
-  payments
-);
-
-app.use("/payments", payments);
-app.use("/suppliers", suppliers);
-app.use("/containers", containers);
-app.use("/branches", branches);
-app.use("/auctions", auctions);
-app.use("/bidders", bidders);
-app.use("/users", users);
-
-app.get("/", (req, res) => {
-  try {
-    res.send("HELLO WORLD");
-  } catch (err) {
-    console.error("Error connecting to MySQL:", err);
-    res.status(500).send("Error connecting to MySQL.");
-  }
-});
+app.use("/suppliers", authenticateToken, suppliers);
+app.use("/containers", authenticateToken, containers);
+app.use("/branches", authenticateToken, branches);
+app.use("/auctions", authenticateToken, auctions);
+app.use("/bidders", authenticateToken, bidders);
+app.use("/users", authenticateToken, users);
+app.use("/", auth);
 
 app.use((req, res, next) => {
   try {
@@ -103,7 +71,7 @@ app.use((req, res, next) => {
   }
 });
 
-const port = process.env.PORT || 3001;
+const port = process.env.PORT;
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });

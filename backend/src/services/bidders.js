@@ -103,10 +103,11 @@ export const getBidders = async () => {
             )
             FROM auctions_bidders ab
             WHERE ab.bidder_id = b.bidder_id
-            AND ab.balance != 0
+            AND ab.balance > 0
+            LIMIT 1
           ) as has_balance
         FROM bidders b
-        WHERE b.deleted_at IS NULL
+        WHERE b.deleted_at IS NULL AND bidder_number != "0000"
         GROUP BY b.bidder_id
       `
     );
