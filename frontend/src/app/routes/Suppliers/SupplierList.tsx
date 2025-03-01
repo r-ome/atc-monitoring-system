@@ -79,6 +79,7 @@ const Suppliers = () => {
       </div>
 
       <Table
+        loading={isLoading}
         rowKey={(record) => record.supplier_id}
         dataSource={searchValue ? dataSource : suppliers}
         className="h-[600px]"

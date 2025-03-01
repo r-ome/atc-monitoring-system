@@ -49,6 +49,7 @@ const UsersList = () => {
       </div>
 
       <Table
+        loading={isLoading}
         rowKey={(user) => user.user_id}
         dataSource={users}
         columns={[

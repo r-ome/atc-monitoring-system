@@ -56,6 +56,7 @@ const BranchList = () => {
       </div>
 
       <Table
+        loading={isLoading}
         rowKey={(record) => record.branch_id}
         dataSource={branches}
         columns={[

@@ -96,6 +96,7 @@ const AuctionList = () => {
         </div>
 
         <Table
+          loading={isLoading}
           rowKey={(record) => record.auction_id}
           dataSource={auctions}
           columns={[

@@ -26,7 +26,7 @@ const BidderTransaction = () => {
   const [isRefundRegistrationModalOpen, setRefundRegistrationModalOpen] =
     useState<boolean>(false);
   const [settlePaymentModal, setSettlePaymentModal] = useState<boolean>(false);
-  const [isPaymentSettlted, setIsPaymentSettled] = useState<boolean>(false);
+  const [isPaymentSettled, setIsPaymentSettled] = useState<boolean>(false);
   const { setBreadcrumb } = useBreadcrumbs();
 
   useEffect(() => {
@@ -75,16 +75,6 @@ const BidderTransaction = () => {
 
   if (!paymentDetails || !bidderTransactions.length) return null;
 
-  // const Document =
-  //   paymentDetails.purpose === "REFUNDED" ? (
-  //     <BidderRefundDocument
-  //       bidder={paymentDetails}
-  //       items={paymentDetails.auction_inventories}
-  //     />
-  //   ) : (
-
-  //   );
-
   return (
     <div className="w-full">
       <div className="flex h-full gap-2">
@@ -97,7 +87,7 @@ const BidderTransaction = () => {
               extra={
                 <>
                   {paymentDetails.purpose === "PULL_OUT" ||
-                  (isPaymentSettlted &&
+                  (isPaymentSettled &&
                     paymentDetails.purpose !== "REGISTRATION") ? (
                     <div className="flex gap-4">
                       {paymentDetails.purpose !== "REFUNDED" ? (
@@ -168,15 +158,36 @@ const BidderTransaction = () => {
                     </Button>
                   ) : null}
 
-                  {paymentDetails.purpose === "PARTIAL" &&
-                  !isPaymentSettlted ? (
-                    <Button
-                      color="orange"
-                      variant="outlined"
-                      onClick={() => setSettlePaymentModal(true)}
-                    >
-                      Settle Payment
-                    </Button>
+                  {paymentDetails.purpose === "PARTIAL" && !isPaymentSettled ? (
+                    <div className="flex gap-2">
+                      <Button
+                        color="orange"
+                        variant="outlined"
+                        onClick={() => setSettlePaymentModal(true)}
+                      >
+                        Settle Payment
+                      </Button>
+                      <div>
+                        <Button
+                          variant="outlined"
+                          color="cyan"
+                          onClick={() =>
+                            navigate("/auctions/receipt", {
+                              state: {
+                                action:
+                                  paymentDetails.purpose === "REFUNDED"
+                                    ? "refund"
+                                    : "invoice",
+                                bidder: paymentDetails,
+                                items: paymentDetails.auction_inventories,
+                              },
+                            })
+                          }
+                        >
+                          View Receipt
+                        </Button>
+                      </div>
+                    </div>
                   ) : null}
                 </>
               }
