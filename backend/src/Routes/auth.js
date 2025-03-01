@@ -73,8 +73,8 @@ router.post("/login", async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true, // Prevents JavaScript access
       secure: process.env.NODE_ENV === "production", // Set true in production (HTTPS required)
-      sameSite: "Strict", // Prevents CSRF attacks
-      maxAge: 60 * 60 * 1000, // 1 hour expiry
+      sameSite: "none",
+      maxAge: 60 * 60 * 1000,
     });
 
     return res.status(200).json({
@@ -102,7 +102,6 @@ router.post("/logout", (req, res) => {
 router.post("/create-super-admin", async (req, res) => {
   try {
     if (process.env.SUPER_ADMIN_PASSWORD) {
-      console.log(process.env.SUPER_ADMIN_PASSWORD);
       const password = await bcrypt.hash(process.env.SUPER_ADMIN_PASSWORD, 10);
       const result = await createSuperAdmin(password);
       if (!result) {
