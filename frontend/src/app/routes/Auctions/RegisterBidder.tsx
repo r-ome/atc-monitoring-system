@@ -117,27 +117,27 @@ const RegisterBidderModal: React.FC<RegisterBidderProps> = ({
     const { auction_id: auctionId } = params;
     if (auctionId) {
       // ORIGINAL
-      // await registerBidderAtAuction(auctionId, data);
+      await registerBidderAtAuction(auctionId, data);
       // MODIFIED FOR SAMPLE_1
-      const bidderIds = [
-        218, 747, 742, 740, 721, 13, 580, 688, 675, 526, 514, 648, 475, 390,
-        219, 188, 361, 169, 153, 206, 233, 28, 41, 44, 43, 59, 76, 167,
-      ];
+      // const bidderIds = [
+      //   218, 747, 742, 740, 721, 13, 580, 688, 675, 526, 514, 648, 475, 390,
+      //   219, 188, 361, 169, 153, 206, 233, 28, 41, 44, 43, 59, 76, 167,
+      // ];
 
       // MODIFIED FOR SAMPLE_2
       // const bidderIds = [
       //   7, 28, 43, 59, 114, 165, 218, 233, 268, 340, 412, 504, 512, 518, 580,
       //   628, 702, 704, 708, 719, 748, 750, 783, 791, 796, 809, 813,
       // ];
-      unregisteredBidders.forEach(async (item) => {
-        if (bidderIds.includes(item.bidder_id)) {
-          await registerBidderAtAuction(auctionId, {
-            bidder_id: item.bidder_id,
-            registration_fee: item.registration_fee,
-            service_charge: item.service_charge,
-          });
-        }
-      });
+      // unregisteredBidders.forEach(async (item) => {
+      //   if (bidderIds.includes(item.bidder_id)) {
+      //     await registerBidderAtAuction(auctionId, {
+      //       bidder_id: item.bidder_id,
+      //       registration_fee: item.registration_fee,
+      //       service_charge: item.service_charge,
+      //     });
+      //   }
+      // });
     }
   });
 

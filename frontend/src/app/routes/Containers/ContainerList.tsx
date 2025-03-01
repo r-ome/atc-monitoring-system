@@ -89,6 +89,7 @@ const BidderList = () => {
       </div>
 
       <Table
+        loading={isLoading}
         rowKey={(record) => record.container_id}
         dataSource={searchValue ? dataSource : containers}
         columns={[
