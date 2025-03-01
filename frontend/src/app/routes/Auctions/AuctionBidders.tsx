@@ -57,7 +57,8 @@ const AuctionBidders = () => {
 
       <Table
         rowKey={(record) => record.bidder_id}
-        dataSource={searchValue ? dataSource : registeredBidders?.bidders}
+        dataSource={searchValue ? dataSource : registeredBidders.bidders}
+        scroll={{ y: 400 }}
         columns={[
           {
             title: "Bidder Number",
@@ -95,6 +96,14 @@ const AuctionBidders = () => {
           {
             title: "Balance",
             dataIndex: "balance",
+            filters: [{ text: "Has Balance", value: "greater" }],
+            onFilter: (value, record) => {
+              if (value === "greater") {
+                return record.balance > 0;
+              } else {
+                return record.balance < 0;
+              }
+            },
             render: (item) => (
               <span
                 className={`${

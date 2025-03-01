@@ -7,7 +7,6 @@ interface RHFInputProps extends InputProps {
   rules?: RegisterOptions;
   placeholder?: string;
   onChange?: (e: any) => void;
-  type?: "number" | "text";
   disabled?: boolean;
   defaultValue?: number | string;
 }

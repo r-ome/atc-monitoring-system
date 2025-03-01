@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
 
 const InvoiceTableFooter = ({ bidder, totalItemPrice }: any) => {
   const serviceCharge = parseInt(bidder.service_charge, 10);
-  const totalPrice = parseInt(bidder.total_item_price, 10) || totalItemPrice;
+  const totalPrice = totalItemPrice;
   const grandTotalPrice = bidder.balance || bidder.amount_paid;
   const serviceChargeAmount = (totalPrice * serviceCharge) / 100;
 
@@ -131,11 +131,14 @@ const InvoiceTableFooter = ({ bidder, totalItemPrice }: any) => {
         <Text
           style={{
             ...styles.totalValue,
+            fontWeight: "bold",
             backgroundColor:
               parseInt(bidder.balance, 10) < 0 ? "#feb2b2" : "transparent",
           }}
         >
-          {grandTotalPrice.toLocaleString()}
+          {grandTotalPrice < 0
+            ? `(${(grandTotalPrice * -1).toLocaleString()})`
+            : grandTotalPrice.toLocaleString()}
         </Text>
       </View>
     </View>

@@ -75,7 +75,7 @@ const PullOutModal: React.FC<PullOutModalProps> = ({
     ];
 
     return bidder.already_consumed
-      ? [...items.slice(0, 2), ...items.slice(2 + 1)]
+      ? [...items.slice(0, 2), ...items.slice(3)]
       : items;
   };
 
@@ -100,8 +100,10 @@ const PullOutModal: React.FC<PullOutModalProps> = ({
             <pre className="text-sm my-2">
               Total = {formatNumberToCurrency(bidder.total_unpaid_items_price)}{" "}
               + ({formatNumberToCurrency(bidder.total_unpaid_items_price)} x{" "}
-              {bidder.service_charge}){" "}
-              {bidder.already_consumed ? "" : `- ${bidder.registration_fee}`}
+              {bidder.service_charge}%){" "}
+              {bidder.already_consumed
+                ? ""
+                : `- ${formatNumberToCurrency(bidder.registration_fee)}`}
             </pre>
             <pre className="text-sm my-2">
               Total = {formatNumberToCurrency(bidder.total_unpaid_items_price)}{" "}
@@ -111,7 +113,9 @@ const PullOutModal: React.FC<PullOutModalProps> = ({
                   parseInt(bidder.service_charge, 10)) /
                   100
               )}{" "}
-              {bidder.already_consumed ? "" : `- ${bidder.registration_fee}`}
+              {bidder.already_consumed
+                ? ""
+                : `- ${formatNumberToCurrency(bidder.registration_fee)}`}
             </pre>
             <pre className="text-sm">
               Total = {formatNumberToCurrency(bidder?.balance)}

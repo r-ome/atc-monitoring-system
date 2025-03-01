@@ -23,7 +23,7 @@ export type AuctionDetails = BaseAuction & {
 export type Monitoring = {
   auction_inventory_id: number;
   barcode: string;
-  control_number: string;
+  control: string;
   description: string;
   auction_status: AuctionItemStatus;
   inventory_status: InventoryStatus;
@@ -32,7 +32,7 @@ export type Monitoring = {
     bidder_number: string;
   };
   qty: string;
-  price: string;
+  price: number;
   manifest_number: string;
 };
 
@@ -41,8 +41,8 @@ type ManifestRemark = "VALID_ROW" | "INVALID_ROW";
 export type ManifestRecord = {
   manifest_id: number;
   remarks: ManifestRemark;
-  barcode_number: string;
-  control_number: string;
+  barcode: string;
+  control: string;
   description: string;
   price: string;
   bidder_number: string;
@@ -58,7 +58,7 @@ export type ManifestRecordResponse = {
   message: string;
   manifest: {
     barcode: string;
-    control_number: string;
+    control: string;
     description: string;
     price: number;
     bidder_number: string;
@@ -78,7 +78,8 @@ export type RegisteredBidders = {
 export type BidderAuctionItem = {
   auction_inventory_id: number;
   qty: string;
-  price: string;
+  price: number;
+  bidder: string;
   status: AuctionItemStatus;
   barcode: string;
   control: string;
@@ -93,7 +94,7 @@ export type BidderAuctionProfile = {
   bidder_number: string;
   auction_date: string;
   full_name: string;
-  receipt_number: number;
+  receipt_number: string;
   already_consumed: number; // supposed to be boolean
   total_items: number;
   service_charge: string;
@@ -112,7 +113,7 @@ export type RegisterBidderPayload = {
 };
 
 export type RegisterBidderResponse = {
-  balance: string;
+  balance: number;
   bidder_id: number;
   full_name: string;
   bidder_number: string;
@@ -123,7 +124,7 @@ export type RegisterBidderResponse = {
   remarks?: string;
 };
 
-type AuctionItemHistory = {
+export type AuctionItemHistory = {
   status: ItemHistoryStatus;
   remarks: string | null;
   created_at: string;
@@ -132,20 +133,31 @@ type AuctionItemHistory = {
 };
 
 export type AuctionItemDetails = {
-  auction_inventory_id: number;
-  auction_id: number;
-  price: string;
-  inventory_status: InventoryStatus;
-  auction_status: AuctionItemStatus;
-  qty: string;
-  description: string;
-  control_number: string;
-  barcode_number: string;
-  service_charge: number;
-  bidder: {
-    bidder_id: number;
-    full_name: string;
-    bidder_number: string;
+  inventory: {
+    status: InventoryStatus;
+    barcode: string;
+    control: string;
+    created_at: string;
+    updated_at: string;
+    description: string;
+    inventory_id: number;
+  };
+  auction_inventory?: {
+    auction_inventory_id: number;
+    auction_id: number;
+    payment_id?: number;
+    qty: string;
+    price: number;
+    bidder: {
+      bidder_id: number;
+      full_name: string;
+      bidder_number: string;
+      service_charge: number;
+    };
+    status: AuctionItemStatus;
+    created_at: string;
+    updated_at: string;
+    manifest_number: string;
   };
   histories: AuctionItemHistory[];
 };

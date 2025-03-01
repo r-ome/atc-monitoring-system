@@ -46,13 +46,14 @@ export type BidderAuctionTransaction = {
 };
 
 export type AuctionInventory = {
-  qty: string;
-  price: number;
+  barcode: string;
+  control: string;
   description: string;
+  qty: string;
+  bidder: string;
+  price: number;
   inventory_id: number;
   auction_status: AuctionItemStatus;
-  barcode_number: string;
-  control_number: string;
   manifest_number: string;
   inventory_status: InventoryStatus;
   auction_inventory_id: number;
@@ -70,7 +71,8 @@ export type PaymentDetails = {
   service_charge: number;
   already_consumed: number;
   registration_fee: number;
-  created_at: string;
+  payment_date: string;
+  auction_date: string;
   total_items: number;
   auction_inventories: AuctionInventory[];
 };

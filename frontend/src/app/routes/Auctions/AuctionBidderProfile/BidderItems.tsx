@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { usePayments, useAuction } from "@context";
 import { BidderAuctionItem } from "@types";
-import { Button, Skeleton, Space, Table, Tag, Tooltip } from "antd";
+import { Button, Input, Skeleton, Space, Table, Tag, Tooltip } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { usePageLayoutProps } from "@layouts/PageLayout";
 import PullOutModal from "./PullOutModal";
@@ -19,6 +19,11 @@ const BidderItems: React.FC = () => {
   } = usePayments();
   const { bidder, isLoading: isFetchingBidderItems } = useAuction();
   const { openNotification } = usePageLayoutProps();
+  const [nextReceiptNumber, setNextReceiptNumber] = useState<string>("1");
+  const [dataSource, setDataSource] = useState<BidderAuctionItem[]>(
+    bidder?.items || []
+  );
+  const [searchValue, setSearchValue] = useState<string>("");
 
   useEffect(() => {
     if (ErrorResponse && !isPayingBidderItems) {
@@ -39,6 +44,18 @@ const BidderItems: React.FC = () => {
     setIsPullOut,
   ]);
 
+  useEffect(() => {
+    if (!bidder) return;
+    let receiptNumber = bidder.receipt_number.split("-");
+    if (receiptNumber.length === 1) {
+      setNextReceiptNumber(bidder.receipt_number);
+    } else {
+      setNextReceiptNumber(
+        [receiptNumber[0], parseInt(receiptNumber[1], 10) + 1].join("-")
+      );
+    }
+  }, [bidder]);
+
   if (!bidder) return <Skeleton />;
 
   return (
@@ -47,6 +64,25 @@ const BidderItems: React.FC = () => {
         <h1 className="text-3xl font-bold">Bidder Items</h1>
 
         <div className="flex gap-2">
+          <Input
+            placeholder="Search by Barcode, Control or Bidder"
+            value={searchValue}
+            className="w-full"
+            onChange={(e) => {
+              const currentValue = e.target.value;
+              setSearchValue(currentValue);
+              const filteredData = bidder.items.filter(
+                (item) =>
+                  item.barcode.includes(currentValue) ||
+                  item.control.includes(currentValue) ||
+                  item.description.includes(currentValue.toUpperCase()) ||
+                  item.qty.includes(currentValue.toUpperCase()) ||
+                  item.price.toString().includes(currentValue.toUpperCase())
+              );
+              setDataSource(filteredData);
+            }}
+          />
+
           {parseInt(bidder.total_unpaid_items, 10) ? (
             <Button type="primary" onClick={() => setIsPullOut(!isPullOut)}>
               Pull Out
@@ -59,7 +95,13 @@ const BidderItems: React.FC = () => {
               color="cyan"
               onClick={() =>
                 navigate("/auctions/receipt", {
-                  state: { bidder, items: bidder.items },
+                  state: {
+                    action: "invoice",
+                    bidder: { ...bidder, receipt_number: nextReceiptNumber },
+                    items: bidder.items.filter(
+                      (item) => item.status === "UNPAID"
+                    ),
+                  },
                 })
               }
             >
@@ -77,7 +119,7 @@ const BidderItems: React.FC = () => {
 
       <Table
         rowKey={(rowKey) => rowKey.auction_inventory_id}
-        dataSource={bidder?.items}
+        dataSource={searchValue ? dataSource : bidder.items}
         loading={isFetchingBidderItems}
         columns={[
           {
@@ -100,7 +142,11 @@ const BidderItems: React.FC = () => {
           { title: "Control", dataIndex: "control", width: "15%" },
           { title: "Description", dataIndex: "description", width: "20%" },
           { title: "QTY", dataIndex: "qty" },
-          { title: "Price", dataIndex: "price" },
+          {
+            title: "Price",
+            dataIndex: "price",
+            render: (price) => price.toLocaleString(),
+          },
           {
             title: "Action",
             key: "action",

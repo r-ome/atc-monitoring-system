@@ -1,363 +1,152 @@
 import { useEffect } from "react";
 import moment from "moment";
-import { useNavigate, useParams } from "react-router-dom";
-import { useContainers, useInventories } from "@context";
-import { useBreadcrumbs } from "../../hooks";
-import { Inventory } from "@types";
-import { usePageLayoutProps } from "@layouts";
+import { useParams } from "react-router-dom";
+import { useContainers } from "@context";
+import { usePageLayoutProps } from "@layouts/PageLayout";
+import { Button, Card, Skeleton, Statistic, Tabs } from "antd";
+import { useBreadcrumbs } from "app/hooks";
 import {
-  Button,
-  Card,
-  Descriptions,
-  Skeleton,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-} from "antd";
-import { EyeOutlined } from "@ant-design/icons";
-import { CONTAINERS_403, INVENTORIES_403 } from "../errors";
-import { formatNumberToCurrency } from "@lib/utils";
+  BuildOutlined,
+  CalendarOutlined,
+  ShoppingCartOutlined,
+} from "@ant-design/icons";
+import InventoriesTable from "./InventoriesTable";
+import ContainerDescriptions from "./ContainerDescriptions";
 
 const ContainerProfile = () => {
-  const navigate = useNavigate();
   const params = useParams();
   const {
     container,
     fetchContainer,
-    isLoading: isFetchingContainer,
+    isLoading: isFetchingContainers,
     error: ContainerErrorResponse,
-    resetContainer,
   } = useContainers();
-  const {
-    resetInventory,
-    inventoriesByContainer,
-    fetchInventoriesByContainer,
-    isLoading: isFetchingInventories,
-    error: InventoryErrorResponse,
-  } = useInventories();
-  const { openNotification } = usePageLayoutProps();
   const { setBreadcrumb } = useBreadcrumbs();
+  const { openNotification } = usePageLayoutProps();
 
   useEffect(() => {
-    resetInventory();
-    if (!container) return;
-    setBreadcrumb({
-      title: container.barcode,
-      path: `/containers/${container.container_id}`,
-      level: 3,
-    });
-  }, [container, setBreadcrumb, resetInventory]);
+    if (container) {
+      setBreadcrumb({
+        title: `${container.barcode}'s Profile`,
+        path: `/${container.container_id}`,
+        level: 2,
+      });
+    }
+  }, [container, setBreadcrumb]);
 
   useEffect(() => {
-    const { container_id: containerId, supplier_id: supplierId } = params;
-    if (supplierId && containerId) {
+    const { container_id: containerId } = params;
+    if (containerId) {
       const fetchInitialData = async () => {
-        await fetchContainer(supplierId, containerId);
-        await fetchInventoriesByContainer(supplierId, containerId);
+        await fetchContainer(containerId);
       };
       fetchInitialData();
     }
-  }, [params, fetchContainer, fetchInventoriesByContainer]);
+  }, [params, fetchContainer]);
 
   useEffect(() => {
-    if (!isFetchingContainer) {
+    if (!isFetchingContainers) {
       if (ContainerErrorResponse) {
-        let message = "Server Error";
         if (ContainerErrorResponse.httpStatus === 500) {
-          message =
-            "There might be problems in the server. Please contact your admin.";
+          openNotification(
+            "There might be problems in the server. Please contact your admin.",
+            "error",
+            "Server Error"
+          );
         }
-
-        if (ContainerErrorResponse.error === CONTAINERS_403) {
-          message =
-            "Container does not exist. Please go back to list and choose another one";
-        }
-        openNotification(message, "error", "Server Error");
-        resetContainer();
       }
     }
-  }, [
-    ContainerErrorResponse,
-    isFetchingContainer,
-    openNotification,
-    resetContainer,
-  ]);
-
-  useEffect(() => {
-    if (!isFetchingInventories) {
-      if (InventoryErrorResponse) {
-        let message = "Server Error";
-        if (InventoryErrorResponse.httpStatus === 500) {
-          message =
-            "There might be problems in the server. Please contact your admin.";
-        }
-
-        if (InventoryErrorResponse.error === INVENTORIES_403) {
-          message =
-            "Container does not exist. Please go back to list and choose another one";
-        }
-        openNotification(message, "error", "Server Error");
-        resetInventory();
-      }
-    }
-  }, [
-    InventoryErrorResponse,
-    isFetchingInventories,
-    openNotification,
-    resetInventory,
-  ]);
-
-  const formatDate = (date: string) =>
-    moment(new Date(date)).format("MMMM DD, YYYY");
+  }, [ContainerErrorResponse, isFetchingContainers, openNotification]);
 
   if (!container) return <Skeleton />;
 
   return (
     <>
       <div className="h-full">
-        <div className="flex flex-grow gap-2">
-          <div className="w-2/6 h-full">
-            <Card loading={isFetchingContainer}>
-              <Descriptions
-                size="small"
-                layout="vertical"
-                bordered
-                column={4}
-                extra={
-                  <Button
-                    type="primary"
-                    onClick={() => {
-                      openNotification("TO DO: EDIT Supplier");
-                    }}
-                  >
-                    Edit
-                  </Button>
-                }
+        <div className="flex flex-col gap-2">
+          <div className="flex w-full gap-2">
+            {[
+              {
+                title: "Container",
+                value: container.barcode,
+                prefix: <BuildOutlined />,
+                action: (
+                  <div className="w-1/6 flex justify-end">
+                    <Button
+                      type="primary"
+                      // onClick={() => setOpenEditModal(true)}
+                    >
+                      Edit Container
+                    </Button>
+                  </div>
+                ),
+              },
+              {
+                title: "Total Unsold or Rebid Items",
+                value: `${container.unsold_items} UNSOLD or REBID item(s)`,
+                prefix: <ShoppingCartOutlined />,
+                action: (
+                  <div className="w-1/6 flex justify-end">
+                    <Button
+                      type="primary"
+                      // onClick={() => setOpenEditModal(true)}
+                    >
+                      Print
+                    </Button>
+                  </div>
+                ),
+              },
+              {
+                title: "Total Inventories",
+                value: `${container.num_of_items} items`,
+                prefix: <ShoppingCartOutlined />,
+              },
+              {
+                title: "Date Created",
+                value: moment(new Date(container.created_at)).format(
+                  "MMMM DD, YYYY"
+                ),
+                prefix: <CalendarOutlined />,
+              },
+            ].map((item, i) => (
+              <Card
+                key={i}
+                variant="borderless"
+                className="flex-1"
                 title={
                   <>
-                    <Tag
-                      color={`${
-                        container.auction_or_sell === "AUCTION"
-                          ? "green"
-                          : "blue"
-                      }`}
-                    >
-                      {container.auction_or_sell}
-                    </Tag>
-                    Container {container.barcode}
+                    {item.prefix} {item.title}
                   </>
                 }
-                items={[
-                  {
-                    key: "1",
-                    label: "Container Number",
-                    span: 2,
-                    children: container.container_num,
-                  },
-                  {
-                    key: "6",
-                    label: "Number of Items",
-                    span: 2,
-                    children: container.num_of_items,
-                  },
-                  {
-                    key: "20",
-                    label: (
-                      <>
-                        Total{" "}
-                        <span className="font-bold text-green-500">SOLD</span>{" "}
-                        items Price
-                      </>
-                    ),
-                    span: 2,
-                    children: formatNumberToCurrency(
-                      container.total_sold_item_price
-                    ),
-                  },
-                  {
-                    key: "21",
-                    label: (
-                      <>
-                        <span className="text-green-500 font-bold">SOLD</span>{" "}
-                        items
-                      </>
-                    ),
-                    span: 2,
-                    children: container.sold_items,
-                  },
-                  {
-                    key: "16",
-                    label: "Invoice Number",
-                    span: 2,
-                    children: container.invoice_num,
-                  },
-                  {
-                    key: "2",
-                    label: "Bill of Lading Number",
-                    span: 2,
-                    children: container.bill_of_lading_number,
-                  },
-                  {
-                    key: "3",
-                    label: "Port of landing",
-                    span: 2,
-                    children: container.port_of_landing,
-                  },
-                  {
-                    key: "4",
-                    label: "Carrier",
-                    children: container.carrier,
-                  },
-                  {
-                    key: "5",
-                    label: "Vessel",
-                    children: container.vessel,
-                  },
-                  {
-                    key: "7",
-                    label: "Departure Date From Japan",
-                    span: 3,
-                    children: formatDate(container.departure_date_from_japan),
-                  },
-                  {
-                    key: "8",
-                    label: "ETA to PH",
-                    span: 1,
-                    children: formatDate(container.eta_to_ph),
-                  },
-                  {
-                    key: "9",
-                    label: "Arrival date to PH Warehouse",
-                    span: 4,
-                    children: formatDate(container.arrival_date_warehouse_ph),
-                  },
-                  {
-                    key: "10",
-                    label: "Sorting Date",
-                    span: 2,
-                    children: formatDate(container.sorting_date),
-                  },
-                  {
-                    key: "11",
-                    label: "Auction Date",
-                    span: 2,
-                    children: formatDate(container.auction_date),
-                  },
-                  {
-                    key: "12",
-                    label: "Payment Date",
-                    span: 2,
-                    children: formatDate(container.payment_date),
-                  },
-                  {
-                    key: "13",
-                    label: "Telegraphic Transferred",
-                    span: 2,
-                    children: formatDate(container.telegraphic_transferred),
-                  },
-                  {
-                    key: "14",
-                    label: "Vanning Date",
-                    span: 2,
-                    children: formatDate(container.vanning_date),
-                  },
-                  {
-                    key: "15",
-                    label: "Devanning Date",
-                    span: 2,
-                    children: formatDate(container.devanning_date),
-                  },
-                  {
-                    key: "17",
-                    label: "Gross Weight",
-                    span: 2,
-                    children: container.gross_weight,
-                  },
-                  {
-                    key: "19",
-                    label: "Date Added",
-                    span: 4,
-                    children: formatDate(container.created_at),
-                  },
-                ]}
-              ></Descriptions>
-            </Card>
+                extra={<div className="flex justify-end">{item.action}</div>}
+              >
+                <div className="flex">
+                  <div className="w-full">
+                    <Statistic
+                      className="flex justify-center"
+                      value={item.value}
+                    />
+                  </div>
+                </div>
+              </Card>
+            ))}
           </div>
-
-          <Card
-            className="w-4/6 py-4 h-full"
-            title={
-              <div className="flex justify-between items-center w-full p-2">
-                <h1 className="text-3xl font-bold">
-                  Inventories ({inventoriesByContainer.length} items)
-                </h1>
-                <Button
-                  type="primary"
-                  onClick={() => navigate("inventory/create")}
-                >
-                  Add Inventory
-                </Button>
-              </div>
-            }
-          >
-            <Table
-              bordered
-              loading={isFetchingInventories}
-              rowKey={(row) => row.inventory_id}
-              dataSource={inventoriesByContainer}
-              columns={[
+          <Card>
+            <Tabs
+              defaultActiveKey="1"
+              items={[
                 {
-                  title: "Barcode",
-                  dataIndex: "barcode",
-                },
-                { title: "Description", dataIndex: "description" },
-                { title: "Control Number", dataIndex: "control_number" },
-                {
-                  title: "Status",
-                  dataIndex: "status",
-                  filters: [
-                    { text: "REBID", value: "REBID" },
-                    { text: "SOLD", value: "SOLD" },
-                    { text: "UNSOLD", value: "UNSOLD" },
-                  ],
-                  onFilter: (value, record) =>
-                    record.status.indexOf(value as string) === 0,
-                  render: (item) => {
-                    let color = "green";
-                    if (item === "SOLD") color = "green";
-                    if (item === "UNSOLD") color = "red";
-                    if (item === "REBID") color = "orange";
-
-                    return (
-                      <Tag color={color} bordered={false}>
-                        {item}
-                      </Tag>
-                    );
-                  },
+                  key: "1",
+                  label: "Inventories",
+                  children: <InventoriesTable />,
                 },
                 {
-                  title: "Action",
-                  key: "action",
-                  render: (_, inventory: Inventory) => {
-                    return (
-                      <Space size="middle">
-                        <Tooltip placement="top" title="View item">
-                          <Button
-                            onClick={() =>
-                              navigate(
-                                `/suppliers/${params.supplier_id}/containers/${params.container_id}/inventory/${inventory.inventory_id}`
-                              )
-                            }
-                          >
-                            <EyeOutlined />
-                          </Button>
-                        </Tooltip>
-                      </Space>
-                    );
-                  },
+                  key: "2",
+                  label: "Container Information",
+                  children: <ContainerDescriptions container={container} />,
                 },
               ]}
+              tabPosition="left"
             />
           </Card>
         </div>

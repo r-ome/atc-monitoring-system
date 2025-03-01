@@ -1,7 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuction } from "@context";
-import { Button, Input, Space, Table, Tag, Tooltip, Typography } from "antd";
+import { useAuction, useAuth } from "@context";
+import {
+  Button,
+  Input,
+  Skeleton,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+} from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { Monitoring as MonitoringType } from "@types";
 
@@ -12,8 +21,11 @@ const MonitoringPage = () => {
     registeredBidders,
     isLoading: isFetchingMonitoring,
   } = useAuction();
+  const { user } = useAuth();
   const [dataSource, setDataSource] = useState<MonitoringType[]>(monitoring);
   const [searchValue, setSearchValue] = useState<string>("");
+
+  if (user === null) return <Skeleton />;
 
   return (
     <div className="flex flex-col gap-2 w-full h-full">
@@ -36,21 +48,26 @@ const MonitoringPage = () => {
               const filteredData = monitoring.filter(
                 (item) =>
                   item.barcode.includes(currentValue) ||
-                  item.control_number.includes(currentValue) ||
+                  item.control.includes(currentValue) ||
                   item.bidder.bidder_number.includes(currentValue) ||
                   item.description.includes(currentValue.toUpperCase()) ||
+                  item.qty.includes(currentValue.toUpperCase()) ||
+                  item.price.toString().includes(currentValue.toUpperCase()) ||
                   item.auction_status.includes(currentValue.toUpperCase())
               );
               setDataSource(filteredData);
             }}
           />
-          <Button
-            color="blue"
-            variant="outlined"
-            onClick={() => navigate(`add-on`)}
-          >
-            Additional Item
-          </Button>
+
+          {user && !["ENCODER"].includes(user.role) ? (
+            <Button
+              color="blue"
+              variant="outlined"
+              onClick={() => navigate(`add-on`)}
+            >
+              Additional Item
+            </Button>
+          ) : null}
 
           <Button type="primary" onClick={() => navigate(`encode`)}>
             Encode
@@ -72,6 +89,7 @@ const MonitoringPage = () => {
               { text: "REBID", value: "REBID" },
               { text: "CANCELLED", value: "CANCELLED" },
               { text: "UNPAID", value: "UNPAID" },
+              { text: "PAID", value: "PAID" },
               { text: "SOLD", value: "SOLD" },
               { text: "UNSOLD", value: "UNSOLD" },
             ],
@@ -80,18 +98,10 @@ const MonitoringPage = () => {
               record.auction_status.indexOf(value as string) === 0,
             render: (item, record) => (
               <>
+                <Tag color={`${item === "SOLD" ? "green" : "red"}`}>{item}</Tag>
                 <Tag
-                  className={`${
-                    item === "SOLD" ? "text-green-500" : "text-red-500"
-                  }`}
-                >
-                  {item}
-                </Tag>
-                <Tag
-                  className={`${
-                    record.auction_status === "PAID"
-                      ? "text-green-500"
-                      : "text-red-500"
+                  color={`${
+                    record.auction_status === "PAID" ? "green" : "red"
                   }`}
                 >
                   {record.auction_status}
@@ -102,10 +112,10 @@ const MonitoringPage = () => {
           { title: "BARCODE", dataIndex: "barcode", width: "8%" },
           {
             title: "CONTROL",
-            dataIndex: "control_number",
+            dataIndex: "control",
             sortDirections: ["ascend", "descend"],
             width: "8%",
-            sorter: (a, b) => a.control_number.localeCompare(b.control_number),
+            sorter: (a, b) => a.control.localeCompare(b.control),
           },
           { title: "DESCRIPTION", dataIndex: "description", width: "15%" },
           {
@@ -122,7 +132,14 @@ const MonitoringPage = () => {
             render: (_, row) => row.bidder.bidder_number,
           },
           { title: "QTY", dataIndex: "qty", width: "5%" },
-          { title: "PRICE", dataIndex: "price", width: "5%" },
+          {
+            title: "PRICE",
+            dataIndex: "price",
+            width: "5%",
+            sortDirections: ["ascend", "descend"],
+            sorter: (a, b) => a.price - b.price,
+            render: (price: number) => price.toLocaleString(),
+          },
           {
             title: "Manifest",
             dataIndex: "manifest_number",

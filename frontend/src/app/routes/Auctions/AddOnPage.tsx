@@ -5,7 +5,7 @@ import { usePageLayoutProps } from "@layouts/PageLayout";
 import { useBreadcrumbs } from "app/hooks";
 import { Button, Card, Skeleton, Typography } from "antd";
 import { RHFInput, RHFInputNumber, RHFSelect } from "@components";
-import { useAuction } from "@context/index";
+import { useAuction } from "@context";
 import {
   AUCTIONS_401,
   AUCTIONS_402,
@@ -70,10 +70,10 @@ const AddOnPage = () => {
         }
 
         if (ErrorResponse.error === AUCTIONS_402) {
-          message = `Inventory with barcode ${barcode} already exists!`;
+          message = `Inventory with barcode ${barcode} already exists! Transfer Item instead`;
           methods.setError("barcode", {
             type: "string",
-            message: `Barcode ${barcode} already exist!`,
+            message: `Barcode ${barcode} already exist! Transfer item instead!`,
           });
         }
         if (ErrorResponse.error === AUCTIONS_403) {
@@ -95,7 +95,6 @@ const AddOnPage = () => {
         methods.reset();
         openNotification("Successfully added an item in the auction!");
         resetAuctionItem();
-        navigate(-1);
       }
     }
   }, [
@@ -118,6 +117,16 @@ const AddOnPage = () => {
   const handleSubmitAddOn = methods.handleSubmit(async (data) => {
     const { auction_id: auctionId } = params;
     if (auctionId) {
+      let barcodeLength = data.barcode.split("-").length;
+      let formattedBarcode: any = data.barcode;
+      if (barcodeLength === 3) {
+        const lastDigit = formatNumberPadding(data.barcode.split("-")[2], 3);
+        formattedBarcode = [
+          ...data.barcode.split("-").slice(0, -1),
+          lastDigit,
+        ].join("-");
+      }
+      methods.setValue("barcode", formattedBarcode);
       methods.setValue("control", formatNumberPadding(data.control, 4));
       await addOn(auctionId, methods.getValues());
     }

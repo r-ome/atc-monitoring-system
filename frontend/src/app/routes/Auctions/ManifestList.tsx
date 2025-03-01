@@ -25,10 +25,12 @@ const Monitoring = () => {
                 setSearchValue(currentValue);
                 const filteredData = manifestRecords.filter(
                   (item) =>
-                    item.barcode_number.toUpperCase().includes(currentValue) ||
-                    item.control_number.toUpperCase().includes(currentValue) ||
+                    item.barcode.toUpperCase().includes(currentValue) ||
+                    (item.control &&
+                      item.control.toUpperCase().includes(currentValue)) ||
                     item.bidder_number.toUpperCase().includes(currentValue) ||
-                    item.description.toUpperCase().includes(currentValue)
+                    item.description.toUpperCase().includes(currentValue) ||
+                    item.manifest_number.toUpperCase().includes(currentValue)
                 );
                 setDataSource(filteredData);
               }}
@@ -39,19 +41,20 @@ const Monitoring = () => {
           rowKey={(rowkey) => rowkey.manifest_id}
           dataSource={searchValue ? dataSource : manifestRecords}
           loading={isFetchingManifestRecords}
-          scroll={{ y: 450 }}
+          scroll={{ y: 400 }}
           columns={[
             {
               title: "BARCODE",
-              dataIndex: "barcode_number",
+              dataIndex: "barcode",
             },
             {
               title: "CONTROL",
-              dataIndex: "control_number",
+              dataIndex: "control",
             },
             {
               title: "DESCRIPTION",
               dataIndex: "description",
+              width: "20%",
             },
             {
               title: "BIDDER",
@@ -60,10 +63,19 @@ const Monitoring = () => {
             {
               title: "QTY",
               dataIndex: "qty",
+              width: "8%",
             },
             {
               title: "PRICE",
               dataIndex: "price",
+              render: (val) => {
+                let price = val;
+                if (typeof price === "string")
+                  price = parseInt(price, 10).toLocaleString();
+                if (typeof price === "number") price = price.toLocaleString();
+
+                return price;
+              },
             },
             {
               title: "MANIFEST",
@@ -72,6 +84,7 @@ const Monitoring = () => {
             {
               title: "Error Message",
               dataIndex: "error_messages",
+              width: "20%",
               filters: [{ text: "Has Errors", value: "" }],
               onFilter: (value, record: any) =>
                 record.error_messages && record.error_messages.includes(value),

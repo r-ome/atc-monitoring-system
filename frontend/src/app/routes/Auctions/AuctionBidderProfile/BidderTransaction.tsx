@@ -8,7 +8,8 @@ import { EyeOutlined } from "@ant-design/icons";
 import { formatNumberToCurrency } from "@lib/utils";
 import { useBreadcrumbs } from "app/hooks";
 import { PDFDownloadLink } from "@react-pdf/renderer";
-import ReceiptDocument from "./OfficialReceiptPage/ReceiptDocument";
+import BidderInvoiceDocument from "./OfficialReceiptPage/BidderInvoiceDocument";
+import BidderRefundDocument from "./RefundReceiptPage/RefundDocument";
 import RefundRegistrationModal from "./RefundRegistrationModal";
 import SettlePaymentModal from "./SettlePaymentModal";
 
@@ -74,6 +75,16 @@ const BidderTransaction = () => {
 
   if (!paymentDetails || !bidderTransactions.length) return null;
 
+  // const Document =
+  //   paymentDetails.purpose === "REFUNDED" ? (
+  //     <BidderRefundDocument
+  //       bidder={paymentDetails}
+  //       items={paymentDetails.auction_inventories}
+  //     />
+  //   ) : (
+
+  //   );
+
   return (
     <div className="w-full">
       <div className="flex h-full gap-2">
@@ -89,15 +100,15 @@ const BidderTransaction = () => {
                   (isPaymentSettlted &&
                     paymentDetails.purpose !== "REGISTRATION") ? (
                     <div className="flex gap-4">
-                      <div>
+                      {paymentDetails.purpose !== "REFUNDED" ? (
                         <PDFDownloadLink
+                          fileName="Test"
                           document={
-                            <ReceiptDocument
+                            <BidderRefundDocument
                               bidder={paymentDetails}
                               items={paymentDetails.auction_inventories}
                             />
                           }
-                          fileName="Test"
                         >
                           {({ loading }) => (
                             <Button type="primary" loading={loading}>
@@ -105,7 +116,24 @@ const BidderTransaction = () => {
                             </Button>
                           )}
                         </PDFDownloadLink>
-                      </div>
+                      ) : (
+                        <PDFDownloadLink
+                          fileName="Test"
+                          document={
+                            <BidderInvoiceDocument
+                              bidder={paymentDetails}
+                              items={paymentDetails.auction_inventories}
+                            />
+                          }
+                        >
+                          {({ loading }) => (
+                            <Button type="primary" loading={loading}>
+                              Print Receipt
+                            </Button>
+                          )}
+                        </PDFDownloadLink>
+                      )}
+
                       <div>
                         <Button
                           variant="outlined"
@@ -113,6 +141,10 @@ const BidderTransaction = () => {
                           onClick={() =>
                             navigate("/auctions/receipt", {
                               state: {
+                                action:
+                                  paymentDetails.purpose === "REFUNDED"
+                                    ? "refund"
+                                    : "invoice",
                                 bidder: paymentDetails,
                                 items: paymentDetails.auction_inventories,
                               },
@@ -172,9 +204,9 @@ const BidderTransaction = () => {
                   key: "3",
                   label: "Payment Date",
                   span: 3,
-                  children: moment(new Date(paymentDetails.created_at)).format(
-                    "MMMM DD, YYYY HH:mm:ssA"
-                  ),
+                  children: moment(
+                    new Date(paymentDetails.payment_date)
+                  ).format("MMMM DD, YYYY HH:mm:ssA"),
                 },
               ]}
             ></Descriptions>

@@ -43,6 +43,7 @@ const AuctionPayments = () => {
         dataSource={dataSource}
         rowKey={(record) => record.payment_id}
         loading={isLoading}
+        scroll={{ y: 400 }}
         columns={[
           {
             title: "Payment Date",

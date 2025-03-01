@@ -2,6 +2,7 @@ import { createContext, useContext, useCallback, useReducer } from "react";
 import axios, { isAxiosError } from "axios";
 import {
   Inventory,
+  InventoryProfile,
   AddInventoryResponse,
   APIError,
   CreateInventoryPayload,
@@ -10,18 +11,16 @@ import * as InventoryActions from "./actions";
 
 interface InventoryState {
   inventory: AddInventoryResponse | null;
+  inventoryProfile: InventoryProfile | null;
   inventoriesByContainer: Inventory[];
   isLoading: boolean;
   error: APIError | null;
 }
 
 interface InventoryContextType extends InventoryState {
-  fetchInventoriesByContainer: (
-    supplierId: number | string,
-    containerId: number | string
-  ) => Promise<void>;
+  fetchInventoriesByContainer: (containerId: number | string) => Promise<void>;
+  fetchInventory: (inventoryId: number | string) => Promise<void>;
   createInventory: (
-    supplierId: number | string,
     containerId: number | string,
     body: CreateInventoryPayload
   ) => Promise<void>;
@@ -30,6 +29,9 @@ interface InventoryContextType extends InventoryState {
 
 export type InventoryAction =
   | { type: "RESET_INVENTORY" }
+  | { type: "FETCH_INVENTORY" }
+  | { type: "FETCH_INVENTORY_SUCCESS"; payload: { data: InventoryProfile } }
+  | { type: "FETCH_INVENTORY_FAILED"; payload: APIError }
   | { type: "ADD_INVENTORY_TO_CONTAINER" }
   | {
       type: "ADD_INVENTORY_TO_CONTAINER_SUCCESS";
@@ -46,6 +48,7 @@ export type InventoryAction =
 const initialState = {
   inventory: null,
   inventoriesByContainer: [],
+  inventoryProfile: null,
   isLoading: false,
   error: null,
 };
@@ -54,11 +57,13 @@ const InventoryContext = createContext<InventoryContextType>({
   ...initialState,
   fetchInventoriesByContainer: async () => {},
   createInventory: async () => {},
+  fetchInventory: async () => {},
   resetInventory: () => {},
 });
 
 const inventoryReducer = (state: InventoryState, action: InventoryAction) => {
   switch (action.type) {
+    case InventoryActions.FETCH_INVENTORY:
     case InventoryActions.FETCH_INVENTORIES_BY_CONTAINER:
     case InventoryActions.ADD_INVENTORY_TO_CONTAINER:
       return { ...state, isLoading: true };
@@ -76,6 +81,15 @@ const inventoryReducer = (state: InventoryState, action: InventoryAction) => {
         inventory: action.payload.data,
         error: null,
       };
+    case InventoryActions.FETCH_INVENTORY_SUCCESS:
+      return {
+        ...state,
+        isLoading: false,
+        inventoryProfile: action.payload.data,
+        error: null,
+      };
+
+    case InventoryActions.FETCH_INVENTORY_FAILED:
     case InventoryActions.FETCH_INVENTORIES_BY_CONTAINER_FAILED:
     case InventoryActions.ADD_INVENTORY_TO_CONTAINER_FAILED:
       return { ...state, isLoading: false, error: action.payload };
@@ -92,11 +106,11 @@ export const InventoryProvider = ({
   const [state, dispatch] = useReducer(inventoryReducer, initialState);
 
   const fetchInventoriesByContainer = useCallback(
-    async (supplierId: number | string, containerId: number | string) => {
+    async (containerId: number | string) => {
       dispatch({ type: InventoryActions.FETCH_INVENTORIES_BY_CONTAINER });
       try {
         const response = await axios.get(
-          `/suppliers/${supplierId}/containers/${containerId}/inventories`
+          `/containers/${containerId}/inventories`
         );
         dispatch({
           type: InventoryActions.FETCH_INVENTORIES_BY_CONTAINER_SUCCESS,
@@ -115,18 +129,17 @@ export const InventoryProvider = ({
   );
 
   const createInventory = async (
-    supplierId: number | string,
     containerId: number | string,
     body: CreateInventoryPayload
   ) => {
     dispatch({ type: InventoryActions.ADD_INVENTORY_TO_CONTAINER });
     try {
       const response = await axios.post(
-        `/suppliers/${supplierId}/containers/${containerId}/inventories`,
+        `/containers/${containerId}/inventories`,
         {
           barcode: body.barcode,
           description: body.description.toUpperCase(),
-          control_number: body.control_number,
+          control: body.control,
           url: body.url,
         }
       );
@@ -144,6 +157,26 @@ export const InventoryProvider = ({
     }
   };
 
+  const fetchInventory = useCallback(async (inventoryId: number | string) => {
+    dispatch({ type: InventoryActions.FETCH_INVENTORY });
+    try {
+      const response = await axios.get(
+        `/containers/inventories/${inventoryId}`
+      );
+      dispatch({
+        type: InventoryActions.FETCH_INVENTORY_SUCCESS,
+        payload: response.data,
+      });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.data) {
+        dispatch({
+          type: InventoryActions.FETCH_INVENTORY_FAILED,
+          payload: error.response?.data,
+        });
+      }
+    }
+  }, []);
+
   const resetInventory = useCallback(
     () => dispatch({ type: InventoryActions.RESET_INVENTORY }),
     []
@@ -153,6 +186,7 @@ export const InventoryProvider = ({
     <InventoryContext.Provider
       value={{
         ...state,
+        fetchInventory,
         fetchInventoriesByContainer,
         createInventory,
         resetInventory,

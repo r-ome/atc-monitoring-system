@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { usePayments } from "@context/index";
+import { usePayments } from "@context";
 import { Alert, Modal, Typography } from "antd";
 import { PaymentDetails } from "@types";
 import { usePageLayoutProps } from "@layouts";

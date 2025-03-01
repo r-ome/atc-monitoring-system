@@ -36,5 +36,11 @@ export const BIDDERS_503 = "BIDDERS_503";
 
 export const BIDDER_REQUIREMENT_401 = "BIDDER_REQUIREMENT_401";
 
+export const USERS_401 = "USERS_401";
+export const USERS_402 = "USERS_402";
+export const USERS_403 = "USERS_403";
+export const USERS_501 = "USERS_501";
+export const USERS_503 = "USERS_503";
+
 export const SERVER_ERROR_MESSAGE =
   "There might be problems in the server. Please contact your admin.";

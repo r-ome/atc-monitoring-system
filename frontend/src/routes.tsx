@@ -5,27 +5,38 @@ import {
   SupplierList,
   SupplierProfile,
   CreateSupplier,
-  ContainerProfile,
   CreateInventory,
   CreateContainer,
   BranchList,
+  ContainerProfile,
   BranchProfile,
   CreateBranch,
+  SupplierContainerProfile,
   CreateBidder,
   BidderList,
   BidderProfile,
   AuctionList,
   AuctionProfile,
   EncodePage,
+  InventoryProfilePage,
   AuctionBidderProfile,
   BidderTransaction,
   AuctionItemProfile,
-  OfficialReceiptPage,
+  ReceiptViewerPage,
+  ContainerList,
+  UsersList,
+  CreateUser,
 } from "./app/routes";
+import ProtectedRoutes from "app/routes/ProtectedRoutes";
 import { PageLayout } from "./layouts";
 import { AddOnPage } from "app/routes/Auctions";
+import { LoginPage } from "app/routes/Auth";
 
 const routes: RouteObject[] = [
+  {
+    path: "/login",
+    element: <LoginPage />,
+  },
   {
     path: "/",
     element: <Layout />,
@@ -34,10 +45,12 @@ const routes: RouteObject[] = [
       {
         path: "suppliers",
         element: (
-          <PageLayout
-            title="Suppliers"
-            breadcrumbs={[{ title: "Suppliers List", path: "suppliers" }]}
-          />
+          <ProtectedRoutes allowedRoles={["SUPER_ADMIN", "OWNER", "ADMIN"]}>
+            <PageLayout
+              title="Suppliers"
+              breadcrumbs={[{ title: "Suppliers List", path: "suppliers" }]}
+            />
+          </ProtectedRoutes>
         ),
         children: [
           {
@@ -55,7 +68,7 @@ const routes: RouteObject[] = [
           },
           {
             path: ":supplier_id/containers/:container_id",
-            element: <ContainerProfile />,
+            element: <SupplierContainerProfile />,
           },
           {
             path: ":supplier_id/containers/create",
@@ -74,10 +87,12 @@ const routes: RouteObject[] = [
       {
         path: "branches",
         element: (
-          <PageLayout
-            title="Branches"
-            breadcrumbs={[{ title: "Branches List", path: "branches" }]}
-          />
+          <ProtectedRoutes allowedRoles={["SUPER_ADMIN", "OWNER", "ADMIN"]}>
+            <PageLayout
+              title="Branches"
+              breadcrumbs={[{ title: "Branches List", path: "branches" }]}
+            />
+          </ProtectedRoutes>
         ),
         children: [
           {
@@ -97,10 +112,14 @@ const routes: RouteObject[] = [
       {
         path: "bidders",
         element: (
-          <PageLayout
-            title="Bidders"
-            breadcrumbs={[{ title: "Bidders List", path: "bidders" }]}
-          />
+          <ProtectedRoutes
+            allowedRoles={["SUPER_ADMIN", "OWNER", "ADMIN", "CASHIER"]}
+          >
+            <PageLayout
+              title="Bidders"
+              breadcrumbs={[{ title: "Bidders List", path: "bidders" }]}
+            />
+          </ProtectedRoutes>
         ),
         children: [
           {
@@ -118,12 +137,45 @@ const routes: RouteObject[] = [
         ],
       },
       {
-        path: "/auctions",
+        path: "/containers",
         element: (
           <PageLayout
-            title="Auctions"
-            breadcrumbs={[{ title: "Auctions List", path: "auctions" }]}
+            title="Containers"
+            breadcrumbs={[{ title: "Container List", path: "containers" }]}
           />
+        ),
+        children: [
+          {
+            index: true,
+            element: <ContainerList />,
+          },
+          {
+            path: ":container_id",
+            element: <ContainerProfile />,
+          },
+          {
+            path: ":container_id/inventory/create",
+            element: <CreateInventory />,
+          },
+        ],
+      },
+      {
+        path: "/auctions",
+        element: (
+          <ProtectedRoutes
+            allowedRoles={[
+              "SUPER_ADMIN",
+              "OWNER",
+              "ADMIN",
+              "CASHIER",
+              "ENCODER",
+            ]}
+          >
+            <PageLayout
+              title="Auctions"
+              breadcrumbs={[{ title: "Auctions List", path: "auctions" }]}
+            />
+          </ProtectedRoutes>
         ),
         children: [
           {
@@ -156,7 +208,40 @@ const routes: RouteObject[] = [
           },
           {
             path: "receipt",
-            element: <OfficialReceiptPage />,
+            element: <ReceiptViewerPage />,
+          },
+        ],
+      },
+      {
+        path: "/inventories",
+        element: (
+          <PageLayout
+            title="Inventory"
+            breadcrumbs={[{ title: "Inventory Profile" }]}
+          />
+        ),
+        children: [
+          {
+            path: ":inventory_id",
+            element: <InventoryProfilePage />,
+          },
+        ],
+      },
+      {
+        path: "/users",
+        element: (
+          <ProtectedRoutes allowedRoles={["SUPER_ADMIN", "OWNER"]}>
+            <PageLayout title="Users" breadcrumbs={[{ title: "Users List" }]} />
+          </ProtectedRoutes>
+        ),
+        children: [
+          {
+            index: true,
+            element: <UsersList />,
+          },
+          {
+            path: "create",
+            element: <CreateUser />,
           },
         ],
       },

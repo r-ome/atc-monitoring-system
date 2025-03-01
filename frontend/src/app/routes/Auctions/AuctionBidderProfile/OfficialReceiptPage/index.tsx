@@ -8,7 +8,7 @@ import {
   AuctionInventory,
 } from "@types";
 import { Skeleton } from "antd";
-import ReceiptDocument from "./ReceiptDocument";
+import BidderInvoiceDocument from "./BidderInvoiceDocument";
 import { useBreadcrumbs } from "app/hooks";
 
 interface ReceiptViewerProps {
@@ -45,7 +45,7 @@ const ReceiptViewer: React.FC<ReceiptViewerProps> = () => {
 
   return (
     <PDFViewer showToolbar={false} className="w-full h-screen">
-      <ReceiptDocument items={items} bidder={bidder} />
+      <BidderInvoiceDocument bidder={bidder} items={items} />
     </PDFViewer>
   );
 };

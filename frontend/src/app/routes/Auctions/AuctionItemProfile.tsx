@@ -1,37 +1,40 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { useForm } from "react-hook-form";
 import { usePageLayoutProps } from "@layouts";
 import { useBreadcrumbs } from "app/hooks";
 import { useAuction } from "@context";
 import { formatNumberToCurrency } from "@lib/utils";
-import { RHFInputNumber, RHFSelect, RHFTextArea } from "@components";
-import { AuctionItemDetails, ReassignPayload, RefundPayload } from "@types";
-import { ExclamationCircleTwoTone, WarningTwoTone } from "@ant-design/icons";
+import { AuctionItemDetails } from "@types";
 import { AUCTIONS_401, AUCTIONS_403 } from "../errors";
 import {
   Button,
   Card,
   Descriptions,
-  Modal,
   Skeleton,
+  Tag,
   Timeline,
   Typography,
 } from "antd";
+import { BaseButtonProps } from "antd/es/button/button";
+import AuctionActionModal from "./AuctionActionModal";
 
-type actions = "reassign" | "cancel" | "less" | "refund" | "discrepancy";
+export type actions =
+  | "reassign"
+  | "cancel"
+  | "less"
+  | "refund"
+  | "discrepancy"
+  | "void";
 
 const AuctionItemProfile = () => {
   const params = useParams();
-  const methods = useForm();
   const [modalState, setModalState] = useState<{
     open: boolean;
-    action?: actions;
-    title?: string;
-  }>({ open: false });
+    action: actions;
+    title: string;
+  }>({ open: false, action: "cancel", title: "" });
   const { setBreadcrumb } = useBreadcrumbs();
   const { openNotification } = usePageLayoutProps();
-
   const {
     auctionItemDetails,
     registeredBidders,
@@ -40,9 +43,6 @@ const AuctionItemProfile = () => {
     isLoading,
     actionItemResponse,
     error: ErrorResponse,
-    cancelItem,
-    refundItem,
-    reassignItem,
     resetActionItem,
   } = useAuction();
 
@@ -65,6 +65,7 @@ const AuctionItemProfile = () => {
   useEffect(() => {
     const { auction_id: auctionId, auction_inventory_id: auctionInventoryId } =
       params;
+
     if (auctionId && auctionInventoryId) {
       if (actionItemResponse) {
         const fetchInitialData = async () => {
@@ -80,7 +81,7 @@ const AuctionItemProfile = () => {
         fetchInitialData();
         resetActionItem();
         openNotification(message);
-        setModalState({ open: false });
+        setModalState({ open: false, action: "cancel", title: "" });
       }
     }
   }, [
@@ -109,82 +110,69 @@ const AuctionItemProfile = () => {
     }
   }, [ErrorResponse, isLoading, openNotification]);
 
-  const handleSubmit = methods.handleSubmit(async (data) => {
-    const { auction_id: auctionId } = params;
-    if (auctionItemDetails && auctionId) {
-      const { auction_inventory_id: auctionInventoryId } = auctionItemDetails;
-      if (modalState.action === "cancel") {
-        await cancelItem(auctionId, auctionInventoryId, data.reason);
-      }
-
-      if (modalState.action === "refund" || modalState.action === "less") {
-        await refundItem(auctionId, auctionInventoryId, {
-          new_price: data.new_price,
-        } as RefundPayload);
-      }
-
-      if (modalState.action === "reassign") {
-        await reassignItem(auctionId, auctionInventoryId, {
-          new_bidder_number: data.new_bidder_number,
-        } as ReassignPayload);
-      }
-    }
-  });
-
   const renderActionButtons = (itemDetails: AuctionItemDetails) => {
-    const { auction_status: auctionStatus } = itemDetails;
+    const { inventory, auction_inventory: auctionInventory } = itemDetails;
+    const inAuction = auctionInventory?.auction_inventory_id;
 
     const handleModalState = (action: actions, title: string) => {
       setModalState({ open: true, action, title });
     };
 
+    const actionsState = [
+      {
+        action: "void",
+        label: "Void Item",
+        color: "red",
+        show: true,
+      },
+      {
+        action: "cancel",
+        label: "Cancel Item",
+        color: "red",
+        show: inAuction && auctionInventory.status === "CANCELLED",
+      },
+      {
+        action: "reassign",
+        label: "Reassign Item",
+        show:
+          inventory.status === "VOID" ||
+          (inAuction && auctionInventory.status !== "CANCELLED"),
+        color: "blue",
+      },
+      {
+        action: "refund",
+        label: "Refund Item",
+        show: inAuction && auctionInventory.status !== "PAID",
+        color: "green",
+      },
+      {
+        action: "less",
+        label: "Less Item",
+        show:
+          inAuction &&
+          auctionInventory.status &&
+          ["PAID", "CANCELLED"].includes(auctionInventory.status),
+        color: "green",
+      },
+    ];
+
     return (
       <div className="flex gap-4">
-        <Button
-          color="red"
-          variant="solid"
-          onClick={
-            () => console.log("VOID ITEM")
-            // handleVoidItem(auctionInventory.auction_inventory_id)
-          }
-        >
-          Void Item
-        </Button>
-        {auctionStatus === "CANCELLED" ? (
-          <Button
-            color="blue"
-            variant="outlined"
-            onClick={() => handleModalState("reassign", "Reassign Item")}
-          >
-            Reassign Item
-          </Button>
-        ) : (
-          <>
+        {actionsState.map((item, i) => {
+          return (
             <Button
-              danger
-              onClick={() => handleModalState("cancel", "Cancel Item")}
+              key={i}
+              variant="outlined"
+              className={`${item.show ? "" : "hidden"}`}
+              color={item.color as BaseButtonProps["color"]}
+              onClick={() =>
+                handleModalState(item.action as actions, item.label)
+              }
             >
-              Cancel Item
+              {item.label}
             </Button>
-            {auctionStatus === "PAID" ? (
-              <Button
-                color="green"
-                variant="outlined"
-                onClick={() => handleModalState("refund", "Refund Item")}
-              >
-                Refund Item
-              </Button>
-            ) : (
-              <Button
-                color="green"
-                variant="outlined"
-                onClick={() => handleModalState("less", "Less Item")}
-              >
-                Less Item
-              </Button>
-            )}
-          </>
-        )}
+          );
+        })}
       </div>
     );
   };
@@ -197,7 +185,7 @@ const AuctionItemProfile = () => {
         size="default"
         bordered
         layout="horizontal"
-        title={auctionItemDetails.barcode_number}
+        title={auctionItemDetails.inventory.barcode}
         column={4}
         extra={renderActionButtons(auctionItemDetails)}
         items={[
@@ -205,36 +193,39 @@ const AuctionItemProfile = () => {
             key: "1",
             label: "Barcode",
             span: 2,
-            children: auctionItemDetails.barcode_number,
+            children: auctionItemDetails.inventory.barcode,
           },
           {
             key: "2",
             label: "Control Number",
             span: 2,
-            children: auctionItemDetails.control_number,
+            children: auctionItemDetails.inventory.control,
           },
           {
             key: "3",
             label: "Description",
             span: 2,
-            children: auctionItemDetails.description,
+            children: auctionItemDetails.inventory.description,
           },
           {
             key: "4",
             label: "QTY",
             span: 2,
-            children: auctionItemDetails.qty,
+            children: auctionItemDetails?.auction_inventory?.qty || "N/A",
           },
           {
             key: "5",
             label: "Price",
             span: 2,
-            children: formatNumberToCurrency(auctionItemDetails.price),
+            children: formatNumberToCurrency(
+              auctionItemDetails?.auction_inventory?.price || 0
+            ),
           },
           {
             key: "6",
             label: "Bidder",
-            children: auctionItemDetails.bidder.bidder_number,
+            children:
+              auctionItemDetails?.auction_inventory?.bidder.bidder_number,
           },
           {
             key: "7",
@@ -243,12 +234,12 @@ const AuctionItemProfile = () => {
             children: (
               <span
                 className={`${
-                  auctionItemDetails.auction_status === "PAID"
+                  auctionItemDetails?.auction_inventory?.status === "PAID"
                     ? "text-green-500"
                     : "text-red-500"
                 }`}
               >
-                {auctionItemDetails.auction_status}
+                {auctionItemDetails?.auction_inventory?.status}
               </span>
             ),
           },
@@ -256,7 +247,7 @@ const AuctionItemProfile = () => {
       ></Descriptions>
 
       {auctionItemDetails.histories.length ? (
-        <div className="w-4/6 py-4 flex flex-col">
+        <div className="w-full py-4 flex flex-col">
           <div className="flex justify-center my-4">
             <Typography.Title level={3}>Item History</Typography.Title>
           </div>
@@ -268,7 +259,15 @@ const AuctionItemProfile = () => {
                 color: history.status === "CANCELLED" ? "red" : "green",
                 children: (
                   <div>
-                    <Typography.Text strong>{history.status}</Typography.Text>{" "}
+                    <Tag
+                      color={`${
+                        ["UNPAID", "CANCELLED"].includes(history.status)
+                          ? "red"
+                          : "green"
+                      }`}
+                    >
+                      {history.status}
+                    </Tag>{" "}
                     {history.remarks ? `- ${history.remarks}` : null}
                   </div>
                 ),
@@ -278,114 +277,17 @@ const AuctionItemProfile = () => {
         </div>
       ) : null}
 
-      <Modal
-        open={modalState.open}
-        onOk={handleSubmit}
-        okText="Submit"
-        confirmLoading={isLoading}
-        onCancel={() => setModalState({ open: false })}
-      >
-        <Typography.Title className="flex gap-2" level={3}>
-          {modalState.action === "cancel" ? (
-            <WarningTwoTone twoToneColor="#ef4444" className="text-3xl" />
-          ) : (
-            <ExclamationCircleTwoTone />
-          )}
-          {modalState.title}
-        </Typography.Title>
-        {modalState.action === "reassign" ? (
-          <form>
-            <div className="flex flex-col gap-4">
-              <div>
-                <Typography.Text className="text-lg">
-                  You are about to assign this item to another bidder.
-                </Typography.Text>
-              </div>
-              <div>
-                <Typography.Text>Please select a bidder:</Typography.Text>
-                <RHFSelect
-                  showSearch
-                  control={methods.control}
-                  name="new_bidder_number"
-                  placeholder="Select a Bidder"
-                  filterOption={(input: string, option: any) =>
-                    (option?.label ?? "")
-                      .toLowerCase()
-                      .includes(input.toLowerCase())
-                  }
-                  options={registeredBidders?.bidders
-                    .filter(
-                      (item) =>
-                        item.bidder_id !== auctionItemDetails.bidder.bidder_id
-                    )
-                    .map((bidder) => ({
-                      value: bidder?.bidder_number.toString(),
-                      label: `${bidder.bidder_number} - ${bidder.full_name}`,
-                    }))}
-                  rules={{ required: "This field is required!" }}
-                />
-              </div>
-            </div>
-          </form>
-        ) : null}
-
-        {modalState.action === "cancel" ? (
-          <form>
-            <div className="flex flex-col gap-4">
-              <div>
-                <Typography.Title level={4} className="flex justify-center">
-                  You are about to cancel this item. Are you sure?
-                </Typography.Title>
-              </div>
-              <div>
-                <Typography.Text>Please add a reason:</Typography.Text>
-                <RHFTextArea
-                  rows={4}
-                  control={methods.control}
-                  name="reason"
-                  placeholder="Please add a reason"
-                  rules={{ required: "This field is required!" }}
-                />
-              </div>
-            </div>
-          </form>
-        ) : null}
-
-        {modalState.action === "refund" || modalState.action === "less" ? (
-          <form>
-            <div className="flex flex-col gap-4">
-              <div>
-                <Descriptions
-                  bordered
-                  items={[
-                    {
-                      label: "Bidder",
-                      children: `${auctionItemDetails.bidder.bidder_number}`,
-                    },
-                    {
-                      label: "Service Charge",
-                      children: `${auctionItemDetails.service_charge}%`,
-                    },
-                  ]}
-                ></Descriptions>
-              </div>
-              <div>
-                <Typography.Text className="text-lg">
-                  Please input the <span className="font-bold">NEW</span> price
-                  of the item:
-                </Typography.Text>
-                <RHFInputNumber
-                  control={methods.control}
-                  addonBefore="₱"
-                  name="new_price"
-                  placeholder="New Price"
-                  rules={{ required: "This field is required!" }}
-                />
-              </div>
-            </div>
-          </form>
-        ) : null}
-      </Modal>
+      {modalState.open ? (
+        <AuctionActionModal
+          inventory={auctionItemDetails}
+          open={modalState.open}
+          action={modalState.action}
+          title={modalState.title}
+          onCancel={() =>
+            setModalState({ open: false, action: "cancel", title: "" })
+          }
+        />
+      ) : null}
     </Card>
   );
 };

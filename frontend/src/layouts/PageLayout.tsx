@@ -1,6 +1,7 @@
 import { useCallback, useState, useMemo, useEffect } from "react";
 import { Outlet, useOutletContext, Link } from "react-router-dom";
 import { Breadcrumb, Card, notification, Typography } from "antd";
+import { useAuth } from "@context";
 import moment from "moment";
 
 export type BreadcrumbsType = {
@@ -33,6 +34,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({ title, breadcrumbs }) => {
   const [pageBreadcrumbs, setPageBreadCrumbs] =
     useState<BreadcrumbsType[]>(memoizedBreadcrumbs);
   const [currentTime, setCurrentTime] = useState(moment().format("HH:mm:ss a"));
+  const { user } = useAuth();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -109,6 +111,9 @@ const PageLayout: React.FC<PageLayoutProps> = ({ title, breadcrumbs }) => {
           <div className="flex flex-col items-end justify-center text-3xl">
             <div>{moment().format("dddd, MMMM DD, YYYY").toLocaleString()}</div>
             <div>{currentTime}</div>
+            <div className="text-sm font-bold">
+              {user && user.name} | {user && user.role}
+            </div>
           </div>
         </div>
       </Card>

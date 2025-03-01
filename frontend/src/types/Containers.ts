@@ -2,10 +2,18 @@ export type BaseContainer = {
   container_id: number;
   barcode: string;
   num_of_items: number;
+  auction_or_sell: "AUCTION" | "SELL";
+  supplier: {
+    supplier_id: number;
+    name: string;
+    supplier_code: string;
+  };
   branch: {
     branch_id: number;
     name: string;
   };
+  created_at: string;
+  updated_at: string;
 };
 
 export type Container = BaseContainer & {
@@ -14,7 +22,8 @@ export type Container = BaseContainer & {
     code: string;
     name: string;
   };
-  sold_items: string;
+  sold_items: number;
+  unsold_items: number;
   container_num: number;
   bill_of_lading_number: string;
   total_sold_item_price: string;

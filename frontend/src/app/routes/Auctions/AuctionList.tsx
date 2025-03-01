@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BaseAuction } from "@types";
-import { useAuction } from "@context";
+import { useAuction, useAuth } from "@context";
 import { Button, Popconfirm, Space, Table, Tooltip } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { usePageLayoutProps } from "@layouts/PageLayout";
@@ -22,6 +22,7 @@ const AuctionList = () => {
   } = useAuction();
   const { openNotification } = usePageLayoutProps();
   const { setBreadcrumb } = useBreadcrumbs();
+  const { user } = useAuth();
   // const auctionLength = usePreviousValue(auctions.length);
 
   useEffect(() => {
@@ -82,13 +83,15 @@ const AuctionList = () => {
             okText="Yes"
             onCancel={() => setPopconfirmState(false)}
           >
-            <Button
-              size="large"
-              type="primary"
-              onClick={() => setPopconfirmState(true)}
-            >
-              Create Auction
-            </Button>
+            {user && !["ENCODER"].includes(user.role) ? (
+              <Button
+                size="large"
+                type="primary"
+                onClick={() => setPopconfirmState(true)}
+              >
+                Create Auction
+              </Button>
+            ) : null}
           </Popconfirm>
         </div>
 

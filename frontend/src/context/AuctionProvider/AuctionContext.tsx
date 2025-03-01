@@ -47,7 +47,8 @@ interface AuctionStateContextType extends AuctionState {
     id: number | string,
     body: RegisterBidderPayload
   ) => Promise<void>;
-  cancelItem: (
+  cancelOrVoidItem: (
+    action: "cancel" | "void",
     auctionId: number | string,
     inventoryId: number | string,
     reason: string | null
@@ -167,7 +168,7 @@ const AuctionContext = createContext<AuctionStateContextType>({
   registerBidderAtAuction: async () => {},
   fetchAuctionDetails: async () => {},
   fetchAuctionItemDetails: async () => {},
-  cancelItem: async () => {},
+  cancelOrVoidItem: async () => {},
   refundItem: async () => {},
   reassignItem: async () => {},
   addOn: async () => {},
@@ -519,7 +520,8 @@ export const AuctionProvider = ({
     }
   }, []);
 
-  const cancelItem = async (
+  const cancelOrVoidItem = async (
+    action: "cancel" | "void",
     auctionId: number | string,
     inventoryId: number | string,
     reason: string | null
@@ -527,8 +529,8 @@ export const AuctionProvider = ({
     dispatch({ type: AuctionActions.CANCEL_ITEM });
     try {
       const response = await axios.post(
-        `/auctions/${auctionId}/cancel-item/${inventoryId}`,
-        { reason }
+        `/auctions/${auctionId}/void-cancel-item/${inventoryId}`,
+        { reason, action: action.toUpperCase() }
       );
       setTimeout(() => {
         dispatch({
@@ -670,7 +672,7 @@ export const AuctionProvider = ({
         uploadManifest,
         registerBidderAtAuction,
         fetchAuctionDetails,
-        cancelItem,
+        cancelOrVoidItem,
         refundItem,
         reassignItem,
         resetRegisteredBidder,

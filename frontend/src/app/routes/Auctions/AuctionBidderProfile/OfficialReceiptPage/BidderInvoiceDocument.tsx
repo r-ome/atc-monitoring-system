@@ -34,7 +34,27 @@ const styles = StyleSheet.create({
     paddingBottom: 50,
   },
 });
-const ReceiptDocument = ({ bidder, items }: any) => {
+
+interface BidderInvoiceDocumentProps {
+  bidder: {
+    receipt_number: string;
+    auction_date: string;
+    full_name: string;
+  };
+  items: {
+    barcode: string;
+    price: number;
+    control: string;
+    description: string;
+    bidder: string;
+    qty: string;
+  }[];
+}
+
+const BidderInvoiceDocument: React.FC<BidderInvoiceDocumentProps> = ({
+  bidder,
+  items,
+}) => {
   const chunkSize = 25;
   const newArr = items.reduce((acc: any, _: any, i: any) => {
     if (i % chunkSize === 0) {
@@ -42,6 +62,7 @@ const ReceiptDocument = ({ bidder, items }: any) => {
     }
     return acc;
   }, []);
+
   const totalItemPrice = items.reduce((acc: any, item: any) => {
     return (acc = acc + item.price);
   }, 0);
@@ -82,4 +103,4 @@ const ReceiptDocument = ({ bidder, items }: any) => {
   );
 };
 
-export default ReceiptDocument;
+export default BidderInvoiceDocument;

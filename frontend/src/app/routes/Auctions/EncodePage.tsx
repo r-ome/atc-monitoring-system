@@ -105,22 +105,33 @@ const EncodePage = () => {
               {SuccessResponse?.message}
             </div>
             <Table
-              rowKey={(rowKey) => `${rowKey.barcode}-${rowKey.control_number}`}
+              rowKey={(rowKey) =>
+                `${rowKey.barcode}-${rowKey.control}-${rowKey.manifest_number}-${rowKey.bidder_number}-${rowKey.description}`
+              }
               dataSource={SuccessResponse?.manifest || []}
               loading={isLoading}
               scroll={{ y: 450 }}
               columns={[
                 { title: "BARCODE", dataIndex: "barcode" },
-                { title: "CONTROL", dataIndex: "control_number" },
+                { title: "CONTROL", dataIndex: "control" },
                 { title: "DESCRIPTION", dataIndex: "description" },
                 { title: "BIDDER", dataIndex: "bidder_number" },
                 { title: "QTY", dataIndex: "qty" },
                 { title: "PRICE", dataIndex: "price" },
                 { title: "MANIFEST", dataIndex: "manifest_number" },
                 {
-                  title: "ERROR",
+                  title: "Error Message",
                   dataIndex: "error_messages",
-                  render: (val) => <span className="text-red-500">{val}</span>,
+                  width: "20%",
+                  filters: [{ text: "Invalid Rows", value: "invalid" }],
+                  onFilter: (value, record) => {
+                    return value === "invalid" && !!record.error_messages;
+                  },
+                  render: (text) => (
+                    <span className={`${text ? "text-red-500" : ""}`}>
+                      {text}
+                    </span>
+                  ),
                 },
               ]}
             />

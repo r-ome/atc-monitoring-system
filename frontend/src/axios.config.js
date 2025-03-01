@@ -8,6 +8,7 @@ const axiosConfig = () => {
       config.headers["Cache-Control"] = "no-cache";
       config.headers["Pragma"] = "no-cache";
       config.headers["Expires"] = "0";
+      config.withCredentials = true;
       return config;
     },
     (error) => Promise.reject(error)

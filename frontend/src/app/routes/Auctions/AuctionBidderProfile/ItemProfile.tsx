@@ -31,7 +31,7 @@ const ItemProfile: React.FC<ItemProfileProps> = ({
         <div className="flex mt-4 gap-4">
           <div className="w-2/6 border rounded p-4">
             <ProfileDetails
-              title={auctionInventory?.barcode_number}
+              title={auctionInventory?.barcode}
               profile={auctionInventory}
               excludedProperties={["inventory_id", "auction_inventory_id"]}
               renamedProperties={{ qty: "QTY", auction_status: "Status" }}

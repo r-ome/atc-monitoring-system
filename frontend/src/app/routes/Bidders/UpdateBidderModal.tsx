@@ -189,7 +189,6 @@ const UpdateBidderModal: React.FC<UpdateBidderModalProps> = ({
               disabled={isLoading}
               controls={false}
               placeholder="Contact Number"
-              rules={{ required: "Contact Number is required!" }}
             />
           </div>
         </div>

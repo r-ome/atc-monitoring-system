@@ -40,10 +40,10 @@ const CreateInventory = () => {
   }, [setBreadcrumb]);
 
   useEffect(() => {
-    const { supplier_id: supplierId, container_id: containerId } = params;
-    if (supplierId && containerId) {
+    const { container_id: containerId } = params;
+    if (containerId) {
       const fetchInitialData = async () => {
-        await fetchContainer(supplierId, containerId);
+        await fetchContainer(containerId);
       };
       fetchInitialData();
     }
@@ -58,14 +58,14 @@ const CreateInventory = () => {
   }, [isFetchingContainer, ContainerErrorResponse, openNotification]);
 
   const handleSubmitCreateInventory = methods.handleSubmit(async (data) => {
-    const { supplier_id: supplierId, container_id: containerId } = params;
-    if (supplierId && containerId && container) {
+    const { container_id: containerId } = params;
+    if (containerId && container) {
       data.barcode = `${container.barcode}-${formatNumberPadding(
         data.barcode,
         3
       )}`;
-      data.control_number = formatNumberPadding(data.control_number, 4);
-      await createInventory(supplierId, containerId, data);
+      data.control = formatNumberPadding(data.control, 4);
+      await createInventory(containerId, data);
     }
   });
 
@@ -106,7 +106,6 @@ const CreateInventory = () => {
     container,
     isLoading,
     openNotification,
-    navigate,
     resetInventory,
   ]);
 
@@ -162,7 +161,7 @@ const CreateInventory = () => {
             <Typography.Title level={5}>Control Number:</Typography.Title>
             <RHFInputNumber
               control={methods.control}
-              name="control_number"
+              name="control"
               disabled={isLoading}
               placeholder="Control Number"
               controls={false}

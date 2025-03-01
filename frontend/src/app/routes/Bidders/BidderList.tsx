@@ -117,6 +117,7 @@ const BidderList = () => {
           {
             title: "Status",
             dataIndex: "status",
+            width: "15%",
             filters: [
               { text: "BANNED", value: "BANNED" },
               { text: "ACTIVE", value: "ACTIVE" },
@@ -130,22 +131,27 @@ const BidderList = () => {
                 return record.status.indexOf(value as string) === 0;
               }
             },
-            render: (item, record) => (
-              <>
-                <Tag color={item === "BANNED" ? "red" : "green"}>{item}</Tag>
-                {record?.has_balance ? (
-                  <Tooltip
-                    title={`Bidder still has ${formatNumberToCurrency(
-                      record?.has_balance?.balance
-                    )} UNPAID balance from ${moment(
-                      record?.has_balance?.auction_date
-                    ).format("MMMM DD, YYYY")}`}
-                  >
-                    <Tag color="red">UNPAID</Tag>
-                  </Tooltip>
-                ) : null}
-              </>
-            ),
+            render: (item, record) => {
+              let color = "green";
+              if (item === "BANNED") color = "red";
+              if (item === "INACTIVE") color = "orange";
+              return (
+                <>
+                  <Tag color={color}>{item}</Tag>
+                  {record?.has_balance ? (
+                    <Tooltip
+                      title={`Bidder still has ${formatNumberToCurrency(
+                        record?.has_balance?.balance
+                      )} UNPAID balance from ${moment(
+                        record?.has_balance?.auction_date
+                      ).format("MMMM DD, YYYY")}`}
+                    >
+                      <Tag color="red">UNPAID</Tag>
+                    </Tooltip>
+                  ) : null}
+                </>
+              );
+            },
           },
           {
             title: "Registration Fee",
