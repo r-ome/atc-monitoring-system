@@ -71,8 +71,8 @@ router.post("/login", async (req, res) => {
     const token = jwt.sign({ user_id: user.user_id }, process.env.JWT_SECRET);
 
     res.cookie("token", token, {
-      httpOnly: true, // Prevents JavaScript access
-      secure: process.env.NODE_ENV === "production", // Set true in production (HTTPS required)
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "none",
       maxAge: 60 * 60 * 1000,
     });
@@ -94,7 +94,7 @@ router.post("/logout", (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "Strict",
+    sameSite: "none",
   });
   res.status(200).json({ message: "Logged out Successfully" });
 });
